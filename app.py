@@ -303,6 +303,38 @@ LW, PW = W[11], W[10]
 AVG = {k: float(np.mean([w[k] for w in W[3:11]])) for k in ["dp", "km", "cinta", "gim", "load", "kmE", "h", "n"]}
 AVG["ultra"] = 1.7 * AVG["dp"] / AVG["km"] if AVG["km"] > 0 else 0
 
+# ─────────────────────────── Forma / fatiga (cálculo común) ───────────────────────────
+fit = pd.DataFrame()
+if len(all_df):
+    days = pd.date_range(all_df["ts"].min().normalize(), pd.Timestamp(today), freq="D")
+    load = all_df.groupby(all_df["ts"].dt.normalize())["load"].sum().reindex(days, fill_value=0)
+    kc, ka = 1 - math.exp(-1 / 42), 1 - math.exp(-1 / 7)
+    ctl, atl, C, A = 0.0, 0.0, [], []
+    for v in load.values:
+        ctl += (v - ctl) * kc
+        atl += (v - atl) * ka
+        C.append(ctl)
+        A.append(atl)
+    fit = pd.DataFrame({"load": load.values, "ctl": C, "atl": A}, index=days)
+    fit["tsb"] = fit["ctl"] - fit["atl"]
+
+
+def zone_tsb(v):
+    return ("Fresco", GLACIER) if v > 5 else ("Neutral", MUTED) if v >= -10 else ("Carga productiva", GREEN) if v >= -30 else ("Sobrecarga", RED)
+
+
+def zone_acwr(v):
+    if v is None:
+        return ("Sin datos", MUTED)
+    return ("Carga baja", GLACIER) if v < .8 else ("Zona óptima", GREEN) if v <= 1.3 else ("Subida rápida", ORANGE) if v <= 1.5 else ("Riesgo", RED)
+
+
+def zone_mono(v):
+    if v is None:
+        return ("Sin datos", MUTED)
+    return ("Variada", GREEN) if v < 1.5 else ("Moderada", ORANGE) if v <= 2 else ("Repetitiva", RED)
+
+
 tab_temp, tab_cw, tab_lw, tab_fat, tab_sets, tab_long = st.tabs(
     ["Temporada", "Semana en curso", "Última semana", "Esfuerzo y fatiga", "Hoja por Sets", "Entrenamientos largos"])
 
@@ -425,6 +457,58 @@ with tab_cw:
     cards([track_card(*m) for m in TRK[:3]])
     cards([track_card(*m) for m in TRK[3:]])
 
+    # Fatiga en la semana en curso
+    FZ = None
+    if len(fit):
+        fnow = fit.iloc[-1]
+        pre = fit.loc[:pd.Timestamp(cur_mon - dt.timedelta(days=1))]
+        fstart = pre.iloc[-1] if len(pre) else None
+        acwr_now = fnow["atl"] / fnow["ctl"] if fnow["ctl"] > 0 else None
+        wk_load = fit.loc[pd.Timestamp(cur_mon):, "load"]
+        mono_now = float(wk_load.mean() / wk_load.std(ddof=0)) if len(wk_load) >= 3 and wk_load.std(ddof=0) > 0 else None
+        tz_, tc_ = zone_tsb(fnow["tsb"])
+        az_, ac_ = zone_acwr(acwr_now)
+        mz_, mc_ = zone_mono(mono_now)
+        FZ = (tz_, tc_, fnow, acwr_now, az_)
+
+        def since_mon(c, p, invert=False):
+            if p is None:
+                return "&nbsp;"
+            x = c - p
+            if abs(x) < .5:
+                return "= desde el lunes"
+            good = x < 0 if invert else x > 0
+            return f'<span class="{"up" if good else "down"}">{"▲" if x > 0 else "▼"} {fnum(abs(x))}</span> desde el lunes'
+
+        pill_ = lambda t, c: f'<span class="pill" style="--c:{c}">{t}</span>'  # noqa: E731
+        st.markdown('<div class="eyebrow" style="margin-top:8px">Fatiga esta semana</div>', unsafe_allow_html=True)
+        cards([
+            ("Forma (CTL)", GLACIER, fnum(fnow["ctl"]), "", [since_mon(fnow["ctl"], fstart["ctl"] if fstart is not None else None)]),
+            ("Fatiga (ATL)", RED, fnum(fnow["atl"]), "", [since_mon(fnow["atl"], fstart["atl"] if fstart is not None else None, True)]),
+            ("Balance (TSB)", tc_, ("+" if fnow["tsb"] > 0 else "") + fnum(fnow["tsb"]), "",
+             [since_mon(fnow["tsb"], fstart["tsb"] if fstart is not None else None), pill_(tz_, tc_)]),
+            ("Ratio agudo:crónico", ac_, fnum(acwr_now, 2) if acwr_now else "—", "", ["Fatiga ÷ Forma", pill_(az_, ac_)]),
+            ("Monotonía", mc_, fnum(mono_now, 2) if mono_now else "—", "",
+             ["Lunes a hoy" if mono_now else "Hacen falta 3 días", pill_(mz_, mc_)]),
+        ])
+
+        # Evolución de los últimos 14 días con la semana en curso sombreada
+        f14 = fit.iloc[-14:]
+        fz = go.Figure()
+        fz.add_vrect(x0=pd.Timestamp(cur_mon) - pd.Timedelta(hours=12), x1=f14.index[-1] + pd.Timedelta(hours=12),
+                     fillcolor=GOLD, opacity=.06, line_width=0, annotation_text="semana en curso",
+                     annotation_position="top left", annotation_font=dict(color=GOLD, size=11))
+        fz.add_bar(x=f14.index, y=f14["tsb"], name="Balance", marker_color=[zone_tsb(v)[1] for v in f14["tsb"]], opacity=.55,
+                   hovertemplate="%{x|%d/%m}: balance %{y:.0f}<extra></extra>")
+        fz.add_scatter(x=f14.index, y=f14["ctl"], name="Forma", mode="lines+markers", line=dict(color=GLACIER, width=2.4),
+                       hovertemplate="%{x|%d/%m}: %{y:.0f}<extra>Forma</extra>")
+        fz.add_scatter(x=f14.index, y=f14["atl"], name="Fatiga", mode="lines+markers", line=dict(color=RED, width=1.8),
+                       hovertemplate="%{x|%d/%m}: %{y:.0f}<extra>Fatiga</extra>")
+        fz.add_hline(y=0, line_color=MUTED, line_width=1)
+        fz.update_xaxes(tickvals=f14.index, ticktext=[f"{DIAS[d.weekday()]} {d.day}" for d in f14.index])
+        plot_layout(fz, 260).update_layout(legend=dict(orientation="h", y=-0.2, x=0), margin=dict(t=24))
+        st.plotly_chart(fz, width="stretch")
+
     # Rampa de carga y lectura
     base4 = float(np.mean([w["load"] for w in W[7:11]]))
     ramp = PROJ["load"] / base4 if base4 > 0 else None
@@ -441,6 +525,15 @@ with tab_cw:
             msg.append(f"Objetivo de {lab} <b>cumplido</b> ({fnum(CW[k] / GOAL[k] * 100)} %).")
     if ramp is not None:
         msg.append(f"Carga proyectada <b>{fnum(PROJ['load'])}</b> = {fnum(ramp, 2)}× tu media de las 4 últimas semanas ({rz.lower()}).")
+    if FZ is not None:
+        tz_, tc_, fnow, acwr_now, az_ = FZ
+        tip = (" Conviene uno o varios días suaves antes de volver a cargar." if fnow["tsb"] < -30 else
+               " Estás cargando; lo que hace progresar es recuperar después." if fnow["tsb"] < -10 else
+               " Carga equilibrada con tu forma." if fnow["tsb"] <= 5 else
+               " Llegas fresco: buen momento para una sesión exigente o larga.")
+        msg.append(f"Hoy tu balance es <b>{'+' if fnow['tsb'] > 0 else ''}{fnum(fnow['tsb'])}</b> ({tz_.lower()}).{tip}")
+        order = [GREEN, GLACIER, MUTED, ORANGE, RED]
+        rc = max([rc, tc_], key=lambda c: order.index(c) if c in order else 0)
     st.markdown(f'<div class="reading" style="--c:{rc}">{" ".join(msg)}</div>', unsafe_allow_html=True)
 
     c1, c2 = st.columns([3, 2])
@@ -576,35 +669,6 @@ with tab_fat:
     st.subheader("Esfuerzo y fatiga")
     st.markdown('<span class="note">Calculado con la carga de entrenamiento de cada actividad de intervals.icu (todas las disciplinas).</span>', unsafe_allow_html=True)
 
-    fit = pd.DataFrame()
-    if len(all_df):
-        days = pd.date_range(all_df["ts"].min().normalize(), pd.Timestamp(today), freq="D")
-        load = all_df.groupby(all_df["ts"].dt.normalize())["load"].sum().reindex(days, fill_value=0)
-        kc, ka = 1 - math.exp(-1 / 42), 1 - math.exp(-1 / 7)
-        ctl, atl, C, A = 0.0, 0.0, [], []
-        for v in load.values:
-            ctl += (v - ctl) * kc
-            atl += (v - atl) * ka
-            C.append(ctl)
-            A.append(atl)
-        fit = pd.DataFrame({"load": load.values, "ctl": C, "atl": A}, index=days)
-        fit["tsb"] = fit["ctl"] - fit["atl"]
-
-
-    def zone_tsb(v):
-        return ("Fresco", GLACIER) if v > 5 else ("Neutral", MUTED) if v >= -10 else ("Carga productiva", GREEN) if v >= -30 else ("Sobrecarga", RED)
-
-
-    def zone_acwr(v):
-        if v is None:
-            return ("Sin datos", MUTED)
-        return ("Carga baja", GLACIER) if v < .8 else ("Zona óptima", GREEN) if v <= 1.3 else ("Subida rápida", ORANGE) if v <= 1.5 else ("Riesgo", RED)
-
-
-    def zone_mono(v):
-        if v is None:
-            return ("Sin datos", MUTED)
-        return ("Variada", GREEN) if v < 1.5 else ("Moderada", ORANGE) if v <= 2 else ("Repetitiva", RED)
 
 
     if len(fit):
@@ -682,7 +746,7 @@ with tab_fat:
                            fillcolor="rgba(243,242,236,.08)", hovertemplate="%{x|%d/%m}: %{y:.0f}<extra>Balance</extra>")
             if int(rng) <= 7:
                 for fig_ in (f4, f5):
-                    fig_.update_xaxes(tickformat="%a %d", dtick=86400000)
+                    fig_.update_xaxes(tickvals=sub.index, ticktext=[f"{DIAS[d.weekday()]} {d.day}" for d in sub.index])
         lo, hi = min(-40, float(fit["tsb"].min())), max(20, float(fit["tsb"].max()))
         for y0, y1, c, lab in [(5, hi, GLACIER, "Fresco"), (-10, 5, MUTED, "Neutral"), (-30, -10, GREEN, "Carga productiva"), (lo, -30, RED, "Sobrecarga")]:
             f5.add_hrect(y0=y0, y1=y1, fillcolor=c, opacity=.08, line_width=0, annotation_text=lab, annotation_position="top left",
