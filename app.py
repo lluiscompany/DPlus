@@ -132,6 +132,9 @@ table.tbl tr.tot td {{ border-top: 2px solid {GOLD}; color: {GOLD}; font-weight:
 .ctd {{ font-size: 13.5px; color: {INK}; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
 .ctd.r, .chd.r {{ text-align: right; }}
 [class*="st-key-crow"] [data-testid="stMarkdownContainer"] > div {{ width: 100%; }}
+[data-testid="stDateInputField"] {{ position: relative; cursor: pointer; }}
+[data-testid="stDateInputField"]::after {{ content: "📅"; position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  font-size: 15px; pointer-events: none; opacity: .85; }}
 .chip {{ display: inline-block; font-size: 11px; font-weight: 500; padding: 1px 7px; border-radius: 2px; background: var(--c); color: var(--o, #0a0c0e); }}
 </style>
 """,
@@ -982,7 +985,7 @@ with tab_sets:
                    heat={"D+ m": (float(max(1, R["D+ m"].iloc[:-1].max())), rgb(GOLD))}, group_start={"Ultra Ind"}, total_last=True)
     else:
         met = st.pills("Métrica", list(MET), default="D+", key="sets_metric") or "D+"
-        src, dec, rgb = MET[met]
+        src, dec, heat_rgb = MET[met]
         D = pd.DataFrame({"Mes": mlabels})
         s_ = df_y.assign(m=df_y["ts"].dt.month, s=((df_y["ts"].dt.day - 1) // 7).clip(upper=4) + 1) if len(df_y) else None
         for si, rng in enumerate(["1–7", "8–14", "15–21", "22–28", "29–31"], start=1):
@@ -997,16 +1000,46 @@ with tab_sets:
         setcols = [c for c in D.columns if c.startswith("Set ")]
         mx = float(max(1, D[setcols].iloc[:-1].to_numpy().max()))
         html_table(D, fmt={c: fN(dec) for c in D.columns if c != "Mes"},
-                   heat={c: (mx, rgb) for c in setcols}, group_start={"Total mes"}, total_last=True)
+                   heat={c: (mx, heat_rgb) for c in setcols}, group_start={"Total mes"}, total_last=True)
         st.caption(f"{met} de cada bloque de 7 días; cuanto más intenso el color, más volumen en ese Set.")
 
 
 with tab_long:
     # ─────────────────────────── Entrenamientos largos ───────────────────────────
     st.subheader("Entrenamientos largos")
-    runs = df_y[df_y["sport"].isin(OUT)]
+    all_runs = all_df[all_df["sport"].isin(OUT)] if len(all_df) else all_df
+    PER = ["30 días", "90 días", "6 meses", f"Temporada {year}", "Todo", "Personalizado"]
+    pc1 = pc2 = st.container()
+    with pc1:
+        per = st.segmented_control("Periodo", PER, default=f"Temporada {year}", key="lg_per") or f"Temporada {year}"
+    d_min = all_runs["date"].min() if len(all_runs) else today
+    if per == "30 días":
+        p_from, p_to = today - dt.timedelta(days=29), today
+    elif per == "90 días":
+        p_from, p_to = today - dt.timedelta(days=89), today
+    elif per == "6 meses":
+        p_from, p_to = today - dt.timedelta(days=182), today
+    elif per == "Todo":
+        p_from, p_to = d_min, today
+    elif per == "Personalizado":
+        dc1, dc2, _ = st.columns([1, 1, 2])
+        with dc1:
+            p_from = st.date_input("Desde", value=max(d_min, today - dt.timedelta(days=60)), min_value=d_min, max_value=today,
+                                   format="DD/MM/YYYY", key="lg_from")
+        with dc2:
+            p_to = st.date_input("Hasta", value=today, min_value=d_min, max_value=today, format="DD/MM/YYYY", key="lg_to")
+        if p_from > p_to:
+            p_from, p_to = p_to, p_from
+        st.caption("Pulsa en una fecha para abrir el calendario.")
+    else:
+        p_from, p_to = dt.date(year, 1, 1), min(dt.date(year, 12, 31), today)
+    per_txt = f"{p_from.strftime('%d/%m/%y')} – {p_to.strftime('%d/%m/%y')}"
+    if per != "Personalizado":
+        with pc2:
+            st.markdown(f'<div class="note" style="margin-top:-6px">{per_txt}</div>', unsafe_allow_html=True)
+    runs = all_runs[(all_runs["date"] >= p_from) & (all_runs["date"] <= p_to)] if len(all_runs) else all_runs
     if not len(runs):
-        st.info(f"No hay carreras registradas en {year}.")
+        st.info(f"No hay carreras registradas entre {per_txt}.")
     else:
         hmax = float(max(1.0, math.ceil(runs["elapsed"].max() / 3600 * 4) / 4))
         kmax = float(max(1.0, math.ceil(runs["km"].max())))
@@ -1026,7 +1059,7 @@ with tab_long:
         if len(lg):
             tot_km, tot_dp, tot_h = lg["km"].sum(), lg["dp"].sum(), lg["elapsed"].sum() / 3600
             cards([
-                ("Entrenamientos", GOLD, fnum(len(lg)), "", [f"de {len(runs)} carreras en {year}"]),
+                ("Entrenamientos", GOLD, fnum(len(lg)), "", [f"de {len(runs)} carreras · {per_txt}"]),
                 ("Distancia", INK, fnum(tot_km, 1), "km", [f"media {fnum(tot_km / len(lg), 1)} km"]),
                 ("Desnivel", GOLD, fnum(tot_dp), "m", [f"media {fnum(tot_dp / len(lg))} m · {fnum(tot_dp / tot_km if tot_km else 0)} m/km"]),
                 ("Tiempo total", TEAL, f"{int(tot_h)}:{int(round(tot_h % 1 * 60)) % 60:02d}", "h", [f"media {fnum(tot_h / len(lg), 1)} h"]),
