@@ -60,6 +60,30 @@ h1, h2, h3 {{ font-family: "Barlow Condensed", "Arial Narrow", sans-serif !impor
 .day .dn {{ font: 12px "IBM Plex Mono", monospace; color: {MUTED}; }}
 .tag {{ display: inline-block; font-size: 11px; font-weight: 500; padding: 1px 7px; border-radius: 2px; background: var(--c); color: {BG}; margin-right: 6px; }}
 .m {{ color: {MUTED}; font-size: 12.5px; }}
+.tblw {{ overflow: auto; border: 1px solid {LINE}; border-radius: 8px; margin: 6px 0 14px; }}
+table.tbl {{ border-collapse: separate; border-spacing: 0; width: 100%; font: 13.5px "IBM Plex Sans", system-ui, sans-serif;
+             font-variant-numeric: tabular-nums; color: {INK}; }}
+table.tbl th {{ position: sticky; top: 0; z-index: 2; background: #1a1f24; color: {MUTED}; font-weight: 500; font-size: 11.5px;
+               text-transform: uppercase; letter-spacing: .05em; padding: 9px 12px; text-align: right; white-space: nowrap;
+               border-bottom: 1px solid {LINE}; }}
+table.tbl tr.grp th {{ top: 0; text-align: center; color: {INK}; font: 600 15px "Barlow Condensed", sans-serif; letter-spacing: .04em;
+                      text-transform: none; border-bottom: 1px solid {LINE}; }}
+table.tbl tr.grp + tr th {{ top: 36px; }}
+table.tbl tr.grp th.tot {{ color: {GOLD}; }}
+table.tbl td {{ padding: 9px 12px; text-align: right; white-space: nowrap; border-bottom: 1px solid {GRID}; }}
+table.tbl th.l, table.tbl td.l {{ text-align: left; }}
+table.tbl th, table.tbl td {{ border-top: 0 !important; border-left: 0 !important; border-right: 0 !important; }}
+table.tbl tbody tr:nth-child(odd) td {{ background-color: {SURFACE}; }}
+table.tbl tbody tr:nth-child(even) td {{ background-color: #1b2126; }}
+table.tbl tbody tr:hover td {{ background-color: #252d34 !important; }}
+table.tbl th:first-child, table.tbl td:first-child {{ position: sticky; left: 0; z-index: 1; background: {SURFACE}; text-align: left;
+                                                     font-family: "IBM Plex Mono", monospace; border-right: 1px solid {LINE} !important; }}
+table.tbl th:first-child {{ z-index: 3; background: #1a1f24; }}
+table.tbl tbody tr:nth-child(even) td:first-child {{ background: #1b2126; }}
+table.tbl .g {{ border-left: 2px solid {LINE} !important; }}
+table.tbl td.z {{ color: #3a444c; }}
+table.tbl tr.tot td {{ border-top: 2px solid {GOLD}; color: {GOLD}; font-weight: 600; background: {SURFACE}; border-bottom: 0; }}
+.chip {{ display: inline-block; font-size: 11px; font-weight: 500; padding: 1px 7px; border-radius: 2px; background: var(--c); color: {BG}; }}
 </style>
 """,
     unsafe_allow_html=True,
@@ -95,6 +119,39 @@ def cards(items):
         html.append("</div>")
     html.append("</div>")
     st.markdown("".join(html), unsafe_allow_html=True)
+
+
+def html_table(df: pd.DataFrame, fmt: dict | None = None, groups: list | None = None, group_start: set | None = None,
+               heat: dict | None = None, total_last: bool = False, left: set | None = None, max_height: int | None = None):
+    """Tabla HTML legible: filas alternas, cabecera fija, primera columna fija, grupos de columnas y celdas con intensidad.
+
+    fmt: {col: callable(v)->str}; groups: [(titulo, n_columnas, clase)] para una fila de cabecera agrupada;
+    group_start: columnas que abren grupo (borde izquierdo); heat: {col: (max, color_rgb)}; left: columnas alineadas a la izquierda.
+    """
+    fmt, group_start, heat, left = fmt or {}, group_start or set(), heat or {}, left or set()
+    cols = list(df.columns)
+    h = [f'<div class="tblw" style="{f"max-height:{max_height}px" if max_height else ""}"><table class="tbl"><thead>']
+    if groups:
+        h.append("<tr class='grp'>" + "".join(
+            f'<th colspan="{n}" class="{c}">{t}</th>' for t, n, c in groups) + "</tr>")
+    h.append("<tr>" + "".join(
+        f'<th class="{"g " if c in group_start else ""}{"l" if c in left else ""}">{c.split("|")[-1]}</th>' for c in cols) + "</tr></thead><tbody>")
+    n = len(df)
+    for i, (_, row) in enumerate(df.iterrows()):
+        cls = "tot" if total_last and i == n - 1 else ""
+        tds = []
+        for c in cols:
+            v = row[c]
+            txt = fmt[c](v) if c in fmt else ("" if (v is None or (isinstance(v, float) and math.isnan(v))) else str(v))
+            style = ""
+            if c in heat and cls != "tot" and isinstance(v, (int, float, np.number)) and pd.notna(v) and v > 0:
+                mx, rgb = heat[c]
+                style = f' style="background:rgba({rgb},{min(.55, .08 + .47 * v / mx):.2f})"' if mx else ""
+            zero = " z" if isinstance(v, (int, float, np.number)) and pd.notna(v) and v == 0 else ""
+            tds.append(f'<td class="{"g " if c in group_start else ""}{"l" if c in left else ""}{zero}"{style}>{txt}</td>')
+        h.append(f'<tr class="{cls}">' + "".join(tds) + "</tr>")
+    h.append("</tbody></table></div>")
+    st.markdown("".join(h), unsafe_allow_html=True)
 
 
 def plot_layout(fig, h=300, legend=True):
@@ -815,27 +872,52 @@ with tab_fat:
 with tab_sets:
     # ─────────────────────────── Hoja por Sets ───────────────────────────
     st.subheader(f"D+ {year} por Sets")
-    st.markdown('<span class="note">Set = bloque de 7 días del mes (1–7, 8–14, 15–21, 22–28, 29–31). Ultra Ind = 1,7 × D+/Km. Incr vs M‑1 = (D+ mes − D+ mes anterior) / D+ mes.</span>', unsafe_allow_html=True)
-    sheet = pd.DataFrame(index=[f"{year}{m:02d}" for m in range(1, 13)])
-    if len(df_y):
-        s_ = df_y.assign(m=df_y["ts"].dt.month, s=((df_y["ts"].dt.day - 1) // 7).clip(upper=4) + 1)
-        piv = s_.pivot_table(index="m", columns="s", values=["out_dp", "out_km", "cinta_km", "gim_min"], aggfunc="sum", fill_value=0)
-        for si in range(1, 6):
-            for src, lab in [("out_dp", "D+"), ("out_km", "Km"), ("cinta_km", "Km Cinta"), ("gim_min", "min Gim")]:
-                col = piv[(src, si)] if (src, si) in piv.columns else pd.Series(0, index=range(1, 13))
-                sheet[f"S{si} {lab}"] = col.reindex(range(1, 13), fill_value=0).values
-    sheet["Mes D+"], sheet["Mes Km"], sheet["Mes Km Cinta"], sheet["Mes min Gim"] = My["out_dp"].values, My["out_km"].values, My["cinta_km"].values, My["gim_min"].values
-    sheet["Ultra Ind"], sheet["Incr vs M-1 %"] = My["ultra"].values, (My["incr"] * 100).values
-    if year == now_y:
-        sheet = sheet.iloc[: today.month]
-    sheet.loc["Total"] = sheet.sum(numeric_only=True)
-    sheet.loc["Total", "Ultra Ind"] = T["ultra"]
-    sheet.loc["Total", "Incr vs M-1 %"] = np.nan
-    st.dataframe(
-        sheet, width="stretch", height=(len(sheet) + 1) * 35 + 3,
-        column_config={**{c: st.column_config.NumberColumn(format="%.1f" if "Km" in c or c == "Ultra Ind" else "%.0f") for c in sheet.columns},
-                       "Mes D+": st.column_config.ProgressColumn("Mes D+", format="%.0f", min_value=0, max_value=float(max(1, My["out_dp"].max())))},
-    )
+    st.markdown('<span class="note">Set = bloque de 7 días del mes (1–7, 8–14, 15–21, 22–28, 29–31). Ultra Ind = 1,7 × D+/Km. '
+                'Incr vs M‑1 = (D+ mes − D+ mes anterior) / D+ mes.</span>', unsafe_allow_html=True)
+    MET = {"D+": ("out_dp", 0, "245,196,0"), "Km": ("out_km", 1, "243,242,236"), "Km Cinta": ("cinta_km", 1, "76,192,230"),
+           "min Gim": ("gim_min", 0, "60,180,106")}
+    months_n = today.month if year == now_y else 12
+    mlabels = [f"{MES[m - 1]} {str(year)[2:]}" for m in range(1, months_n + 1)]
+    vista = st.segmented_control("Vista", ["Resumen mensual", "Detalle por Sets"], default="Resumen mensual",
+                                 label_visibility="collapsed", key="sets_view") or "Resumen mensual"
+    fN = lambda d: (lambda v: "" if pd.isna(v) else ("0" if v == 0 else fnum(v, d)))  # noqa: E731
+    if vista == "Resumen mensual":
+        R = pd.DataFrame({
+            "Mes": mlabels,
+            "D+ m": My["out_dp"].values[:months_n], "Km": My["out_km"].values[:months_n],
+            "Km Cinta": My["cinta_km"].values[:months_n], "min Gim": My["gim_min"].values[:months_n],
+            "Ultra Ind": My["ultra"].values[:months_n], "Incr vs M‑1": (My["incr"] * 100).values[:months_n],
+        })
+        tot = {"Mes": "Total", "D+ m": R["D+ m"].sum(), "Km": R["Km"].sum(), "Km Cinta": R["Km Cinta"].sum(),
+               "min Gim": R["min Gim"].sum(), "Ultra Ind": T["ultra"], "Incr vs M‑1": np.nan}
+        R = pd.concat([R, pd.DataFrame([tot])], ignore_index=True)
+
+        def incr_fmt(v):
+            if pd.isna(v) or v == 0:
+                return "" if pd.isna(v) else "0"
+            return f'<span class="{"up" if v > 0 else "down"}">{"▲" if v > 0 else "▼"} {fnum(abs(v))} %</span>'
+
+        html_table(R, fmt={"D+ m": fN(0), "Km": fN(1), "Km Cinta": fN(1), "min Gim": fN(0), "Ultra Ind": fN(1), "Incr vs M‑1": incr_fmt},
+                   heat={"D+ m": (float(max(1, R["D+ m"].iloc[:-1].max())), "245,196,0")}, group_start={"Ultra Ind"}, total_last=True)
+    else:
+        met = st.pills("Métrica", list(MET), default="D+", key="sets_metric") or "D+"
+        src, dec, rgb = MET[met]
+        D = pd.DataFrame({"Mes": mlabels})
+        s_ = df_y.assign(m=df_y["ts"].dt.month, s=((df_y["ts"].dt.day - 1) // 7).clip(upper=4) + 1) if len(df_y) else None
+        for si, rng in enumerate(["1–7", "8–14", "15–21", "22–28", "29–31"], start=1):
+            if s_ is not None:
+                col = s_[s_["s"] == si].groupby("m")[src].sum().reindex(range(1, months_n + 1), fill_value=0).values
+            else:
+                col = np.zeros(months_n)
+            D[f"Set {si}|Set {si} · {rng}"] = col
+        D["Total mes"] = D[[c for c in D.columns if c.startswith("Set ")]].sum(axis=1)
+        tot = {"Mes": "Total", **{c: D[c].sum() for c in D.columns if c != "Mes"}}
+        D = pd.concat([D, pd.DataFrame([tot])], ignore_index=True)
+        setcols = [c for c in D.columns if c.startswith("Set ")]
+        mx = float(max(1, D[setcols].iloc[:-1].to_numpy().max()))
+        html_table(D, fmt={c: fN(dec) for c in D.columns if c != "Mes"},
+                   heat={c: (mx, rgb) for c in setcols}, group_start={"Total mes"}, total_last=True)
+        st.caption(f"{met} de cada bloque de 7 días; cuanto más intenso el color, más volumen en ese Set.")
 
 
 with tab_long:
@@ -869,18 +951,37 @@ with tab_long:
                 ("Tiempo total", TEAL, f"{int(tot_h)}:{int(round(tot_h % 1 * 60)) % 60:02d}", "h", [f"media {fnum(tot_h / len(lg), 1)} h"]),
             ])
             hm = lambda s: f"{int(s // 3600)}:{int(s % 3600 // 60):02d}"  # noqa: E731
-            tbl = pd.DataFrame({
-                "Fecha": lg["ts"].dt.strftime("%d/%m/%Y"), "Tipo": lg["sport"].map({"TrailRun": "Trail", "Run": "Asfalto"}),
-                "Entrenamiento": lg["name"], "Dist km": lg["km"], "D+ m": lg["dp"], "D− m": lg["dm"],
-                "Tiempo total": lg["elapsed"].map(hm), "Tiempo mov.": lg["secs"].map(hm),
-                "Ritmo /km": lg["pace"].map(lambda p: f"{int(p // 60)}:{int(round(p % 60)) % 60:02d}" if pd.notna(p) and p > 0 else ""),
-                "Calorías": lg["kcal"], "Carbs g": lg["carbs"], "Cardio med": lg["hr_avg"], "Cardio máx": lg["hr_max"],
-                "Carga": lg["load"], "Sensación": lg["feel"].map(lambda v: f"{int(v)}/5" if pd.notna(v) else ""),
+            ALLC = ["Tipo", "Distancia", "D+", "D−", "Tiempo total", "Tiempo mov.", "Ritmo", "Carga", "Cardio med",
+                    "Cardio máx", "Calorías", "Carbs", "Sensación"]
+            DEF = ["Tipo", "Distancia", "D+", "Tiempo total", "Ritmo", "Carga"]
+            o1, o2 = st.columns([3, 1])
+            with o1:
+                show = st.multiselect("Columnas", ALLC, default=DEF, key="lg_cols")
+            with o2:
+                orden = st.selectbox("Ordenar por", ["Fecha", "D+", "Distancia", "Tiempo total", "Carga"], key="lg_sort")
+            okey = {"Fecha": "ts", "D+": "dp", "Distancia": "km", "Tiempo total": "elapsed", "Carga": "load"}[orden]
+            lg2 = lg.sort_values(okey, ascending=False)
+            pace_f = lambda p: f"{int(p // 60)}:{int(round(p % 60)) % 60:02d}" if pd.notna(p) and p > 0 else ""  # noqa: E731
+            full = pd.DataFrame({
+                "Fecha": lg2["ts"].dt.strftime("%d/%m/%y").values,
+                "Entrenamiento": lg2["name"].values,
+                "Tipo": lg2["sport"].values,
+                "Distancia": lg2["km"].values, "D+": lg2["dp"].values, "D−": lg2["dm"].values,
+                "Tiempo total": lg2["elapsed"].values, "Tiempo mov.": lg2["secs"].values, "Ritmo": lg2["pace"].values,
+                "Carga": lg2["load"].values, "Cardio med": lg2["hr_avg"].values, "Cardio máx": lg2["hr_max"].values,
+                "Calorías": lg2["kcal"].values, "Carbs": lg2["carbs"].values, "Sensación": lg2["feel"].values,
             })
-            tbl = tbl.drop(columns=[c for c in ["Carbs g", "Calorías", "Cardio med", "Cardio máx"] if tbl[c].isna().all()])
-            st.dataframe(tbl, hide_index=True, width="stretch", height=min(len(tbl) + 1, 16) * 35 + 3,
-                         column_config={c: st.column_config.NumberColumn(format="%.1f" if c == "Dist km" else "%.0f")
-                                        for c in ["Dist km", "D+ m", "D− m", "Calorías", "Carga", "Cardio med", "Cardio máx"] if c in tbl})
+            view = full[["Fecha", "Entrenamiento"] + [c for c in ALLC if c in show]]
+            chip = lambda v: (f'<span class="chip" style="--c:{GOLD}">Trail</span>' if v == "TrailRun"  # noqa: E731
+                              else f'<span class="chip" style="--c:{INK}">Asfalto</span>')
+            num = lambda d, u="": (lambda v: "" if pd.isna(v) else f"{fnum(v, d)}{u}")  # noqa: E731
+            name_f = lambda v: (str(v)[:38] + "…") if len(str(v)) > 39 else str(v)  # noqa: E731
+            html_table(view, left={"Entrenamiento", "Tipo"}, max_height=620,
+                       fmt={"Entrenamiento": name_f, "Tipo": chip, "Distancia": num(1, " km"), "D+": num(0, " m"), "D−": num(0, " m"),
+                            "Tiempo total": hm, "Tiempo mov.": hm, "Ritmo": pace_f, "Carga": num(0), "Cardio med": num(0),
+                            "Cardio máx": num(0), "Calorías": num(0), "Carbs": num(0, " g"),
+                            "Sensación": lambda v: "" if pd.isna(v) else f"{int(v)}/5"},
+                       heat={"D+": (float(max(1, lg2["dp"].max())), "245,196,0")} if "D+" in show else None)
             fig_l = go.Figure()
             fig_l.add_scatter(x=lg["km"], y=lg["dp"], mode="markers", text=lg["name"],
                               customdata=np.stack([lg["ts"].dt.strftime("%d/%m/%Y"), lg["elapsed"].map(hm)], axis=-1),
