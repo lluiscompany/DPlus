@@ -117,6 +117,10 @@ def get_secret(name, default=""):
         return os.environ.get(name, default)
 
 
+# Campo personalizado de actividad en intervals.icu donde se guarda la pendiente media (%) de la cinta
+INCLINE_FIELD = str(get_secret("INCLINE_FIELD", "Pendiente")).strip() or "Pendiente"
+
+
 def map_activity(a: dict) -> dict:
     dist = (a.get("distance") or a.get("icu_distance") or 0) / 1000
     mt = a.get("moving_time") or a.get("elapsed_time") or 0
@@ -128,6 +132,7 @@ def map_activity(a: dict) -> dict:
         hr_avg=a.get("average_heartrate"), hr_max=a.get("max_heartrate"),
         kcal=a.get("calories"), carbs=a.get("carbs_ingested"), feel=a.get("feel"),
         pace=(1000 / sp) if sp > 0 else ((mt / dist) if dist > 0 and mt else None),
+        incline=a.get(INCLINE_FIELD),
     )
 
 
@@ -165,13 +170,14 @@ def demo_year(year: int) -> list[dict]:
         secs = 1800 if s == "Workout" else km * (560 if s != "Hike" else 900)
         out.append(dict(id=f"demo{d}", start=f"{d}T08:00:00", sport=s, name=f"Ejemplo {s}", km=km, dp=dp, dm=dp,
                         secs=secs, elapsed=secs * 1.1, load=int(secs / 60 * (1.1 if s != "Workout" else .2)), hr_avg=140, hr_max=165,
-                        kcal=int(secs / 4), carbs=None, feel=rnd.choice([2, 3]), pace=secs / km if km else None))
+                        kcal=int(secs / 4), carbs=None, feel=rnd.choice([2, 3]), pace=secs / km if km else None,
+                        incline=rnd.choice([None, None, 3, 5, 8]) if s == "VirtualRun" else None))
         d += dt.timedelta(days=rnd.choice([1, 1, 2, 3]))
     return out
 
 
-def to_frame(rows: list[dict], hike: bool) -> pd.DataFrame:
-    cols = ["id", "start", "sport", "name", "km", "dp", "dm", "secs", "elapsed", "load", "hr_avg", "hr_max", "kcal", "carbs", "feel", "pace"]
+def to_frame(rows: list[dict], hike: bool, cinta_dp: bool = True, overrides: dict | None = None) -> pd.DataFrame:
+    cols = ["id", "start", "sport", "name", "km", "dp", "dm", "secs", "elapsed", "load", "hr_avg", "hr_max", "kcal", "carbs", "feel", "pace", "incline"]
     df = pd.DataFrame(rows, columns=cols)
     if df.empty:
         return df.assign(ts=pd.Series(dtype="datetime64[ns]"), date=pd.Series(dtype=object))
@@ -183,9 +189,18 @@ def to_frame(rows: list[dict], hike: bool) -> pd.DataFrame:
     df["elapsed"] = df[["elapsed", "secs"]].max(axis=1)
     for c in ["hr_avg", "hr_max", "kcal", "carbs", "feel", "pace"]:
         df[c] = pd.to_numeric(df[c], errors="coerce")
+    df["incline"] = pd.to_numeric(df["incline"], errors="coerce")
+    if overrides:  # pendientes guardadas en esta sesión (antes de que la caché se refresque)
+        ov = df["id"].map(overrides)
+        df["incline"] = ov.where(ov.notna(), df["incline"])
+    is_cinta = df["sport"].isin(CINTA)
+    # D+ de cinta = distancia × pendiente media
+    df.loc[is_cinta, "dp"] = (df.loc[is_cinta, "km"] * 1000 * df.loc[is_cinta, "incline"].fillna(0) / 100).round(0)
+    cinta_up = is_cinta & cinta_dp & (df["dp"] > 0)
     out_mask = df["sport"].isin(OUT) | (hike & (df["sport"] == "Hike"))
     df["out_km"] = np.where(out_mask, df["km"], 0.0)
-    df["out_dp"] = np.where(out_mask, df["dp"], 0.0)
+    df["out_dp"] = np.where(out_mask | cinta_up, df["dp"], 0.0)
+    df["ukm"] = np.where(out_mask | cinta_up, df["km"], 0.0)   # km que cuentan para el Ultra Ind
     df["cinta_km"] = np.where(df["sport"].isin(CINTA), df["km"], 0.0)
     df["gim_min"] = np.where(df["sport"].isin(GIM), df["secs"] / 60, 0.0)
     df["hours"] = df["secs"] / 3600
@@ -193,9 +208,9 @@ def to_frame(rows: list[dict], hike: bool) -> pd.DataFrame:
 
 
 def totals(d: pd.DataFrame) -> dict:
-    dp, km = d["out_dp"].sum(), d["out_km"].sum()
+    dp, km, ukm = d["out_dp"].sum(), d["out_km"].sum(), d["ukm"].sum() if "ukm" in d else d["out_km"].sum()
     return dict(dp=dp, km=km, cinta=d["cinta_km"].sum(), gim=d["gim_min"].sum(), n=len(d),
-                load=d["load"].sum(), h=d["hours"].sum(), ultra=1.7 * dp / km if km > 0 else 0.0,
+                load=d["load"].sum(), h=d["hours"].sum(), ultra=1.7 * dp / ukm if ukm > 0 else 0.0,
                 kmE=km + d["cinta_km"].sum() + dp / 100)
 
 
@@ -207,6 +222,8 @@ with st.sidebar:
     st.markdown("### ⛰️ Llibreta D+")
     year = st.selectbox("Temporada", list(range(now_y, 2022, -1)), index=0)
     hike = st.toggle("Sumar caminatas a D+ y Km", value=False)
+    cinta_dp = st.toggle("Sumar D+ de cinta (según pendiente)", value=True,
+                         help="El D+ de cinta se calcula como km × pendiente media. Se edita en la pestaña Cinta.")
     if st.button("Actualizar datos", type="primary", width="stretch"):
         st.cache_data.clear()
     demo = str(get_secret("DEMO", "")).strip() == "1"
@@ -226,7 +243,7 @@ with st.sidebar:
             "load": st.number_input("Carga", min_value=0, step=25, value=None, placeholder="media 8 sem"),
             "n": st.number_input("Sesiones", min_value=0, step=1, value=None, placeholder="media 8 sem"),
         }
-    st.caption("D+ y Km = Run y TrailRun (más Hike si lo activas) · Km Cinta = VirtualRun · min Gim = Workout, WeightTraining y Elliptical.")
+    st.caption("D+ y Km = Run y TrailRun (más Hike si lo activas; D+ de cinta si lo activas) · Km Cinta = VirtualRun · min Gim = Workout, WeightTraining y Elliptical.")
 
 # Contraseña opcional para la app
 pwd = str(get_secret("APP_PASSWORD", ""))
@@ -263,7 +280,7 @@ if year in errors:
     st.error(f"No se pudieron cargar las actividades de {year}: {errors[year]}")
     st.stop()
 
-all_df = to_frame([r for y in years_needed for r in raw[y]], hike)
+all_df = to_frame([r for y in years_needed for r in raw[y]], hike, cinta_dp, st.session_state.get("incline_overrides"))
 df_y = all_df[all_df["ts"].dt.year == year] if not all_df.empty else all_df
 df_p = all_df[all_df["ts"].dt.year == year - 1] if not all_df.empty else all_df
 T, P = totals(df_y), totals(df_p)
@@ -335,8 +352,8 @@ def zone_mono(v):
     return ("Variada", GREEN) if v < 1.5 else ("Moderada", ORANGE) if v <= 2 else ("Repetitiva", RED)
 
 
-tab_temp, tab_cw, tab_lw, tab_fat, tab_sets, tab_long = st.tabs(
-    ["Temporada", "Semana en curso", "Última semana", "Esfuerzo y fatiga", "Hoja por Sets", "Entrenamientos largos"])
+tab_temp, tab_cw, tab_lw, tab_fat, tab_sets, tab_long, tab_cinta = st.tabs(
+    ["Temporada", "Semana en curso", "Última semana", "Esfuerzo y fatiga", "Hoja por Sets", "Entrenamientos largos", "Cinta"])
 
 with tab_temp:
     # Hero
@@ -389,8 +406,8 @@ with tab_temp:
 
     # Mensual
     def monthly(d: pd.DataFrame) -> pd.DataFrame:
-        m = d.groupby(d["ts"].dt.month)[["out_dp", "out_km", "cinta_km", "gim_min"]].sum().reindex(range(1, 13), fill_value=0)
-        m["ultra"] = np.where(m["out_km"] > 0, 1.7 * m["out_dp"] / m["out_km"].replace(0, np.nan), 0)
+        m = d.groupby(d["ts"].dt.month)[["out_dp", "out_km", "ukm", "cinta_km", "gim_min"]].sum().reindex(range(1, 13), fill_value=0)
+        m["ultra"] = np.where(m["ukm"] > 0, 1.7 * m["out_dp"] / m["ukm"].replace(0, np.nan), 0)
         prev = m["out_dp"].shift(1)
         m["incr"] = np.where((m["out_dp"] > 0) & (m.index > 1), (m["out_dp"] - prev) / m["out_dp"].replace(0, np.nan), 0)
         return m.fillna(0)
@@ -877,5 +894,97 @@ with tab_long:
             st.plotly_chart(plot_layout(fig_l, 300, legend=False), width="stretch")
         else:
             st.info("Ninguna carrera cumple los filtros. Amplía los rangos para ver más.")
+
+with tab_cinta:
+    st.subheader("Pendiente de las sesiones de cinta")
+    if st.session_state.get("cinta_msg"):
+        st.success(st.session_state.pop("cinta_msg"))
+    st.markdown(
+        f'<span class="note">El reloj no registra el desnivel en cinta. Indica la <b>pendiente media (%)</b> de cada sesión y se calculará '
+        f'su D+ (km × pendiente). Se guarda en intervals.icu, en el campo personalizado de actividad <b>{INCLINE_FIELD}</b>, '
+        f'así queda junto a la actividad y lo verás desde cualquier dispositivo.</span>', unsafe_allow_html=True)
+    tm_ = all_df[all_df["sport"].isin(CINTA)].sort_values("ts", ascending=False) if len(all_df) else all_df
+    periodo = st.segmented_control("Periodo cinta", ["30 días", "90 días", f"Año {year}", "Todo"], default="90 días",
+                                   label_visibility="collapsed", key="cinta_rng") or "90 días"
+    if periodo == "30 días":
+        tm_ = tm_[tm_["date"] >= today - dt.timedelta(days=30)]
+    elif periodo == "90 días":
+        tm_ = tm_[tm_["date"] >= today - dt.timedelta(days=90)]
+    elif periodo.startswith("Año"):
+        tm_ = tm_[tm_["ts"].dt.year == year]
+    if not len(tm_):
+        st.info("No hay sesiones de cinta en este periodo.")
+    else:
+        pend_n = int(tm_["incline"].isna().sum())
+        cards([
+            ("Sesiones", GLACIER, fnum(len(tm_)), "", [f"{pend_n} sin pendiente" if pend_n else "todas con pendiente"]),
+            ("Km cinta", GLACIER, fnum(tm_["km"].sum(), 1), "km", ["&nbsp;"]),
+            ("D+ cinta", GOLD, fnum(tm_["dp"].sum()), "m", ["sumado al D+ total" if cinta_dp else "no se suma (desactivado)"]),
+            ("Pendiente media", ORANGE, fnum((tm_["dp"].sum() / (tm_["km"].sum() * 10)) if tm_["km"].sum() else 0, 1), "%", ["ponderada por km"]),
+        ])
+        ed_src = pd.DataFrame({
+            "id": tm_["id"].values,
+            "Fecha": tm_["ts"].dt.strftime("%d/%m/%Y").values,
+            "Sesión": tm_["name"].values,
+            "Km": tm_["km"].round(2).values,
+            "Tiempo": tm_["secs"].map(lambda s_: f"{int(s_ // 3600)}:{int(s_ % 3600 // 60):02d}").values,
+            "Pendiente %": tm_["incline"].values,
+            "D+ m": tm_["dp"].values,
+        })
+        edited = st.data_editor(
+            ed_src, hide_index=True, width="stretch", key="cinta_editor",
+            height=min(len(ed_src) + 1, 16) * 35 + 3,
+            disabled=["id", "Fecha", "Sesión", "Km", "Tiempo", "D+ m"],
+            column_order=["Fecha", "Sesión", "Km", "Tiempo", "Pendiente %", "D+ m"],
+            column_config={
+                "Pendiente %": st.column_config.NumberColumn(min_value=0.0, max_value=40.0, step=0.5, format="%.1f %%",
+                                                             help="Pendiente media de la sesión"),
+                "Km": st.column_config.NumberColumn(format="%.2f"),
+                "D+ m": st.column_config.NumberColumn(format="%.0f", help="Se recalcula al guardar"),
+            },
+        )
+        orig = ed_src.set_index("id")["Pendiente %"]
+        new = edited.set_index("id")["Pendiente %"]
+        changed = [(i, new[i]) for i in new.index
+                   if not ((pd.isna(new[i]) and pd.isna(orig[i])) or (pd.notna(new[i]) and pd.notna(orig[i]) and abs(new[i] - orig[i]) < 1e-9))]
+        prev_km = {i: k for i, k in zip(ed_src["id"], ed_src["Km"])}
+        if changed:
+            st.markdown(
+                "Cambios sin guardar: " + ", ".join(
+                    f"{ed_src.set_index('id').loc[i, 'Fecha']} → {fnum(v, 1) if pd.notna(v) else 'vacío'} % "
+                    f"({fnum(prev_km[i] * 10 * (v if pd.notna(v) else 0))} m D+)" for i, v in changed),
+                unsafe_allow_html=True)
+        cA, cB = st.columns([1, 3])
+        with cA:
+            save = st.button("Guardar en intervals.icu", type="primary", disabled=not changed, width="stretch")
+        with cB:
+            st.caption("Antes del primer guardado, crea en intervals.icu un campo personalizado de actividad, numérico, con el código "
+                       f"`{INCLINE_FIELD}`. Si prefieres otro código, ponlo en el secreto INCLINE_FIELD.")
+        if save and changed:
+            ov = dict(st.session_state.get("incline_overrides", {}))
+            ok, fails = 0, []
+            for act_id, val in changed:
+                v = None if pd.isna(val) else float(val)
+                if demo:
+                    ok += 1
+                    ov[act_id] = v
+                    continue
+                try:
+                    r = requests.put(f"{API}/activity/{act_id}", json={INCLINE_FIELD: v}, auth=("API_KEY", key),
+                                     headers={"Accept": "application/json", "User-Agent": "LlibretaD+ (Streamlit)"}, timeout=30)
+                    if r.status_code >= 400:
+                        fails.append(f"{act_id}: error {r.status_code} {r.text[:120]}")
+                    else:
+                        ok += 1
+                        ov[act_id] = v
+                except Exception as e:  # noqa: BLE001
+                    fails.append(f"{act_id}: {e}")
+            st.session_state["incline_overrides"] = ov
+            if fails:
+                st.error("No se pudieron guardar algunas pendientes:\n\n" + "\n\n".join(fails))
+            if ok:
+                st.cache_data.clear()
+                st.session_state["cinta_msg"] = f"Guardadas {ok} pendientes en intervals.icu."
+                st.rerun()
 
 st.caption("Datos leídos en directo de la API de intervals.icu con tu clave personal. Duplicados (misma hora, deporte y duración) se cuentan una vez.")
