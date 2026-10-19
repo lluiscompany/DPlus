@@ -336,6 +336,11 @@ def to_frame(rows: list[dict], hike: bool, cinta_dp: bool = True, overrides: dic
     df["out_km"] = np.where(out_mask, df["km"], 0.0)
     df["out_dp"] = np.where(out_mask | cinta_up, df["dp"], 0.0)
     df["ukm"] = np.where(out_mask | cinta_up, df["km"], 0.0)   # km que cuentan para el Ultra Ind
+    is_run = df["sport"].isin(OUT)
+    df["dp_run"] = np.where(is_run, df["dp"], 0.0)
+    df["km_run"] = np.where(is_run, df["km"], 0.0)
+    df["dp_hike"] = np.where(hike & (df["sport"] == "Hike"), df["dp"], 0.0)
+    df["dp_cinta"] = np.where(cinta_up, df["dp"], 0.0)
     df["cinta_km"] = np.where(df["sport"].isin(CINTA), df["km"], 0.0)
     df["gim_min"] = np.where(df["sport"].isin(GIM), df["secs"] / 60, 0.0)
     df["hours"] = df["secs"] / 3600
@@ -346,7 +351,24 @@ def totals(d: pd.DataFrame) -> dict:
     dp, km, ukm = d["out_dp"].sum(), d["out_km"].sum(), d["ukm"].sum() if "ukm" in d else d["out_km"].sum()
     return dict(dp=dp, km=km, cinta=d["cinta_km"].sum(), gim=d["gim_min"].sum(), n=len(d),
                 load=d["load"].sum(), h=d["hours"].sum(), ultra=1.7 * dp / ukm if ukm > 0 else 0.0,
-                kmE=km + d["cinta_km"].sum() + dp / 100)
+                kmE=km + d["cinta_km"].sum() + dp / 100,
+                **{c: (d[c].sum() if c in d else 0.0) for c in ("dp_run", "dp_hike", "dp_cinta")})
+
+
+# Origen del desnivel: carrera (Run/TrailRun), caminata y cinta (según los interruptores)
+DP_SRC = [("dp_run", "Carrera", "GOLD"), ("dp_hike", "Caminata", "ORANGE"), ("dp_cinta", "Cinta", "GLACIER")]
+
+
+def src_color(name: str) -> str:
+    return globals()[name]
+
+
+def dp_split_line(t: dict) -> str:
+    """Desglose del D+ por origen, solo si hay caminata o cinta."""
+    if not (t.get("dp_hike", 0) > 0 or t.get("dp_cinta", 0) > 0):
+        return ""
+    parts = [f'<span style="color:{src_color(c)}">●</span> {lab.lower()} {fnum(t[k])}' for k, lab, c in DP_SRC if t.get(k, 0) > 0]
+    return " · ".join(parts)
 
 
 # ─────────────────────────── Barra lateral ───────────────────────────
@@ -431,7 +453,7 @@ def prev_line(v, d, u=""):
     return f"{year - 1}: {fnum(v, d)} {u}".strip() if len(df_p) else "&nbsp;"
 
 cards([
-    ("D+", GOLD, fnum(T["dp"]), "m", [prev_line(P["dp"], 0, "m")]),
+    ("D+", GOLD, fnum(T["dp"]), "m", [prev_line(P["dp"], 0, "m")] + ([dp_split_line(T)] if dp_split_line(T) else [])),
     ("Km", INK, fnum(T["km"], 1), "km", [prev_line(P["km"], 1, "km")]),
     ("Km Cinta", GLACIER, fnum(T["cinta"], 1), "km", [prev_line(P["cinta"], 1, "km")]),
     ("min Gim", GREEN, fnum(T["gim"]), "min", [f"{fnum(T['gim'] / 60, 1)} h · {T['n']} sesiones en total"]),
@@ -531,6 +553,13 @@ with tab_temp:
     fig.add_scatter(x=gy["out_km"], y=gy["out_dp"], mode="lines", name=str(year), fill="tozeroy",
                     fillcolor=rgba(GOLD, .14), line=dict(color=GOLD, width=2.6),
                     hovertemplate="%{x:.0f} km · %{y:.0f} m<extra></extra>")
+    if df_y["dp_hike"].sum() > 0 or df_y["dp_cinta"].sum() > 0:
+        days_r = pd.date_range(f"{year}-01-01", today if year == now_y else dt.date(year, 12, 31), freq="D")
+        gr = df_y.groupby(df_y["ts"].dt.normalize())[["km_run", "dp_run"]].sum().reindex(days_r, fill_value=0).cumsum()
+        fig.add_scatter(x=gr["km_run"], y=gr["dp_run"], mode="lines", name=f"{year} solo carrera",
+                        line=dict(color=GOLD, width=1.6, dash="dot"), opacity=.8,
+                        hovertemplate="%{x:.0f} km · %{y:.0f} m<extra>solo carrera</extra>")
+        fig.data[-2].name = f"{year} con caminata/cinta"
     months = gy[gy.index.day == 1].iloc[1:]
     fig.add_scatter(x=months["out_km"], y=months["out_dp"], mode="markers+text", text=[MES[m - 1] for m in months.index.month],
                     textposition="top center", textfont=dict(color=INK, family="IBM Plex Sans, system-ui, sans-serif"),
@@ -544,7 +573,7 @@ with tab_temp:
 
     # Mensual
     def monthly(d: pd.DataFrame) -> pd.DataFrame:
-        m = d.groupby(d["ts"].dt.month)[["out_dp", "out_km", "ukm", "cinta_km", "gim_min"]].sum().reindex(range(1, 13), fill_value=0)
+        m = d.groupby(d["ts"].dt.month)[["out_dp", "out_km", "ukm", "cinta_km", "gim_min", "dp_run", "dp_hike", "dp_cinta"]].sum().reindex(range(1, 13), fill_value=0)
         m["ultra"] = np.where(m["ukm"] > 0, 1.7 * m["out_dp"] / m["ukm"].replace(0, np.nan), 0)
         prev = m["out_dp"].shift(1)
         m["incr"] = np.where((m["out_dp"] > 0) & (m.index > 1), (m["out_dp"] - prev) / m["out_dp"].replace(0, np.nan), 0)
@@ -558,9 +587,17 @@ with tab_temp:
             st.subheader(title)
             f2 = go.Figure()
             xm = MES if key_ == "out_dp" else [m[0] for m in MES]
-            f2.add_bar(x=list(range(12)), y=My[key_], name=str(year), marker_color=color, customdata=MES, hovertemplate=f"%{{customdata}}: %{{y:.{dec}f}}<extra>{year}</extra>")
+            split_m = key_ == "out_dp" and (My["dp_hike"].sum() > 0 or My["dp_cinta"].sum() > 0)
+            if split_m:
+                for k_, lab_, c_ in DP_SRC:
+                    if My[k_].sum() > 0:
+                        f2.add_bar(x=list(range(12)), y=My[k_], name=f"{lab_} {year}", marker_color=src_color(c_), customdata=MES,
+                                   hovertemplate=f"%{{customdata}} · {lab_}: %{{y:.0f}} m<extra></extra>")
+                f2.update_layout(barmode="stack")
+            else:
+                f2.add_bar(x=list(range(12)), y=My[key_], name=str(year), marker_color=color, customdata=MES, hovertemplate=f"%{{customdata}}: %{{y:.{dec}f}}<extra>{year}</extra>")
             if len(df_p):
-                f2.add_scatter(x=list(range(12)), y=Mp[key_].where(Mp[key_] > 0), mode="markers", name=str(year - 1),
+                f2.add_scatter(x=list(range(12)), y=Mp[key_].where(Mp[key_] > 0), mode="markers", name=f"Total {year - 1}" if split_m else str(year - 1),
                                marker=dict(symbol="line-ew", size=26, line=dict(width=3, color=PREV)),
                                customdata=MES, hovertemplate=f"%{{customdata}}: %{{y:.{dec}f}}<extra>{year - 1}</extra>")
             f2.update_xaxes(tickvals=list(range(12)), ticktext=xm, tickangle=0)
@@ -606,7 +643,7 @@ with tab_cw:
             delta_html(cur, SAME_LW[k], "sem. pasada a esta altura"),
             delta_html(cur, SAME_AVG[k], "media a esta altura"),
             f"proyección domingo: <b style='color:{INK}'>{fnum(PROJ[k], dec)}</b>",
-        ])
+        ] + ([dp_split_line(CW)] if k == "dp" and dp_split_line(CW) else []))
 
 
     cards([track_card(*m) for m in TRK[:3]])
@@ -710,6 +747,13 @@ with tab_cw:
                        hovertemplate=f"%{{x}}: %{{y:.{tdec}f}} {tunit}<extra>Media 8 sem</extra>")
         f6.add_scatter(x=DIAS, y=lw_c, name="Semana pasada", mode="lines", line=dict(color=PREV, width=1.6, dash="dash"),
                        hovertemplate=f"%{{x}}: %{{y:.{tdec}f}} {tunit}<extra>Semana pasada</extra>")
+        if tm == "dp" and (CW["dp_hike"] > 0 or CW["dp_cinta"] > 0):
+            for k_, lab_, c_ in DP_SRC:
+                ys_ = list(np.cumsum([span_tot(cur_mon + dt.timedelta(days=i), cur_mon + dt.timedelta(days=i))[k_] for i in range(dow + 1)]))
+                if ys_ and ys_[-1] > 0:
+                    f6.add_scatter(x=DIAS[: dow + 1], y=ys_, name=f"{lab_} (esta semana)", mode="lines", stackgroup="cw",
+                                   line=dict(color=src_color(c_), width=1), fillcolor=rgba(src_color(c_), .35),
+                                   hovertemplate=f"%{{x}} · {lab_}: %{{y:.0f}} m<extra></extra>")
         f6.add_scatter(x=DIAS[: dow + 1], y=cur_c, name="Esta semana", mode="lines+markers", line=dict(color=tcol, width=3),
                        marker=dict(size=7), hovertemplate=f"%{{x}}: %{{y:.{tdec}f}} {tunit}<extra>Esta semana</extra>")
         if remaining > 0:
@@ -760,7 +804,8 @@ with tab_lw:
                 f'{(last_mon + dt.timedelta(days=6)).year}</div>', unsafe_allow_html=True)
     st.subheader("Última semana")
     st.markdown('<span class="note">Semana completa de lunes a domingo, comparada con la semana anterior y con la media de las 8 semanas previas.</span>', unsafe_allow_html=True)
-    cards([(lab, col, fnum(LW[k], d), u, [delta_html(LW[k], PW[k], "sem. anterior"), delta_html(LW[k], AVG[k], "media 8 sem")])
+    cards([(lab, col, fnum(LW[k], d), u, [delta_html(LW[k], PW[k], "sem. anterior"), delta_html(LW[k], AVG[k], "media 8 sem")]
+            + ([dp_split_line(LW)] if k == "dp" and dp_split_line(LW) else []))
            for k, lab, col, u, d in WKM[:4]])
     cards([(lab, col, fnum(LW[k], d), u, [delta_html(LW[k], PW[k], "sem. anterior"), delta_html(LW[k], AVG[k], "media 8 sem")])
            for k, lab, col, u, d in WKM[4:]])
@@ -776,14 +821,27 @@ with tab_lw:
         vals = [w[metric] for w in W]
         opac = [0.38] * 11 + [1.0, 0.12]
         f3 = go.Figure()
-        f3.add_bar(x=xs, y=vals, marker=dict(color=colr, opacity=opac, line=dict(color=colr, width=[0] * 12 + [1.5])),
-                   text=[fnum(v, dec) if i == 11 else "" for i, v in enumerate(vals)], textposition="outside",
-                   textfont=dict(color=INK), hovertemplate=f"Semana %{{x}}: %{{y:.{dec}f}} {unit}<extra></extra>", showlegend=False)
+        split_w = metric == "dp" and any(w["dp_hike"] > 0 or w["dp_cinta"] > 0 for w in W)
+        if split_w:
+            for k_, lab_, c_ in DP_SRC:
+                ys_ = [w[k_] for w in W]
+                if sum(ys_) > 0:
+                    f3.add_bar(x=xs, y=ys_, name=lab_, marker=dict(color=src_color(c_), opacity=opac),
+                               hovertemplate=f"Semana %{{x}} · {lab_}: %{{y:.0f}} m<extra></extra>")
+            f3.update_layout(barmode="stack")
+            f3.add_annotation(x=xs[11], y=vals[11], text=fnum(vals[11]), showarrow=False, yshift=10, font=dict(color=INK))
+        else:
+            f3.add_bar(x=xs, y=vals, marker=dict(color=colr, opacity=opac, line=dict(color=colr, width=[0] * 12 + [1.5])),
+                       text=[fnum(v, dec) if i == 11 else "" for i, v in enumerate(vals)], textposition="outside",
+                       textfont=dict(color=INK), hovertemplate=f"Semana %{{x}}: %{{y:.{dec}f}} {unit}<extra></extra>", showlegend=False)
         if AVG[metric] > 0:
             f3.add_scatter(x=xs[3:12], y=[AVG[metric]] * 9, mode="lines", line=dict(color=INK, dash="dash", width=1.4),
                            name=f"media 8 sem: {fnum(AVG[metric], dec)}", hoverinfo="skip")
         f3.update_xaxes(ticktext=xs[:12] + [f"{xs[12]}<br>en curso"], tickvals=xs, tickangle=0, tickfont=dict(size=10))
-        st.plotly_chart(plot_layout(f3, 290), width="stretch", theme=None)
+        plot_layout(f3, 290)
+        if split_w:
+            f3.update_layout(legend=dict(orientation="h", y=-0.22, x=0), margin=dict(t=20))
+        st.plotly_chart(f3, width="stretch", theme=None)
     with c2:
         st.subheader("Día a día")
         TAGS = {"TrailRun": ("Trail", GOLD), "Run": ("Asfalto", INK), "VirtualRun": ("Cinta", GLACIER), "Hike": ("Caminata", PREV),
