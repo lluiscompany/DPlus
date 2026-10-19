@@ -25,7 +25,7 @@ except ImportError:
 st.set_page_config(page_title="Llibreta D+", page_icon="⛰️", layout="wide")
 
 # Tema: se elige con el interruptor de la barra lateral (clave "light_theme")
-LIGHT = bool(st.session_state.get("light_theme", False))
+LIGHT = st.session_state.get("theme_icon") == "☀️"
 PALETTES = {
     "dark": dict(GOLD="#f5c400", GLACIER="#4cc0e6", RED="#e8402f", GREEN="#3cb46a", VIOLET="#a58bd6", ORANGE="#f08a3c",
                  TEAL="#3fb8a6", INK="#f3f2ec", MUTED="#8e989f", PREV="#5d676e", LINE="#262d33", GRID="#1d2328",
@@ -118,6 +118,20 @@ table.tbl tr.cur td {{ color: {MUTED}; font-style: italic; }}
 .stApp h1, .stApp h2, .stApp h3, .stApp p, .stApp label, .stApp li {{ color: {INK}; }}
 .day {{ color: {INK}; }}
 table.tbl tr.tot td {{ border-top: 2px solid {GOLD}; color: {GOLD}; font-weight: 600; background: {SURFACE}; border-bottom: 0; }}
+[data-testid="stForm"] [data-testid="stVerticalBlock"]:has(> [class*="st-key-crow"]),
+[data-testid="stForm"] [data-testid="stVerticalBlock"]:has(> div > [class*="st-key-crow"]) {{ gap: 0 !important; }}
+[class*="st-key-crow"] [data-testid="stMarkdownContainer"] {{ display: flex; align-items: center; min-height: 2.5rem; }}
+[class*="st-key-crow"] {{ padding: 4px 10px; border-bottom: 1px solid {GRID}; }}
+[class*="st-key-crow"] [data-testid="stHorizontalBlock"] {{ align-items: center; }}
+[class*="st-key-crow"] .stNumberInput div[data-baseweb="input"], [class*="st-key-crow"] .stNumberInput > div > div {{ border-color: {LINE} !important; }}
+[class*="st-key-crowE"] {{ background: {ZEBRA}; }}
+[class*="st-key-crowO"] {{ background: {SURFACE}; }}
+[class*="st-key-crow"]:hover {{ background: {HOVER}; }}
+[class*="st-key-crow"] p {{ margin: 0; }}
+.chd {{ font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; color: {MUTED}; }}
+.ctd {{ font-size: 13.5px; color: {INK}; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+.ctd.r, .chd.r {{ text-align: right; }}
+[class*="st-key-crow"] [data-testid="stMarkdownContainer"] > div {{ width: 100%; }}
 .chip {{ display: inline-block; font-size: 11px; font-weight: 500; padding: 1px 7px; border-radius: 2px; background: var(--c); color: var(--o, #0a0c0e); }}
 </style>
 """,
@@ -338,7 +352,6 @@ now_y = today.year
 
 with st.sidebar:
     st.markdown("### ⛰️ Llibreta D+")
-    st.toggle("☀️ Tema claro", key="light_theme")
     year = st.selectbox("Temporada", list(range(now_y, 2022, -1)), index=0)
     hike = st.toggle("Sumar caminatas a D+ y Km", value=False)
     cinta_dp = st.toggle("Sumar D+ de cinta (según pendiente)", value=True,
@@ -363,6 +376,9 @@ with st.sidebar:
             "n": st.number_input("Sesiones", min_value=0, step=1, value=None, placeholder="media 8 sem"),
         }
     st.caption("D+ y Km = Run y TrailRun (más Hike si lo activas; D+ de cinta si lo activas) · Km Cinta = VirtualRun · min Gim = Workout, WeightTraining y Elliptical.")
+    st.markdown("<div style='height:18px'></div>", unsafe_allow_html=True)
+    st.segmented_control("Tema", ["🌙", "☀️"], default="🌙", key="theme_icon", label_visibility="collapsed",
+                         help="Tema oscuro / claro")
 
 # Contraseña opcional para la app
 pwd = str(get_secret("APP_PASSWORD", ""))
@@ -1088,44 +1104,45 @@ with tab_cinta:
             ("D+ cinta", GOLD, fnum(tm_["dp"].sum()), "m", ["sumado al D+ total" if cinta_dp else "no se suma (desactivado)"]),
             ("Pendiente media", ORANGE, fnum((tm_["dp"].sum() / (tm_["km"].sum() * 10)) if tm_["km"].sum() else 0, 1), "%", ["ponderada por km"]),
         ])
-        ed_src = pd.DataFrame({
-            "id": tm_["id"].values,
-            "Fecha": tm_["ts"].dt.strftime("%d/%m/%Y").values,
-            "Sesión": tm_["name"].values,
-            "Km": tm_["km"].round(2).values,
-            "Tiempo": tm_["secs"].map(lambda s_: f"{int(s_ // 3600)}:{int(s_ % 3600 // 60):02d}").values,
-            "Pendiente %": tm_["incline"].values,
-            "D+ m": tm_["dp"].values,
-        })
-        edited = st.data_editor(
-            ed_src, hide_index=True, width="stretch", key="cinta_editor",
-            height=min(len(ed_src) + 1, 16) * 35 + 3,
-            disabled=["id", "Fecha", "Sesión", "Km", "Tiempo", "D+ m"],
-            column_order=["Fecha", "Sesión", "Km", "Tiempo", "Pendiente %", "D+ m"],
-            column_config={
-                "Pendiente %": st.column_config.NumberColumn(min_value=0.0, max_value=40.0, step=0.5, format="%.1f %%",
-                                                             help="Pendiente media de la sesión"),
-                "Km": st.column_config.NumberColumn(format="%.2f"),
-                "D+ m": st.column_config.NumberColumn(format="%.0f", help="Se recalcula al guardar"),
-            },
-        )
-        orig = ed_src.set_index("id")["Pendiente %"]
-        new = edited.set_index("id")["Pendiente %"]
-        changed = [(i, new[i]) for i in new.index
-                   if not ((pd.isna(new[i]) and pd.isna(orig[i])) or (pd.notna(new[i]) and pd.notna(orig[i]) and abs(new[i] - orig[i]) < 1e-9))]
-        prev_km = {i: k for i, k in zip(ed_src["id"], ed_src["Km"])}
-        if changed:
-            st.markdown(
-                "Cambios sin guardar: " + ", ".join(
-                    f"{ed_src.set_index('id').loc[i, 'Fecha']} → {fnum(v, 1) if pd.notna(v) else 'vacío'} % "
-                    f"({fnum(prev_km[i] * 10 * (v if pd.notna(v) else 0))} m D+)" for i, v in changed),
-                unsafe_allow_html=True)
-        cA, cB = st.columns([1, 3])
-        with cA:
-            save = st.button("Guardar en intervals.icu", type="primary", disabled=not changed, width="stretch")
-        with cB:
-            st.caption("Antes del primer guardado, crea en intervals.icu un campo personalizado de actividad, numérico, con el código "
-                       f"`{INCLINE_FIELD}`. Si prefieres otro código, ponlo en el secreto INCLINE_FIELD.")
+        MAXR = 40
+        rows_c = tm_.head(MAXR)
+        if len(tm_) > MAXR:
+            st.caption(f"Se muestran las {MAXR} sesiones más recientes de {len(tm_)}. Acota el periodo para ver otras.")
+        CW_ = [1.1, 2.8, 0.9, 0.9, 1.3, 1.0]
+        hc = st.columns(CW_, vertical_alignment="center")
+        for col, (t, r) in zip(hc, [("Fecha", ""), ("Sesión", ""), ("Km", "r"), ("Tiempo", "r"), ("Pendiente %", ""), ("D+ m", "r")]):
+            col.markdown(f'<div class="chd {r}">{t}</div>', unsafe_allow_html=True)
+        with st.form("cinta_form", border=False):
+            inputs = {}
+            for i, (_, rw) in enumerate(rows_c.iterrows()):
+                with st.container(key=f"crow{'E' if i % 2 else 'O'}_{i}"):
+                    cc = st.columns(CW_, vertical_alignment="center")
+                    cc[0].markdown(f'<div class="ctd" style="font-family:IBM Plex Mono,monospace">{rw["ts"].strftime("%d/%m/%y")}</div>', unsafe_allow_html=True)
+                    cc[1].markdown(f'<div class="ctd" title="{rw["name"]}">{rw["name"]}</div>', unsafe_allow_html=True)
+                    cc[2].markdown(f'<div class="ctd r">{fnum(rw["km"], 2)}</div>', unsafe_allow_html=True)
+                    cc[3].markdown(f'<div class="ctd r">{int(rw["secs"] // 3600)}:{int(rw["secs"] % 3600 // 60):02d}</div>', unsafe_allow_html=True)
+                    inputs[rw["id"]] = cc[4].number_input(
+                        "Pendiente %", min_value=0.0, max_value=40.0, step=0.5, format="%.1f",
+                        value=None if pd.isna(rw["incline"]) else float(rw["incline"]),
+                        placeholder="—", label_visibility="collapsed", key=f"inc_{rw['id']}")
+                    dpv = rw["dp"]
+                    cc[5].markdown(f'<div class="ctd r" style="color:{GOLD if dpv > 0 else ZERO}">{fnum(dpv) if dpv > 0 else "0"}</div>',
+                                   unsafe_allow_html=True)
+            cA, cB = st.columns([1, 3], vertical_alignment="center")
+            with cA:
+                save = st.form_submit_button("Guardar en intervals.icu", type="primary", width="stretch")
+            with cB:
+                st.caption("Escribe la pendiente media y pulsa Guardar; el D+ se recalcula al guardar. Antes del primer guardado, crea en "
+                           f"intervals.icu un campo personalizado de actividad, numérico, con el código `{INCLINE_FIELD}`.")
+        orig = rows_c.set_index("id")["incline"]
+        changed = []
+        for act_id, val in inputs.items():
+            o = orig[act_id]
+            if (val is None and pd.isna(o)) or (val is not None and pd.notna(o) and abs(val - o) < 1e-9):
+                continue
+            changed.append((act_id, np.nan if val is None else val))
+        if save and not changed:
+            st.info("No hay cambios que guardar.")
         if save and changed:
             ov = dict(st.session_state.get("incline_overrides", {}))
             ok, fails = 0, []
