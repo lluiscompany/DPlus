@@ -24,9 +24,38 @@ except ImportError:
 # ─────────────────────────── Configuración ───────────────────────────
 st.set_page_config(page_title="Llibreta D+", page_icon="⛰️", layout="wide")
 
-GOLD, GLACIER, RED, GREEN = "#f5c400", "#4cc0e6", "#e8402f", "#3cb46a"
-VIOLET, ORANGE, TEAL, INK = "#a58bd6", "#f08a3c", "#3fb8a6", "#f3f2ec"
-MUTED, PREV, LINE, GRID, SURFACE, BG = "#8e989f", "#5d676e", "#262d33", "#1d2328", "#13171b", "#0a0c0e"
+# Tema: se elige con el interruptor de la barra lateral (clave "light_theme")
+LIGHT = bool(st.session_state.get("light_theme", False))
+PALETTES = {
+    "dark": dict(GOLD="#f5c400", GLACIER="#4cc0e6", RED="#e8402f", GREEN="#3cb46a", VIOLET="#a58bd6", ORANGE="#f08a3c",
+                 TEAL="#3fb8a6", INK="#f3f2ec", MUTED="#8e989f", PREV="#5d676e", LINE="#262d33", GRID="#1d2328",
+                 SURFACE="#13171b", BG="#0a0c0e", SURFACE2="#1a1f24", ZEBRA="#1b2126", HOVER="#252d34", ZERO="#3a444c"),
+    "light": dict(GOLD="#c99700", GLACIER="#1d86ad", RED="#cf3427", GREEN="#2b8f52", VIOLET="#7a5fc0", ORANGE="#d26a17",
+                  TEAL="#1f8f81", INK="#1c2420", MUTED="#5f6b66", PREV="#9aa59f", LINE="#d3dad6", GRID="#e7ece9",
+                  SURFACE="#ffffff", BG="#f3f5f2", SURFACE2="#eef1ee", ZEBRA="#f5f7f5", HOVER="#e6ece8", ZERO="#bcc6c1"),
+}
+_P = PALETTES["light" if LIGHT else "dark"]
+GOLD, GLACIER, RED, GREEN = _P["GOLD"], _P["GLACIER"], _P["RED"], _P["GREEN"]
+VIOLET, ORANGE, TEAL, INK = _P["VIOLET"], _P["ORANGE"], _P["TEAL"], _P["INK"]
+MUTED, PREV, LINE, GRID, SURFACE, BG = _P["MUTED"], _P["PREV"], _P["LINE"], _P["GRID"], _P["SURFACE"], _P["BG"]
+SURFACE2, ZEBRA, HOVER, ZERO = _P["SURFACE2"], _P["ZEBRA"], _P["HOVER"], _P["ZERO"]
+
+
+def rgb(hex_color: str) -> str:
+    return ",".join(str(int(hex_color[i:i + 2], 16)) for i in (1, 3, 5))
+
+
+def rgba(hex_color: str, a: float) -> str:
+    return f"rgba({rgb(hex_color)},{a})"
+
+
+def on(hex_color: str) -> str:
+    """Color de texto legible sobre un fondo dado."""
+    r, g, b = (int(hex_color[i:i + 2], 16) / 255 for i in (1, 3, 5))
+    return "#0a0c0e" if (0.2126 * r + 0.7152 * g + 0.0722 * b) > 0.45 else "#ffffff"
+
+
+
 
 OUT, CINTA, GIM = {"Run", "TrailRun"}, {"VirtualRun"}, {"Workout", "WeightTraining", "Elliptical"}
 MES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
@@ -58,12 +87,12 @@ h1, h2, h3 {{ font-family: "Barlow Condensed", "Arial Narrow", sans-serif !impor
 .reading {{ background: {SURFACE}; border-left: 3px solid var(--c); padding: 10px 14px; font-size: 13.5px; margin: 6px 0 12px; }}
 .day {{ display: grid; grid-template-columns: 62px 1fr; gap: 10px; padding: 7px 0; border-bottom: 1px solid {GRID}; }}
 .day .dn {{ font: 12px "IBM Plex Mono", monospace; color: {MUTED}; }}
-.tag {{ display: inline-block; font-size: 11px; font-weight: 500; padding: 1px 7px; border-radius: 2px; background: var(--c); color: {BG}; margin-right: 6px; }}
+.tag {{ display: inline-block; font-size: 11px; font-weight: 500; padding: 1px 7px; border-radius: 2px; background: var(--c); color: var(--o, #0a0c0e); margin-right: 6px; }}
 .m {{ color: {MUTED}; font-size: 12.5px; }}
 .tblw {{ overflow: auto; border: 1px solid {LINE}; border-radius: 8px; margin: 6px 0 14px; }}
 table.tbl {{ border-collapse: separate; border-spacing: 0; width: 100%; font: 13.5px "IBM Plex Sans", system-ui, sans-serif;
              font-variant-numeric: tabular-nums; color: {INK}; }}
-table.tbl th {{ position: sticky; top: 0; z-index: 2; background: #1a1f24; color: {MUTED}; font-weight: 500; font-size: 11.5px;
+table.tbl th {{ position: sticky; top: 0; z-index: 2; background: {SURFACE2}; color: {MUTED}; font-weight: 500; font-size: 11.5px;
                text-transform: uppercase; letter-spacing: .05em; padding: 9px 12px; text-align: right; white-space: nowrap;
                border-bottom: 1px solid {LINE}; }}
 table.tbl tr.grp th {{ top: 0; text-align: center; color: {INK}; font: 600 15px "Barlow Condensed", sans-serif; letter-spacing: .04em;
@@ -74,20 +103,51 @@ table.tbl td {{ padding: 9px 12px; text-align: right; white-space: nowrap; borde
 table.tbl th.l, table.tbl td.l {{ text-align: left; }}
 table.tbl th, table.tbl td {{ border-top: 0 !important; border-left: 0 !important; border-right: 0 !important; }}
 table.tbl tbody tr:nth-child(odd) td {{ background-color: {SURFACE}; }}
-table.tbl tbody tr:nth-child(even) td {{ background-color: #1b2126; }}
-table.tbl tbody tr:hover td {{ background-color: #252d34 !important; }}
+table.tbl tbody tr:nth-child(even) td {{ background-color: {ZEBRA}; }}
+table.tbl tbody tr:hover td {{ background-color: {HOVER} !important; }}
 table.tbl th:first-child, table.tbl td:first-child {{ position: sticky; left: 0; z-index: 1; background: {SURFACE}; text-align: left;
                                                      font-family: "IBM Plex Mono", monospace; border-right: 1px solid {LINE} !important; }}
-table.tbl th:first-child {{ z-index: 3; background: #1a1f24; }}
-table.tbl tbody tr:nth-child(even) td:first-child {{ background: #1b2126; }}
+table.tbl th:first-child {{ z-index: 3; background: {SURFACE2}; }}
+table.tbl tbody tr:nth-child(even) td:first-child {{ background: {ZEBRA}; }}
 table.tbl .g {{ border-left: 2px solid {LINE} !important; }}
-table.tbl td.z {{ color: #3a444c; }}
+table.tbl td.z {{ color: {ZERO}; }}
+table.tbl tr.hl td {{ color: {GOLD}; font-weight: 600; }}
+table.tbl tr.cur td {{ color: {MUTED}; font-style: italic; }}
+.stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {{ background: {BG}; color: {INK}; }}
+[data-testid="stSidebar"], [data-testid="stSidebar"] > div {{ background: {SURFACE2}; }}
+.stApp h1, .stApp h2, .stApp h3, .stApp p, .stApp label, .stApp li {{ color: {INK}; }}
+.day {{ color: {INK}; }}
 table.tbl tr.tot td {{ border-top: 2px solid {GOLD}; color: {GOLD}; font-weight: 600; background: {SURFACE}; border-bottom: 0; }}
-.chip {{ display: inline-block; font-size: 11px; font-weight: 500; padding: 1px 7px; border-radius: 2px; background: var(--c); color: {BG}; }}
+.chip {{ display: inline-block; font-size: 11px; font-weight: 500; padding: 1px 7px; border-radius: 2px; background: var(--c); color: var(--o, #0a0c0e); }}
 </style>
 """,
     unsafe_allow_html=True,
 )
+
+
+# Tema claro: el tema nativo de Streamlit es oscuro (config.toml); aquí se adaptan sus widgets
+if LIGHT:
+    st.markdown(f"""<style>
+.stSelectbox [role="group"], .stMultiSelect [role="group"], [data-baseweb="select"] > div,
+.stNumberInput input, .stTextInput input, .stNumberInput [data-baseweb="input"] {{
+  background: {SURFACE} !important; color: {INK} !important; border-color: {LINE} !important; }}
+.stSelectbox input, .stMultiSelect input {{ color: {INK} !important; }}
+[role="listbox"], [role="listbox"] [role="option"], [data-baseweb="popover"] ul {{ background: {SURFACE} !important; color: {INK} !important; }}
+[role="listbox"] [role="option"]:hover, [role="listbox"] [data-focused="true"] {{ background: {HOVER} !important; }}
+.stButtonGroup button {{ background: {SURFACE} !important; border-color: {LINE} !important; }}
+.stButtonGroup button p, .stButtonGroup button span {{ color: {INK} !important; }}
+.stButtonGroup button[data-selected="true"], .stButtonGroup button[aria-checked="true"] {{ background: {rgba(GOLD, .16)} !important; border-color: {GOLD} !important; }}
+.stExpander details {{ background: {SURFACE} !important; border-color: {LINE} !important; }}
+.stExpander summary, .stExpander summary p {{ color: {INK} !important; }}
+.stCheckbox label:has(input:not(:checked)) > div:nth-of-type(1) {{ background: {LINE} !important; }}
+.stCheckbox label:has(input:not(:checked)) > div:nth-of-type(1) > div {{ background: {SURFACE} !important; box-shadow: 0 0 0 1px {MUTED}; }}
+.stTabs button p {{ color: {INK}; }}
+.stSlider [data-testid="stSliderTickBarMin"], .stSlider [data-testid="stSliderTickBarMax"] {{ color: {MUTED}; }}
+[data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] label {{ color: {INK}; }}
+[data-testid="stSidebar"] .stButton button p {{ color: {on(GOLD)}; }}
+[data-testid="stHeader"] {{ color: {INK}; }}
+[data-testid="stCaptionContainer"], .stCaption {{ color: {MUTED} !important; }}
+</style>""", unsafe_allow_html=True)
 
 
 # ─────────────────────────── Utilidades ───────────────────────────
@@ -122,7 +182,8 @@ def cards(items):
 
 
 def html_table(df: pd.DataFrame, fmt: dict | None = None, groups: list | None = None, group_start: set | None = None,
-               heat: dict | None = None, total_last: bool = False, left: set | None = None, max_height: int | None = None):
+               heat: dict | None = None, total_last: bool = False, left: set | None = None, max_height: int | None = None,
+               row_classes: list | None = None):
     """Tabla HTML legible: filas alternas, cabecera fija, primera columna fija, grupos de columnas y celdas con intensidad.
 
     fmt: {col: callable(v)->str}; groups: [(titulo, n_columnas, clase)] para una fila de cabecera agrupada;
@@ -138,7 +199,7 @@ def html_table(df: pd.DataFrame, fmt: dict | None = None, groups: list | None = 
         f'<th class="{"g " if c in group_start else ""}{"l" if c in left else ""}">{c.split("|")[-1]}</th>' for c in cols) + "</tr></thead><tbody>")
     n = len(df)
     for i, (_, row) in enumerate(df.iterrows()):
-        cls = "tot" if total_last and i == n - 1 else ""
+        cls = "tot" if total_last and i == n - 1 else (row_classes[i] if row_classes else "")
         tds = []
         for c in cols:
             v = row[c]
@@ -161,8 +222,8 @@ def plot_layout(fig, h=300, legend=True):
         showlegend=legend, legend=dict(orientation="h", y=1.08, x=0, font=dict(color=MUTED)),
         hoverlabel=dict(font_family="IBM Plex Sans, system-ui, sans-serif"), bargap=0.25,
     )
-    fig.update_xaxes(gridcolor=GRID, linecolor=MUTED, zeroline=False)
-    fig.update_yaxes(gridcolor=GRID, linecolor=GRID, zeroline=False)
+    fig.update_xaxes(gridcolor=GRID, linecolor=MUTED, zeroline=False, automargin=True, tickfont=dict(color=MUTED))
+    fig.update_yaxes(gridcolor=GRID, linecolor=GRID, zeroline=False, automargin=True, tickfont=dict(color=MUTED))
     return fig
 
 
@@ -277,6 +338,7 @@ now_y = today.year
 
 with st.sidebar:
     st.markdown("### ⛰️ Llibreta D+")
+    st.toggle("☀️ Tema claro", key="light_theme")
     year = st.selectbox("Temporada", list(range(now_y, 2022, -1)), index=0)
     hike = st.toggle("Sumar caminatas a D+ y Km", value=False)
     cinta_dp = st.toggle("Sumar D+ de cinta (según pendiente)", value=True,
@@ -448,7 +510,7 @@ with tab_temp:
                         line=dict(color=PREV, width=1.6, dash="dash"), hovertemplate="%{x:.0f} km · %{y:.0f} m<extra></extra>")
     gy = cumulative(df_y, year, today if year == now_y else None)
     fig.add_scatter(x=gy["out_km"], y=gy["out_dp"], mode="lines", name=str(year), fill="tozeroy",
-                    fillcolor="rgba(245,196,0,.14)", line=dict(color=GOLD, width=2.6),
+                    fillcolor=rgba(GOLD, .14), line=dict(color=GOLD, width=2.6),
                     hovertemplate="%{x:.0f} km · %{y:.0f} m<extra></extra>")
     months = gy[gy.index.day == 1].iloc[1:]
     fig.add_scatter(x=months["out_km"], y=months["out_dp"], mode="markers+text", text=[MES[m - 1] for m in months.index.month],
@@ -459,7 +521,7 @@ with tab_temp:
                         text=[f"{fnum(gy['out_dp'].iloc[-1])} m"], textposition="middle right",
                         textfont=dict(color=GOLD, family="IBM Plex Sans, system-ui, sans-serif"), marker=dict(size=11, color=GOLD), showlegend=False, hoverinfo="skip")
     fig.update_xaxes(title=None, ticksuffix=" km")
-    st.plotly_chart(plot_layout(fig, 320), width="stretch")
+    st.plotly_chart(plot_layout(fig, 320), width="stretch", theme=None)
 
     # Mensual
     def monthly(d: pd.DataFrame) -> pd.DataFrame:
@@ -483,7 +545,7 @@ with tab_temp:
                                marker=dict(symbol="line-ew", size=26, line=dict(width=3, color=PREV)),
                                customdata=MES, hovertemplate=f"%{{customdata}}: %{{y:.{dec}f}}<extra>{year - 1}</extra>")
             f2.update_xaxes(tickvals=list(range(12)), ticktext=xm, tickangle=0)
-            st.plotly_chart(plot_layout(f2, 250), width="stretch")
+            st.plotly_chart(plot_layout(f2, 250), width="stretch", theme=None)
 
 
 with tab_cw:
@@ -581,7 +643,7 @@ with tab_cw:
         fz.add_hline(y=0, line_color=MUTED, line_width=1)
         fz.update_xaxes(tickvals=f14.index, ticktext=[f"{DIAS[d.weekday()]} {d.day}" for d in f14.index])
         plot_layout(fz, 260).update_layout(legend=dict(orientation="h", y=-0.2, x=0), margin=dict(t=24))
-        st.plotly_chart(fz, width="stretch")
+        st.plotly_chart(fz, width="stretch", theme=None)
 
     # Rampa de carga y lectura
     base4 = float(np.mean([w["load"] for w in W[7:11]]))
@@ -640,7 +702,7 @@ with tab_cw:
                          annotation_text=f"objetivo {fnum(GOAL[tm], tdec)}", annotation_position="top left",
                          annotation_font=dict(color=INK, size=11))
         plot_layout(f6, 320).update_layout(legend=dict(orientation="h", y=-0.18, x=0), margin=dict(t=24))
-        st.plotly_chart(f6, width="stretch")
+        st.plotly_chart(f6, width="stretch", theme=None)
     with c2:
         st.subheader("Esta semana")
         TAGS_CW = {"TrailRun": ("Trail", GOLD), "Run": ("Asfalto", INK), "VirtualRun": ("Cinta", GLACIER), "Hike": ("Caminata", PREV),
@@ -658,7 +720,7 @@ with tab_cw:
                 parts.append(f"{int(a['secs'] // 3600)}:{int(a['secs'] % 3600 // 60):02d}")
                 if a["load"]:
                     parts.append(f"carga {int(a['load'])}")
-                body.append(f'<div><span class="tag" style="--c:{tc_}">{tl_}</span><span class="m">{" · ".join(parts)}</span></div>')
+                body.append(f'<div><span class="tag" style="--c:{tc_};--o:{on(tc_)}">{tl_}</span><span class="m">{" · ".join(parts)}</span></div>')
             if body:
                 content = "".join(body)
             elif i < dow:
@@ -667,7 +729,7 @@ with tab_cw:
                 content = "<i class=m>Hoy, sin actividad todavía</i>"
             else:
                 content = "<span class=m>—</span>"
-            style = f' style="background:rgba(245,196,0,.06)"' if i == dow else ""
+            style = f' style="background:{rgba(GOLD, .08)}"' if i == dow else ""
             label = f'{DIAS[i]} {day.day}' + (" ·hoy" if i == dow else "")
             html.append(f'<div class="day"{style}><span class="dn">{label}</span><div>{content}</div></div>')
         st.markdown("".join(html), unsafe_allow_html=True)
@@ -702,7 +764,7 @@ with tab_lw:
             f3.add_scatter(x=xs[3:12], y=[AVG[metric]] * 9, mode="lines", line=dict(color=INK, dash="dash", width=1.4),
                            name=f"media 8 sem: {fnum(AVG[metric], dec)}", hoverinfo="skip")
         f3.update_xaxes(ticktext=xs[:12] + [f"{xs[12]}<br>en curso"], tickvals=xs, tickangle=0, tickfont=dict(size=10))
-        st.plotly_chart(plot_layout(f3, 290), width="stretch")
+        st.plotly_chart(plot_layout(f3, 290), width="stretch", theme=None)
     with c2:
         st.subheader("Día a día")
         TAGS = {"TrailRun": ("Trail", GOLD), "Run": ("Asfalto", INK), "VirtualRun": ("Cinta", GLACIER), "Hike": ("Caminata", PREV),
@@ -722,7 +784,7 @@ with tab_lw:
                 parts.append(f"{int(a['secs'] // 3600)}:{int(a['secs'] % 3600 // 60):02d}")
                 if a["load"]:
                     parts.append(f"carga {int(a['load'])}")
-                body.append(f'<div><span class="tag" style="--c:{tc}">{tl}</span><span class="m">{" · ".join(parts)}</span></div>')
+                body.append(f'<div><span class="tag" style="--c:{tc};--o:{on(tc)}">{tl}</span><span class="m">{" · ".join(parts)}</span></div>')
             html.append(f'<div class="day"><span class="dn">{DIAS[i]} {day.day}</span><div>{"".join(body) or "<i class=m>Descanso</i>"}</div></div>')
         st.markdown("".join(html), unsafe_allow_html=True)
 
@@ -732,9 +794,11 @@ with tab_lw:
         name = f"{ws.day}/{ws.month}–{(ws + dt.timedelta(days=6)).day}/{(ws + dt.timedelta(days=6)).month}"
         wk_rows.append({"Semana": name + (" (en curso)" if i == 12 else " ★" if i == 11 else ""), **{lab: W[i][k] for k, lab, *_ in WKM}, "Sesiones": W[i]["n"]})
     wk_rows.append({"Semana": "Media 8 sem previas", **{lab: AVG[k] for k, lab, *_ in WKM}, "Sesiones": AVG["n"]})
-    fmt = {lab: st.column_config.NumberColumn(format="%.1f" if d else "%.0f") for k, lab, c, u, d in WKM}
-    st.dataframe(pd.DataFrame(wk_rows), hide_index=True, width="stretch", height=(len(wk_rows) + 1) * 35 + 3,
-                 column_config={**fmt, "Sesiones": st.column_config.NumberColumn(format="%.1f")})
+    WT = pd.DataFrame(wk_rows)
+    fz_ = lambda d: (lambda v: "0" if v == 0 else fnum(v, d))  # noqa: E731
+    html_table(WT, fmt={**{lab: fz_(d) for k, lab, c, u, d in WKM}, "Sesiones": fz_(1)},
+               heat={"D+": (float(max(1, WT["D+"].iloc[1:-1].max())), rgb(GOLD))},
+               row_classes=["cur"] + ["hl"] + [""] * (len(WT) - 3) + [""], total_last=True, group_start={"Sesiones"})
 
 
 with tab_fat:
@@ -802,7 +866,7 @@ with tab_fat:
                     f4.add_scatter(x=x, y=frame["atl"], name=f"Fatiga {suffix}", line=dict(color=RED, width=1.8 if op == 1 else 1.2, dash=dash), opacity=op,
                                    customdata=frame.index.strftime("%d/%m"), hovertemplate="%{customdata}: %{y:.0f}<extra>Fatiga " + suffix + "</extra>")
                     f5.add_scatter(x=x, y=frame["tsb"], name=f"Balance {suffix}", line=dict(color=INK if op == 1 else MUTED, width=1.8 if op == 1 else 1.4, dash=dash),
-                                   fill="tozeroy" if op == 1 else None, fillcolor="rgba(243,242,236,.08)",
+                                   fill="tozeroy" if op == 1 else None, fillcolor=rgba(INK, .08),
                                    customdata=frame.index.strftime("%d/%m"), hovertemplate="%{customdata}: %{y:.0f}<extra>Balance " + suffix + "</extra>")
             mstarts = [dt.date(now_y, m, 1).timetuple().tm_yday for m in range(1, 13)]
             for fig_ in (f4, f5):
@@ -817,7 +881,7 @@ with tab_fat:
             f4.update_layout(yaxis2=dict(overlaying="y", side="right", showgrid=False, showticklabels=False,
                                          range=[0, max(1, sub["load"].max()) / .55]))
             f5.add_scatter(x=sub.index, y=sub["tsb"], name="Balance", mode=mode, line=dict(color=INK, width=1.8), fill="tozeroy",
-                           fillcolor="rgba(243,242,236,.08)", hovertemplate="%{x|%d/%m}: %{y:.0f}<extra>Balance</extra>")
+                           fillcolor=rgba(INK, .08), hovertemplate="%{x|%d/%m}: %{y:.0f}<extra>Balance</extra>")
             if int(rng) <= 7:
                 for fig_ in (f4, f5):
                     fig_.update_xaxes(tickvals=sub.index, ticktext=[f"{DIAS[d.weekday()]} {d.day}" for d in sub.index])
@@ -827,8 +891,8 @@ with tab_fat:
                          annotation_font=dict(color=c, size=11))
         f5.add_hline(y=0, line_color=MUTED, line_width=1)
         f5.update_yaxes(range=[lo, hi])
-        st.plotly_chart(plot_layout(f4, 280), width="stretch")
-        st.plotly_chart(plot_layout(f5, 170, legend=rng == "year"), width="stretch")
+        st.plotly_chart(plot_layout(f4, 280), width="stretch", theme=None)
+        st.plotly_chart(plot_layout(f5, 170, legend=rng == "year"), width="stretch", theme=None)
 
         # Esfuerzo por periodo (media semanal)
         st.subheader("Esfuerzo por periodo · media semanal")
@@ -852,9 +916,10 @@ with tab_fat:
                    (max(ys, first), today, f"Año {now_y}"),
                    (max(pys, first), pys + dt.timedelta(days=doy0), f"{now_y - 1} a misma fecha")]
         rows = [period(a, b, lab) for a, b, lab in periods if b >= a]
-        st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch", height=(len(rows) + 1) * 35 + 3,
-                     column_config={c: st.column_config.NumberColumn(format="%.0f" if c in ("D+ m", "Carga", "Carga/h") else "%.1f")
-                                    for c in rows[0] if c != "Periodo"})
+        PT = pd.DataFrame(rows)
+        html_table(PT, fmt={c: (lambda d: (lambda v: "0" if v == 0 else fnum(v, d)))(0 if c in ("D+ m", "Carga", "Carga/h") else 1)
+                            for c in PT.columns if c != "Periodo"},
+                   row_classes=["hl"] + [""] * (len(PT) - 1), group_start={"Carga"})
         with st.expander("Cómo leer estos indicadores"):
             st.markdown(
                 "- **Forma (CTL)**: carga media ponderada de 42 días. Sube despacio con la constancia.\n"
@@ -874,8 +939,8 @@ with tab_sets:
     st.subheader(f"D+ {year} por Sets")
     st.markdown('<span class="note">Set = bloque de 7 días del mes (1–7, 8–14, 15–21, 22–28, 29–31). Ultra Ind = 1,7 × D+/Km. '
                 'Incr vs M‑1 = (D+ mes − D+ mes anterior) / D+ mes.</span>', unsafe_allow_html=True)
-    MET = {"D+": ("out_dp", 0, "245,196,0"), "Km": ("out_km", 1, "243,242,236"), "Km Cinta": ("cinta_km", 1, "76,192,230"),
-           "min Gim": ("gim_min", 0, "60,180,106")}
+    MET = {"D+": ("out_dp", 0, rgb(GOLD)), "Km": ("out_km", 1, rgb(INK)), "Km Cinta": ("cinta_km", 1, rgb(GLACIER)),
+           "min Gim": ("gim_min", 0, rgb(GREEN))}
     months_n = today.month if year == now_y else 12
     mlabels = [f"{MES[m - 1]} {str(year)[2:]}" for m in range(1, months_n + 1)]
     vista = st.segmented_control("Vista", ["Resumen mensual", "Detalle por Sets"], default="Resumen mensual",
@@ -898,7 +963,7 @@ with tab_sets:
             return f'<span class="{"up" if v > 0 else "down"}">{"▲" if v > 0 else "▼"} {fnum(abs(v))} %</span>'
 
         html_table(R, fmt={"D+ m": fN(0), "Km": fN(1), "Km Cinta": fN(1), "min Gim": fN(0), "Ultra Ind": fN(1), "Incr vs M‑1": incr_fmt},
-                   heat={"D+ m": (float(max(1, R["D+ m"].iloc[:-1].max())), "245,196,0")}, group_start={"Ultra Ind"}, total_last=True)
+                   heat={"D+ m": (float(max(1, R["D+ m"].iloc[:-1].max())), rgb(GOLD))}, group_start={"Ultra Ind"}, total_last=True)
     else:
         met = st.pills("Métrica", list(MET), default="D+", key="sets_metric") or "D+"
         src, dec, rgb = MET[met]
@@ -972,8 +1037,8 @@ with tab_long:
                 "Calorías": lg2["kcal"].values, "Carbs": lg2["carbs"].values, "Sensación": lg2["feel"].values,
             })
             view = full[["Fecha", "Entrenamiento"] + [c for c in ALLC if c in show]]
-            chip = lambda v: (f'<span class="chip" style="--c:{GOLD}">Trail</span>' if v == "TrailRun"  # noqa: E731
-                              else f'<span class="chip" style="--c:{INK}">Asfalto</span>')
+            chip = lambda v: (f'<span class="chip" style="--c:{GOLD};--o:{on(GOLD)}">Trail</span>' if v == "TrailRun"  # noqa: E731
+                              else f'<span class="chip" style="--c:{INK};--o:{on(INK)}">Asfalto</span>')
             num = lambda d, u="": (lambda v: "" if pd.isna(v) else f"{fnum(v, d)}{u}")  # noqa: E731
             name_f = lambda v: (str(v)[:38] + "…") if len(str(v)) > 39 else str(v)  # noqa: E731
             html_table(view, left={"Entrenamiento", "Tipo"}, max_height=620,
@@ -981,7 +1046,7 @@ with tab_long:
                             "Tiempo total": hm, "Tiempo mov.": hm, "Ritmo": pace_f, "Carga": num(0), "Cardio med": num(0),
                             "Cardio máx": num(0), "Calorías": num(0), "Carbs": num(0, " g"),
                             "Sensación": lambda v: "" if pd.isna(v) else f"{int(v)}/5"},
-                       heat={"D+": (float(max(1, lg2["dp"].max())), "245,196,0")} if "D+" in show else None)
+                       heat={"D+": (float(max(1, lg2["dp"].max())), rgb(GOLD))} if "D+" in show else None)
             fig_l = go.Figure()
             fig_l.add_scatter(x=lg["km"], y=lg["dp"], mode="markers", text=lg["name"],
                               customdata=np.stack([lg["ts"].dt.strftime("%d/%m/%Y"), lg["elapsed"].map(hm)], axis=-1),
@@ -992,7 +1057,7 @@ with tab_long:
             fig_l.update_xaxes(title="km", ticksuffix="")
             fig_l.update_yaxes(title="D+ m")
             st.markdown('<span class="note">Distancia frente a desnivel; el tamaño del punto es el tiempo total. Dorado = trail, blanco = asfalto.</span>', unsafe_allow_html=True)
-            st.plotly_chart(plot_layout(fig_l, 300, legend=False), width="stretch")
+            st.plotly_chart(plot_layout(fig_l, 300, legend=False), width="stretch", theme=None)
         else:
             st.info("Ninguna carrera cumple los filtros. Amplía los rangos para ver más.")
 
