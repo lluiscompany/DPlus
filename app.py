@@ -156,6 +156,11 @@ if LIGHT:
 .stButtonGroup button[data-selected="true"], .stButtonGroup button[aria-checked="true"] {{ background: {rgba(GOLD, .16)} !important; border-color: {GOLD} !important; }}
 .stExpander details {{ background: {SURFACE} !important; border-color: {LINE} !important; }}
 .stExpander summary, .stExpander summary p {{ color: {INK} !important; }}
+.stNumberInput button {{ background: {SURFACE2} !important; color: {INK} !important; border-color: {LINE} !important; }}
+.stNumberInput button:hover {{ background: {HOVER} !important; color: {GOLD} !important; }}
+.stNumberInput button svg, .stNumberInput button span {{ color: {INK} !important; fill: {INK} !important; }}
+.stButton button[kind="secondary"], [data-testid="stBaseButton-secondary"] {{ background: {SURFACE} !important; color: {INK} !important; border-color: {LINE} !important; }}
+.stButton button[kind="secondary"] p {{ color: {INK} !important; }}
 .stCheckbox label:has(input:not(:checked)) > div:nth-of-type(1) {{ background: {LINE} !important; }}
 .stCheckbox label:has(input:not(:checked)) > div:nth-of-type(1) > div {{ background: {SURFACE} !important; box-shadow: 0 0 0 1px {MUTED}; }}
 .stTabs button p {{ color: {INK}; }}
@@ -1195,10 +1200,28 @@ with tab_cinta:
             ("D+ cinta", GOLD, fnum(tm_["dp"].sum()), "m", ["sumado al D+ total" if cinta_dp else "no se suma (desactivado)"]),
             ("Pendiente media", ORANGE, fnum((tm_["dp"].sum() / (tm_["km"].sum() * 10)) if tm_["km"].sum() else 0, 1), "%", ["ponderada por km"]),
         ])
-        MAXR = 40
-        rows_c = tm_.head(MAXR)
-        if len(tm_) > MAXR:
-            st.caption(f"Se muestran las {MAXR} sesiones más recientes de {len(tm_)}. Acota el periodo para ver otras.")
+        # Paginación
+        PER_PAGE = 20
+        n_pages = max(1, math.ceil(len(tm_) / PER_PAGE))
+        sig = f"{periodo}|{len(tm_)}"
+        if st.session_state.get("cinta_sig") != sig:          # cambio de periodo → volver a la primera página
+            st.session_state["cinta_sig"] = sig
+            st.session_state["cinta_page"] = 1
+        page = min(max(1, int(st.session_state.get("cinta_page", 1))), n_pages)
+        if n_pages > 1:
+            pg1, pg2, pg3, _ = st.columns([1, 1.6, 1, 3], vertical_alignment="center")
+            with pg1:
+                if st.button("◀ Anterior", disabled=page <= 1, width="stretch", key="cinta_prev"):
+                    st.session_state["cinta_page"] = page - 1
+                    st.rerun()
+            with pg2:
+                st.markdown(f'<div class="note" style="text-align:center">Página <b style="color:{INK}">{page}</b> de {n_pages} · '
+                            f'{len(tm_)} sesiones</div>', unsafe_allow_html=True)
+            with pg3:
+                if st.button("Siguiente ▶", disabled=page >= n_pages, width="stretch", key="cinta_next"):
+                    st.session_state["cinta_page"] = page + 1
+                    st.rerun()
+        rows_c = tm_.iloc[(page - 1) * PER_PAGE: page * PER_PAGE]
         CW_ = [1.1, 2.8, 0.9, 0.9, 1.3, 1.0]
         hc = st.columns(CW_, vertical_alignment="center")
         for col, (t, r) in zip(hc, [("Fecha", ""), ("Sesión", ""), ("Km", "r"), ("Tiempo", "r"), ("Pendiente %", ""), ("D+ m", "r")]):
@@ -1223,7 +1246,8 @@ with tab_cinta:
             with cA:
                 save = st.form_submit_button("Guardar en intervals.icu", type="primary", width="stretch")
             with cB:
-                st.caption("Escribe la pendiente media y pulsa Guardar; el D+ se recalcula al guardar. Antes del primer guardado, crea en "
+                st.caption(("Guarda antes de cambiar de página: los cambios sin guardar se pierden. " if n_pages > 1 else "")
+                           + "Escribe la pendiente media y pulsa Guardar; el D+ se recalcula al guardar. Antes del primer guardado, crea en "
                            f"intervals.icu un campo personalizado de actividad, numérico, con el código `{INCLINE_FIELD}`.")
         orig = rows_c.set_index("id")["incline"]
         changed = []
