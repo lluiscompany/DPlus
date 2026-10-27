@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import html as _html
 import math
 import os
 import random
@@ -11,6 +12,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import requests
 import streamlit as st
+from urllib.parse import quote_plus
 
 # En redes corporativas con inspección TLS, usa los certificados de confianza del sistema
 # (almacén de Windows / llavero de macOS) en lugar del paquete de certifi.
@@ -136,6 +138,23 @@ table.tbl tr.tot td {{ border-top: 2px solid {GOLD}; color: {GOLD}; font-weight:
 [data-testid="stDateInputField"]::after {{ content: "📅"; position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
   font-size: 15px; pointer-events: none; opacity: .85; }}
 .chip {{ display: inline-block; font-size: 11px; font-weight: 500; padding: 1px 7px; border-radius: 2px; background: var(--c); color: var(--o, #0a0c0e); }}
+.shoes {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; margin: 6px 0 16px; }}
+@media (max-width: 640px) {{ .shoes {{ grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }}
+  .shoe {{ padding: 8px; }} .shoe .km {{ font-size: 22px; }} .shoe .ph {{ font-size: 40px; }} }}
+.shoe {{ background: {SURFACE}; border: 1px solid {LINE}; border-radius: 8px; padding: 10px; display: grid; gap: 4px; min-width: 0; }}
+.shoe.ret {{ opacity: .62; }}
+.shoe .ph {{ aspect-ratio: 1; border-radius: 6px; background: #ffffff; display: flex; align-items: center; justify-content: center;
+             overflow: hidden; font-size: 54px; position: relative; }}
+.shoe .ph.no {{ background: {SURFACE2}; }}
+.shoe .ph .im {{ position: absolute; inset: 0; background-size: contain; background-position: center; background-repeat: no-repeat; }}
+.shoe .nm {{ font: 600 17px/1.1 "Barlow Condensed", sans-serif; color: {INK}; margin-top: 4px; }}
+.shoe .br {{ font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: {MUTED}; }}
+.shoe .km {{ font: 600 26px/1 "Barlow Condensed", sans-serif; color: {INK}; font-variant-numeric: tabular-nums; }}
+.shoe .km small {{ font: 400 12px "IBM Plex Sans", sans-serif; color: {MUTED}; margin-left: 3px; }}
+.shoe .ln {{ font-size: 12px; color: {MUTED}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+.bar {{ height: 6px; border-radius: 3px; background: {GRID}; overflow: hidden; margin-top: 2px; }}
+.bar > span {{ display: block; height: 100%; background: var(--c); }}
+.shoe .st {{ position: absolute; top: 6px; left: 6px; font-size: 10.5px; padding: 1px 6px; border-radius: 2px; background: var(--c); color: var(--o); }}
 </style>
 """,
     unsafe_allow_html=True,
@@ -169,6 +188,22 @@ if LIGHT:
 [data-testid="stSidebar"] .stButton button p {{ color: {on(GOLD)}; }}
 [data-testid="stHeader"] {{ color: {INK}; }}
 [data-testid="stCaptionContainer"], .stCaption {{ color: {MUTED} !important; }}
+[data-baseweb="input"], [data-baseweb="base-input"], [data-baseweb="textarea"], .stTextArea textarea, .stDateInput input,
+[data-testid="stDateInputField"], .stTextInput input {{ background: {SURFACE} !important; color: {INK} !important; border-color: {LINE} !important; }}
+[data-baseweb="input"], [data-baseweb="textarea"] {{ border: 1px solid {LINE} !important; }}
+.stTextInput div:has(> input), .stNumberInput div:has(> input), .stTextArea div:has(> textarea), .stDateInput div:has(> input) {{
+  background: {SURFACE} !important; border-color: {LINE} !important; }}
+.stTextInput div:has(> input):focus-within, .stNumberInput div:has(> input):focus-within,
+.stTextArea div:has(> textarea):focus-within {{ border-color: {GOLD} !important; }}
+.stNumberInput div:has(> input) > button, .stNumberInput div:has(> input) > div > button {{ background: transparent !important; }}
+.stNumberInput div:has(> input) svg {{ color: {MUTED} !important; fill: {MUTED} !important; }}
+input::placeholder, textarea::placeholder {{ color: {MUTED} !important; opacity: 1; }}
+[data-testid="stLinkButton"] a {{ background: {SURFACE} !important; color: {INK} !important; border: 1px solid {LINE} !important; }}
+[data-testid="stLinkButton"] a p, [data-testid="stLinkButton"] a span {{ color: {INK} !important; }}
+[data-testid="stLinkButton"] a:hover {{ border-color: {GOLD} !important; }}
+[data-baseweb="calendar"], [data-baseweb="calendar"] * {{ background-color: {SURFACE}; color: {INK}; }}
+[data-baseweb="calendar"] [aria-selected="true"] div {{ background-color: {GOLD} !important; color: {on(GOLD)} !important; }}
+.stTooltipIcon svg, [data-testid="stTooltipHoverTarget"] svg {{ color: {MUTED}; fill: {MUTED}; }}
 </style>""", unsafe_allow_html=True)
 
 
@@ -273,6 +308,7 @@ def map_activity(a: dict) -> dict:
         kcal=a.get("calories"), carbs=a.get("carbs_ingested"), feel=a.get("feel"),
         pace=(1000 / sp) if sp > 0 else ((mt / dist) if dist > 0 and mt else None),
         incline=a.get(INCLINE_FIELD),
+        gear_id=(a.get("gear") or {}).get("id"), gear_name=(a.get("gear") or {}).get("name"),
     )
 
 
@@ -311,13 +347,15 @@ def demo_year(year: int) -> list[dict]:
         out.append(dict(id=f"demo{d}", start=f"{d}T08:00:00", sport=s, name=f"Ejemplo {s}", km=km, dp=dp, dm=dp,
                         secs=secs, elapsed=secs * 1.1, load=int(secs / 60 * (1.1 if s != "Workout" else .2)), hr_avg=140, hr_max=165,
                         kcal=int(secs / 4), carbs=None, feel=rnd.choice([2, 3]), pace=secs / km if km else None,
-                        incline=rnd.choice([None, None, 3, 5, 8]) if s == "VirtualRun" else None))
+                        incline=rnd.choice([None, None, 3, 5, 8]) if s == "VirtualRun" else None,
+                        gear_id=demo_gear_for(s, d, rnd), gear_name=None))
         d += dt.timedelta(days=rnd.choice([1, 1, 2, 3]))
     return out
 
 
 def to_frame(rows: list[dict], hike: bool, cinta_dp: bool = True, overrides: dict | None = None) -> pd.DataFrame:
-    cols = ["id", "start", "sport", "name", "km", "dp", "dm", "secs", "elapsed", "load", "hr_avg", "hr_max", "kcal", "carbs", "feel", "pace", "incline"]
+    cols = ["id", "start", "sport", "name", "km", "dp", "dm", "secs", "elapsed", "load", "hr_avg", "hr_max", "kcal", "carbs", "feel", "pace",
+            "incline", "gear_id", "gear_name"]
     df = pd.DataFrame(rows, columns=cols)
     if df.empty:
         return df.assign(ts=pd.Series(dtype="datetime64[ns]"), date=pd.Series(dtype=object))
@@ -374,6 +412,116 @@ def dp_split_line(t: dict) -> str:
         return ""
     parts = [f'<span style="color:{src_color(c)}">●</span> {lab.lower()} {fnum(t[k])}' for k, lab, c in DP_SRC if t.get(k, 0) > 0]
     return " · ".join(parts)
+
+
+# ─────────────────────────── Material (zapatillas) ───────────────────────────
+SHOE_SPORTS = {"Run": "Carrera", "TrailRun": "Trail", "VirtualRun": "Cinta", "Hike": "Caminata", "Walk": "Caminata"}
+NOTE_KEYS = ("marca", "modelo", "foto", "km_previos")
+_DEMO_GEAR = [
+    dict(id="gd1", type="Shoes", name="La Sportiva Prodigio Pro", purchased="2026-04-22T00:00:00", retired=None,
+         notes="marca: La Sportiva\nmodelo: Prodigio Pro\nfoto: https://encrypted-tbn3.gstatic.com/shopping?q=tbn:ANd9GcTm8FFUwmA43OFdiH4vY3tXT-SR1AECBDa2iyOKhp_7ytrjBkOsldWf75f07a2e-o1nVxHCxzoUX489TBsPT_lmTcqlUstbu7U1j-NMGwwrmeGAM3wpD9k1UKInCwXgntKLmnI71mAHraE&usqp=CAc",
+         reminders=[dict(id=1, name="Límite de km", distance=800000.0)]),
+    dict(id="gd2", type="Shoes", name="ASICS Gel Fuji Trabuco 13", purchased="2024-12-29T00:00:00", retired=None,
+         notes="marca: ASICS\nmodelo: Gel Fuji Trabuco 13\nfoto: https://example.invalid/trabuco13.jpg\nTalla 43,5", reminders=[dict(id=2, name="Límite de km", distance=700000.0)]),
+    dict(id="gd3", type="Shoes", name="ASICS nimbus 16", purchased="2016-05-11T00:00:00", retired=None,
+         notes="marca: ASICS\nmodelo: nimbus 16\nkm_previos: 163.9", reminders=[]),
+    dict(id="gd4", type="Shoes", name="PUMA Deviate Nitro 2", purchased="2023-06-08T00:00:00", retired=None,
+         notes="marca: PUMA\nmodelo: Deviate Nitro 2", reminders=[dict(id=4, name="Límite de km", distance=400000.0)]),
+    dict(id="gd5", type="Shoes", name="La Sportiva Akyra", purchased="2019-04-29T00:00:00", retired="2020-03-05T00:00:00",
+         notes="marca: La Sportiva\nmodelo: Akyra\nkm_previos: 219.1", reminders=[]),
+]
+
+
+def demo_gear_for(sport: str, d: dt.date, rnd: random.Random):
+    """Zapatilla de ejemplo según el tipo y la fecha (respeta compras y retiradas)."""
+    if sport == "VirtualRun":
+        return "gd3"
+    if sport == "TrailRun":
+        if d >= dt.date(2026, 4, 22):
+            return "gd1"
+        if d >= dt.date(2024, 12, 29):
+            return "gd2"
+        return "gd5" if dt.date(2019, 4, 29) <= d <= dt.date(2020, 3, 5) else None
+    if sport == "Run":
+        return "gd4" if d >= dt.date(2023, 6, 8) else None
+    if sport == "Hike":
+        return rnd.choice(["gd2", None]) if d >= dt.date(2024, 12, 29) else None
+    return None
+
+
+def parse_notes(notes: str | None) -> dict:
+    """Notas del gear → {marca, modelo, foto, km_previos, libre}. Las claves van una por línea: 'clave: valor'."""
+    out, libre = {k: "" for k in NOTE_KEYS}, []
+    for ln in (notes or "").splitlines():
+        k, sep, v = ln.partition(":")
+        if sep and k.strip().lower() in NOTE_KEYS and (k.strip().lower() != "foto" or v.strip().startswith("http")):
+            out[k.strip().lower()] = v.strip()
+        else:
+            libre.append(ln)
+    try:
+        out["km_previos"] = float(str(out["km_previos"]).replace(",", ".")) if out["km_previos"] else 0.0
+    except ValueError:
+        out["km_previos"] = 0.0
+    out["libre"] = "\n".join(libre).strip()
+    return out
+
+
+def build_notes(marca: str, modelo: str, foto: str, km_previos: float, libre: str) -> str:
+    lines = [f"marca: {marca.strip()}", f"modelo: {modelo.strip()}"]
+    if foto.strip():
+        lines.append(f"foto: {foto.strip()}")
+    if km_previos:
+        lines.append(f"km_previos: {km_previos:.1f}")
+    return "\n".join(lines + ([libre.strip()] if libre.strip() else []))
+
+
+def km_limit(g: dict):
+    """Límite de km: aviso (GearReminder) con distancia. La API usa metros."""
+    for r in g.get("reminders") or []:
+        if (r.get("distance") or 0) > 0:
+            return r, float(r["distance"]) / 1000
+    return None, None
+
+
+def iso_date(v) -> dt.date | None:
+    try:
+        return pd.to_datetime(v).date() if v else None
+    except (ValueError, TypeError):
+        return None
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def fetch_gear(athlete: str, key: str) -> list[dict]:
+    r = requests.get(f"{API}/athlete/{athlete}/gear", auth=("API_KEY", key),
+                     headers={"Accept": "application/json", "User-Agent": "LlibretaD+ (Streamlit)"}, timeout=30)
+    r.raise_for_status()
+    data = r.json()
+    return data if isinstance(data, list) else []
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def image_ok(url: str) -> bool:
+    """Comprueba (cacheado) que la URL responde con una imagen."""
+    if not url or not url.startswith("http"):
+        return False
+    try:
+        h = {"User-Agent": "Mozilla/5.0 (LlibretaD+)"}
+        r = requests.head(url, headers=h, timeout=5, allow_redirects=True)
+        if r.status_code >= 400 or not r.headers.get("Content-Type", "").startswith("image"):
+            r = requests.get(url, headers=h, timeout=6, stream=True)
+            r.close()
+        return r.status_code == 200 and r.headers.get("Content-Type", "").startswith("image")
+    except requests.RequestException:
+        return False
+
+
+def icu_write(method: str, path: str, body=None):
+    """Escritura en intervals.icu (o en la memoria de la sesión en DEMO). Devuelve el JSON de respuesta."""
+    r = requests.request(method, f"{API}{path}", json=body, auth=("API_KEY", key), timeout=30,
+                         headers={"Accept": "application/json", "User-Agent": "LlibretaD+ (Streamlit)"})
+    if r.status_code >= 400:
+        raise RuntimeError(f"{method} {path.split('?')[0]} → HTTP {r.status_code}: {r.text[:160]}")
+    return r.json() if r.content else None
 
 
 # ─────────────────────────── Barra lateral ───────────────────────────
@@ -517,8 +665,8 @@ def zone_mono(v):
     return ("Variada", GREEN) if v < 1.5 else ("Moderada", ORANGE) if v <= 2 else ("Repetitiva", RED)
 
 
-tab_temp, tab_cw, tab_lw, tab_fat, tab_sets, tab_long, tab_cinta = st.tabs(
-    ["Temporada", "Semana en curso", "Última semana", "Esfuerzo y fatiga", "Hoja por Sets", "Entrenamientos largos", "Cinta"])
+tab_temp, tab_cw, tab_lw, tab_fat, tab_sets, tab_long, tab_cinta, tab_mat = st.tabs(
+    ["Temporada", "Semana en curso", "Última semana", "Esfuerzo y fatiga", "Hoja por Sets", "Entrenamientos largos", "Cinta", "Material"])
 
 with tab_temp:
     # Hero
@@ -590,22 +738,48 @@ with tab_temp:
     for col, key_, title, color, dec in [(c1, "out_dp", "D+ por mes", GOLD, 0), (c2, "ultra", "Ultra Ind por mes", RED, 1)]:
         with col:
             st.subheader(title)
+            if key_ == "out_dp":
+                # Total del año (respeta los interruptores de caminata/cinta, igual que las tarjetas)
+                tot_y = float(My["out_dp"].sum())
+                if year == now_y and len(df_p):
+                    try:
+                        cut = pd.Timestamp(today.replace(year=year - 1)) + pd.Timedelta(days=1)
+                    except ValueError:                     # 29 de febrero
+                        cut = pd.Timestamp(dt.date(year - 1, 3, 1))
+                    tot_p, lab_p = float(df_p.loc[df_p["ts"] < cut, "out_dp"].sum()), f"{year - 1} a misma fecha"
+                else:
+                    tot_p, lab_p = float(df_p["out_dp"].sum()) if len(df_p) else 0.0, str(year - 1)
+                diff_txt = ""
+                if tot_p > 0:
+                    dlt = (tot_y - tot_p) / tot_p * 100
+                    diff_txt = f' <span style="color:{GREEN if dlt >= 0 else RED}">{dlt:+.0f} %</span>'
+                st.markdown(f'<div class="note" style="margin-top:-.4rem">Total {year}: <b style="color:{GOLD}">{fnum(tot_y)} m</b>'
+                            + (f' · {lab_p}: {fnum(tot_p)} m{diff_txt}' if len(df_p) else "") + '</div>', unsafe_allow_html=True)
             f2 = go.Figure()
             xm = MES if key_ == "out_dp" else [m[0] for m in MES]
             split_m = key_ == "out_dp" and (My["dp_hike"].sum() > 0 or My["dp_cinta"].sum() > 0)
             if split_m:
+                cd_m = np.stack([MES, [fnum(v) for v in My["out_dp"]]], axis=-1)
                 for k_, lab_, c_ in DP_SRC:
                     if My[k_].sum() > 0:
-                        f2.add_bar(x=list(range(12)), y=My[k_], name=f"{lab_} {year}", marker_color=src_color(c_), customdata=MES,
-                                   hovertemplate=f"%{{customdata}} · {lab_}: %{{y:.0f}} m<extra></extra>")
+                        f2.add_bar(x=list(range(12)), y=My[k_], name=f"{lab_} {year}", marker_color=src_color(c_), customdata=cd_m,
+                                   hovertemplate=f"%{{customdata[0]}} · {lab_}: %{{y:,.0f}} m<br>Total mes: %{{customdata[1]}} m<extra></extra>")
                 f2.update_layout(barmode="stack")
             else:
                 f2.add_bar(x=list(range(12)), y=My[key_], name=str(year), marker_color=color, customdata=MES, hovertemplate=f"%{{customdata}}: %{{y:.{dec}f}}<extra>{year}</extra>")
+            if key_ == "out_dp":
+                lbl = My["out_dp"].where(My["out_dp"] > 0)
+                f2.add_scatter(x=list(range(12)), y=lbl, mode="text", text=[fnum(v) if v > 0 else "" for v in My["out_dp"]],
+                               textposition="top center", textfont=dict(color=INK, size=10, family="IBM Plex Sans, system-ui, sans-serif"),
+                               showlegend=False, hoverinfo="skip", cliponaxis=False)
             if len(df_p):
                 f2.add_scatter(x=list(range(12)), y=Mp[key_].where(Mp[key_] > 0), mode="markers", name=f"Total {year - 1}" if split_m else str(year - 1),
                                marker=dict(symbol="line-ew", size=26, line=dict(width=3, color=PREV)),
                                customdata=MES, hovertemplate=f"%{{customdata}}: %{{y:.{dec}f}}<extra>{year - 1}</extra>")
             f2.update_xaxes(tickvals=list(range(12)), ticktext=xm, tickangle=0)
+            if key_ == "out_dp":
+                ymax = float(max(My["out_dp"].max(), Mp["out_dp"].max() if len(df_p) else 0, 1))
+                f2.update_yaxes(range=[0, ymax * 1.15])
             st.plotly_chart(plot_layout(f2, 250), width="stretch", theme=None)
 
 
@@ -1286,3 +1460,494 @@ with tab_cinta:
                 st.rerun()
 
 st.caption("Datos leídos en directo de la API de intervals.icu con tu clave personal. Duplicados (misma hora, deporte y duración) se cuentan una vez.")
+
+with tab_mat:
+    # ─────────────────────────── Material ───────────────────────────
+    st.subheader("Material · zapatillas")
+    if st.session_state.get("mat_msg"):
+        st.success(st.session_state.pop("mat_msg"))
+
+    # Maestro de zapatillas (intervals.icu, o memoria de la sesión en DEMO)
+    gear_err = None
+    if demo:
+        if "demo_gear" not in st.session_state:
+            st.session_state["demo_gear"] = [{**g, "reminders": [dict(r) for r in g["reminders"]]} for g in _DEMO_GEAR]
+        gear_raw = st.session_state["demo_gear"]
+    else:
+        try:
+            gear_raw = fetch_gear(athlete, key)
+        except Exception as e:  # noqa: BLE001
+            gear_raw, gear_err = [], e
+    shoes = [g for g in gear_raw if (g.get("type") or "") == "Shoes"]
+    if gear_err:
+        st.error(f"No se pudo leer el material de intervals.icu: {gear_err}")
+
+    # Histórico completo de actividades (desde la compra más antigua o 2020)
+    buy_years = [d.year for d in (iso_date(g.get("purchased")) for g in shoes) if d]
+    y0 = max(2010, min([2020] + buy_years))
+    hist_rows = []
+    with st.spinner("Leyendo el histórico de actividades…"):
+        for y in range(y0, now_y + 1):
+            if y in raw:
+                hist_rows += raw[y]
+                continue
+            try:
+                hist_rows += demo_year(y) if demo else fetch_year(athlete, key, y)
+            except Exception as e:  # noqa: BLE001
+                st.warning(f"No se pudieron leer las actividades de {y}: {e}")
+    hist = to_frame(hist_rows, True, True, st.session_state.get("incline_overrides"))
+    ov_g = st.session_state.get("gear_overrides", {})
+    if len(hist) and ov_g:   # asignaciones guardadas en esta sesión
+        m_ = hist["id"].isin(list(ov_g))
+        hist.loc[m_, "gear_id"] = hist.loc[m_, "id"].map(ov_g)
+    shoe_hist = hist[hist["sport"].isin(list(SHOE_SPORTS))] if len(hist) else hist
+
+    # Tabla base por zapatilla (km de por vida = actividades asignadas + km previos)
+    SHOE_COLORS = [GOLD, GLACIER, ORANGE, GREEN, VIOLET, TEAL, RED, INK, PREV, MUTED]
+    base_rows = []
+    for g in shoes:
+        nt = parse_notes(g.get("notes"))
+        a_ = hist[hist["gear_id"] == g["id"]] if len(hist) else hist
+        rem, lim = km_limit(g)
+        km_all = float(a_["km"].sum()) + nt["km_previos"]
+        base_rows.append(dict(
+            id=g["id"], name=g.get("name") or "", marca=nt["marca"], modelo=nt["modelo"] or (g.get("name") or ""),
+            foto=nt["foto"], libre=nt["libre"], km_prev=nt["km_previos"], km=km_all, dp=float(a_["dp"].sum()),
+            h=float(a_["secs"].sum()) / 3600, n=len(a_), last=a_["date"].max() if len(a_) else None,
+            compra=iso_date(g.get("purchased")), retirada=iso_date(g.get("retired")), lim=lim, rem=rem,
+            pct=(km_all / lim * 100) if lim else None))
+    SB = pd.DataFrame(base_rows)
+    if len(SB):
+        SB["ret"] = SB["retirada"].notna()
+        SB["_last"] = pd.to_datetime(SB["last"])
+        SB = SB.sort_values(["ret", "_last"], ascending=[True, False], na_position="last").reset_index(drop=True)
+        SB["color"] = [SHOE_COLORS[i % len(SHOE_COLORS)] for i in range(len(SB))]
+    shoe_name = dict(zip(SB["id"], SB["name"])) if len(SB) else {}
+    shoe_color = dict(zip(SB["id"], SB["color"])) if len(SB) else {}
+
+    def nn(v):
+        """None si el valor está vacío (None/NaN/NaT)."""
+        return None if v is None or (not isinstance(v, (str, dt.date)) and pd.isna(v)) else v
+
+    def pct_color(p):
+        p = nn(p)
+        return MUTED if p is None else (RED if p >= 100 else ORANGE if p >= 80 else GREEN)
+
+    def photo_html(url: str, badge: str = "", badge_c: str = "") -> str:
+        b_ = f'<span class="st" style="--c:{badge_c};--o:{on(badge_c)}">{badge}</span>' if badge else ""
+        if url:  # imagen como fondo: si no carga, queda visible el icono de detrás
+            u = _html.escape(url, quote=True).replace("'", "%27").replace("(", "%28").replace(")", "%29")
+            return f'<div class="ph no"><span>👟</span><div class="im" style="background-image:url(\'{u}\')"></div>{b_}</div>'
+        return f'<div class="ph no">👟{b_}</div>'
+
+    vista = st.segmented_control("Vista material", ["Resumen", "Zapatillas", "Asignar a actividades"], default="Resumen",
+                                 key="mat_view", label_visibility="collapsed") or "Resumen"
+
+    # ═══════════════════════════ Resumen y análisis ═══════════════════════════
+    if vista == "Resumen":
+        if not len(SB):
+            st.info("No hay zapatillas en intervals.icu. Crea la primera en «Zapatillas» o ejecuta migrar_material.py.")
+        else:
+            PERM = ["90 días", "12 meses", f"Temporada {year}", "Todo", "Personalizado"]
+            per_m = st.segmented_control("Periodo material", PERM, default="Todo", key="mt_per",
+                                         label_visibility="collapsed") or "Todo"
+            d_min_m = shoe_hist["date"].min() if len(shoe_hist) else today
+            if per_m == "90 días":
+                m_from, m_to = today - dt.timedelta(days=89), today
+            elif per_m == "12 meses":
+                m_from, m_to = today - dt.timedelta(days=364), today
+            elif per_m.startswith("Temporada"):
+                m_from, m_to = dt.date(year, 1, 1), min(dt.date(year, 12, 31), today)
+            elif per_m == "Personalizado":
+                dc1, dc2, _ = st.columns([1, 1, 2])
+                with dc1:
+                    m_from = st.date_input("Desde", value=max(d_min_m, today - dt.timedelta(days=180)), min_value=d_min_m,
+                                           max_value=today, format="DD/MM/YYYY", key="mt_from")
+                with dc2:
+                    m_to = st.date_input("Hasta", value=today, min_value=d_min_m, max_value=today, format="DD/MM/YYYY", key="mt_to")
+                if m_from > m_to:
+                    m_from, m_to = m_to, m_from
+            else:
+                m_from, m_to = d_min_m, today
+            fc1, fc2 = st.columns([1, 2])
+            with fc1:
+                est = st.pills("Estado", ["Activas", "Retiradas"], selection_mode="multi", default=["Activas"], key="mt_est") or []
+            with fc2:
+                tipos_m = st.pills("Tipo de actividad", ["Carrera", "Trail", "Cinta", "Caminata"], selection_mode="multi",
+                                   default=["Carrera", "Trail", "Cinta", "Caminata"], key="mt_tipo") or []
+            sports_sel = [s_ for s_, t_ in SHOE_SPORTS.items() if t_ in tipos_m]
+            SBf = SB[(SB["ret"] & ("Retiradas" in est)) | (~SB["ret"] & ("Activas" in est))]
+            per_txt_m = f"{m_from.strftime('%d/%m/%y')} – {m_to.strftime('%d/%m/%y')}"
+            act_p = shoe_hist[(shoe_hist["date"] >= m_from) & (shoe_hist["date"] <= m_to) & shoe_hist["sport"].isin(sports_sel)]
+            act_ps = act_p[act_p["gear_id"].isin(list(SBf["id"]))]
+
+            # Indicadores
+            n_act, n_ret = int((~SB["ret"]).sum()), int(SB["ret"].sum())
+            alerts = SB[~SB["ret"] & SB["pct"].notna() & (SB["pct"] >= 80)]
+            con_zap = act_p["gear_id"].isin(list(shoe_name)).mean() * 100 if len(act_p) else 0
+            cards([
+                ("Zapatillas activas", GOLD, fnum(n_act), "", [f"{n_ret} retiradas"]),
+                ("Km con zapatilla", INK, fnum(act_ps["km"].sum(), 1), "km", [per_txt_m]),
+                ("Actividades", GLACIER, fnum(len(act_ps)), "", [f"{fnum(con_zap)} % de las del periodo tienen zapatilla"]),
+                ("Avisos de cambio", RED if (alerts["pct"] >= 100).any() else ORANGE if len(alerts) else GREEN, fnum(len(alerts)), "",
+                 ["≥ 80 % del límite de km" if len(alerts) else "ninguna cerca del límite"]),
+            ])
+            for _, r_ in alerts.sort_values("pct", ascending=False).iterrows():
+                c_ = pct_color(r_["pct"])
+                txt = "ha superado su límite" if r_["pct"] >= 100 else "está cerca de su límite"
+                st.markdown(f'<div class="reading" style="--c:{c_}"><b>{_html.escape(r_["name"])}</b> {txt}: '
+                            f'{fnum(r_["km"])} de {fnum(r_["lim"])} km ({fnum(r_["pct"])} %).</div>', unsafe_allow_html=True)
+
+            # Galería
+            cards_html = ['<div class="shoes">']
+            for _, r_ in SBf.iterrows():
+                badge, bc = ("Retirada", MUTED) if r_["ret"] else ("", "")
+                bar = ""
+                if nn(r_["lim"]):
+                    pc = r_["pct"]
+                    bar = (f'<div class="bar"><span style="width:{min(100, pc):.0f}%;--c:{pct_color(pc)}"></span></div>'
+                           f'<div class="ln">{fnum(pc)} % de {fnum(r_["lim"])} km</div>')
+                last_txt = r_["last"].strftime("%d/%m/%y") if nn(r_["last"]) else "—"
+                cards_html.append(
+                    f'<div class="shoe{" ret" if r_["ret"] else ""}">{photo_html(r_["foto"], badge, bc)}'
+                    f'<div class="br"><span style="color:{r_["color"]}">●</span> {_html.escape(r_["marca"] or "")}</div>'
+                    f'<div class="nm">{_html.escape(r_["modelo"])}</div>'
+                    f'<div class="km">{fnum(r_["km"])}<small>km</small></div>'
+                    f'<div class="ln">{r_["n"]} act. · {fnum(r_["h"])} h · {fnum(r_["dp"])} m D+</div>'
+                    f'<div class="ln">Compra {r_["compra"].year if nn(r_["compra"]) else "—"} · último uso {last_txt}</div>{bar}</div>')
+            cards_html.append("</div>")
+            if len(SBf):
+                st.markdown("".join(cards_html), unsafe_allow_html=True)
+            else:
+                st.info("No hay zapatillas con ese estado.")
+
+            if not len(act_ps):
+                st.info(f"No hay actividades con zapatilla entre {per_txt_m} para los filtros elegidos.")
+            else:
+                # Tabla resumen del periodo
+                st.subheader("Uso en el periodo")
+                TIP = ["Carrera", "Trail", "Cinta", "Caminata"]
+                g_ = act_ps.assign(tipo=act_ps["sport"].map(SHOE_SPORTS))
+                runs_ = g_[g_["sport"].isin(["Run", "TrailRun", "VirtualRun"])]
+                tb = pd.DataFrame({
+                    "Zapatilla": [shoe_name[i] for i in SBf["id"]],
+                    "Km": [g_.loc[g_["gear_id"] == i, "km"].sum() for i in SBf["id"]],
+                    "D+": [g_.loc[g_["gear_id"] == i, "dp"].sum() for i in SBf["id"]],
+                    "Horas": [g_.loc[g_["gear_id"] == i, "secs"].sum() / 3600 for i in SBf["id"]],
+                    "Act.": [int((g_["gear_id"] == i).sum()) for i in SBf["id"]],
+                    **{t_: [g_.loc[(g_["gear_id"] == i) & (g_["tipo"] == t_), "km"].sum() for i in SBf["id"]] for t_ in TIP},
+                    "Ritmo": [(runs_.loc[runs_["gear_id"] == i, "secs"].sum() / runs_.loc[runs_["gear_id"] == i, "km"].sum())
+                              if runs_.loc[runs_["gear_id"] == i, "km"].sum() > 0 else np.nan for i in SBf["id"]],
+                    "% límite": list(SBf["pct"]),
+                })
+                tb = tb[tb["Act."] > 0].sort_values("Km", ascending=False)
+                tot = pd.DataFrame([{"Zapatilla": "Total", "Km": tb["Km"].sum(), "D+": tb["D+"].sum(), "Horas": tb["Horas"].sum(),
+                                     "Act.": tb["Act."].sum(), **{t_: tb[t_].sum() for t_ in TIP},
+                                     "Ritmo": np.nan, "% límite": np.nan}])
+                tb_all = pd.concat([tb, tot], ignore_index=True)
+                num_ = lambda d, u="": (lambda v: "" if pd.isna(v) else f"{fnum(v, d)}{u}")  # noqa: E731
+                pct_f = lambda v: ("" if pd.isna(v) else f'<span style="color:{pct_color(v)}">{fnum(v)} %</span>')  # noqa: E731
+                pace_f2 = lambda p: f"{int(p // 60)}:{int(round(p % 60)) % 60:02d}" if pd.notna(p) and p > 0 else ""  # noqa: E731
+                html_table(tb_all, left={"Zapatilla"}, total_last=True, group_start={"Carrera"},
+                           groups=[("", 5, ""), ("Km por tipo", 4, "g"), ("", 2, "")],
+                           fmt={"Km": num_(1), "D+": num_(0), "Horas": num_(1), "Act.": num_(0), **{t_: num_(1) for t_ in TIP},
+                                "Ritmo": pace_f2, "% límite": pct_f},
+                           heat={"Km": (float(max(1, tb["Km"].max())), rgb(GOLD))})
+
+                # km acumulados por zapatilla (vida completa, con km previos), recortado al periodo
+                st.subheader("Km acumulados por zapatilla")
+                f_cum = go.Figure()
+                for _, r_ in SBf.iterrows():
+                    a_ = shoe_hist[shoe_hist["gear_id"] == r_["id"]].sort_values("ts")
+                    if not len(a_):
+                        continue
+                    cum = a_.groupby("date")["km"].sum().cumsum() + r_["km_prev"]
+                    xs = [pd.Timestamp(d) for d in cum.index]
+                    f_cum.add_scatter(x=xs, y=cum.values, mode="lines", name=r_["name"], line=dict(color=r_["color"], width=2, shape="hv"),
+                                      hovertemplate="%{x|%d/%m/%y} · %{y:,.0f} km<extra>" + _html.escape(r_["name"]) + "</extra>")
+                    if nn(r_["lim"]):
+                        f_cum.add_scatter(x=[xs[0], pd.Timestamp(today)], y=[r_["lim"], r_["lim"]], mode="lines", showlegend=False,
+                                          line=dict(color=r_["color"], width=1, dash="dash"), opacity=.6, hoverinfo="skip")
+                f_cum.update_xaxes(range=[pd.Timestamp(m_from) - pd.Timedelta(days=3), pd.Timestamp(m_to) + pd.Timedelta(days=3)])
+                f_cum.update_yaxes(ticksuffix=" km")
+                st.markdown('<span class="note">Incluye los km previos de cada zapatilla. La línea discontinua es su límite de km.</span>',
+                            unsafe_allow_html=True)
+                st.plotly_chart(plot_layout(f_cum, 330), width="stretch", theme=None)
+
+                # km por mes y zapatilla
+                st.subheader("Km por mes y zapatilla")
+                g_["mes"] = g_["ts"].dt.to_period("M").dt.to_timestamp()
+                pm = g_.groupby(["mes", "gear_id"])["km"].sum().unstack(fill_value=0)
+                f_m = go.Figure()
+                for gid in [i for i in SBf["id"] if i in pm.columns]:
+                    f_m.add_bar(x=pm.index, y=pm[gid], name=shoe_name[gid], marker_color=shoe_color[gid],
+                                hovertemplate="%{x|%b %Y} · %{y:.0f} km<extra>" + _html.escape(shoe_name[gid]) + "</extra>")
+                f_m.update_layout(barmode="stack")
+                f_m.update_yaxes(ticksuffix=" km")
+                st.plotly_chart(plot_layout(f_m, 300), width="stretch", theme=None)
+
+                cA_, cB_ = st.columns(2)
+                order_ = list(tb["Zapatilla"])[::-1]
+                with cA_:
+                    st.subheader("Reparto por tipo de actividad")
+                    TCOL = {"Carrera": INK, "Trail": GOLD, "Cinta": GLACIER, "Caminata": ORANGE}
+                    f_t = go.Figure()
+                    for t_ in TIP:
+                        f_t.add_bar(y=order_, x=[float(tb.loc[tb["Zapatilla"] == z, t_].iloc[0]) for z in order_], name=t_, orientation="h",
+                                    marker_color=TCOL[t_], hovertemplate="%{y} · " + t_ + ": %{x:.0f} km<extra></extra>")
+                    f_t.update_xaxes(ticksuffix=" km")
+                    plot_layout(f_t, max(260, 34 * len(order_) + 110))
+                    f_t.update_layout(barmode="stack", margin=dict(t=44), legend=dict(y=1.0, yanchor="bottom"))
+                    st.plotly_chart(f_t, width="stretch", theme=None)
+                with cB_:
+                    st.subheader("D+ por zapatilla")
+                    id_by_name = {v: k for k, v in shoe_name.items()}
+                    f_d = go.Figure()
+                    f_d.add_bar(y=order_, x=[float(tb.loc[tb["Zapatilla"] == z, "D+"].iloc[0]) for z in order_], orientation="h",
+                                marker_color=[shoe_color[id_by_name[z]] for z in order_],
+                                text=[fnum(float(tb.loc[tb["Zapatilla"] == z, "D+"].iloc[0])) for z in order_], textposition="outside",
+                                textfont=dict(color=INK, size=11), cliponaxis=False, hovertemplate="%{y} · %{x:,.0f} m<extra></extra>")
+                    dmax_ = float(tb["D+"].max()) if len(tb) else 1.0
+                    f_d.update_xaxes(ticksuffix=" m", range=[0, max(1.0, dmax_) * 1.22])
+                    plot_layout(f_d, max(260, 34 * len(order_) + 110), legend=False)
+                    f_d.update_layout(margin=dict(t=44))
+                    st.plotly_chart(f_d, width="stretch", theme=None)
+
+    # ═══════════════════════════ Alta y edición ═══════════════════════════
+    elif vista == "Zapatillas":
+        NEW = "__new__"
+        ids_ = [NEW] + list(SB["id"]) if len(SB) else [NEW]
+        lab_ = {NEW: "➕ Nueva zapatilla", **{r_["id"]: r_["name"] + (" · retirada" if r_["ret"] else "") for _, r_ in SB.iterrows()}}
+        if st.session_state.get("mt_sel_next") in ids_:      # tras guardar, mostrar la zapatilla guardada
+            st.session_state["mt_sel"] = st.session_state.pop("mt_sel_next")
+        gsel = st.selectbox("Zapatilla", ids_, format_func=lambda i: lab_.get(i, i), key="mt_sel",
+                            index=1 if len(ids_) > 1 else 0)
+        cur = {k: nn(v) for k, v in SB[SB["id"] == gsel].iloc[0].to_dict().items()} if gsel != NEW else {}
+        k_ = f"mf_{gsel}_"
+        e1, e2 = st.columns(2)
+        with e1:
+            f_marca = st.text_input("Marca", value=cur.get("marca", ""), key=k_ + "marca")
+            f_modelo = st.text_input("Modelo", value=cur.get("modelo", ""), key=k_ + "modelo")
+            f_compra = st.date_input("Fecha de compra", value=cur.get("compra"), min_value=dt.date(2010, 1, 1), max_value=today,
+                                     format="DD/MM/YYYY", key=k_ + "compra")
+            f_prev = st.number_input("Km previos", min_value=0.0, step=10.0, format="%.1f", value=float(cur.get("km_prev") or 0.0),
+                                     help="Km hechos antes de tener las actividades en intervals.icu. Se suman a los km de la zapatilla.",
+                                     key=k_ + "prev")
+        with e2:
+            f_lim = st.number_input("Límite de km (aviso de cambio)", min_value=0.0, step=50.0, format="%.0f",
+                                    value=float(cur["lim"]) if cur.get("lim") else None, placeholder="sin aviso", key=k_ + "lim")
+            f_ret = st.toggle("Retirada", value=bool(cur.get("ret")), key=k_ + "ret")
+            f_retd = (st.date_input("Fecha de retirada", value=cur.get("retirada") or today, min_value=dt.date(2010, 1, 1),
+                                    max_value=today, format="DD/MM/YYYY", key=k_ + "retd") if f_ret else None)
+            f_libre = st.text_area("Notas", value=cur.get("libre", ""), height=90, key=k_ + "libre")
+        ph1, ph2 = st.columns([3, 1], vertical_alignment="bottom")
+        with ph1:
+            f_foto = st.text_input("URL de la foto", value=cur.get("foto", ""), placeholder="https://…/zapatilla.jpg", key=k_ + "foto")
+        with ph2:
+            st.link_button("Buscar foto", f"https://www.google.com/search?tbm=isch&q={quote_plus((f_marca + ' ' + f_modelo + ' zapatilla').strip())}",
+                           width="stretch")
+        pv1, pv2 = st.columns([1, 3])
+        with pv1:
+            st.markdown(f'<div class="shoe" style="max-width:190px">{photo_html(f_foto.strip())}</div>', unsafe_allow_html=True)
+        with pv2:
+            if f_foto.strip():
+                if not f_foto.strip().startswith("http"):
+                    st.warning("La URL debe empezar por http:// o https://")
+                elif not image_ok(f_foto.strip()):
+                    st.warning("No he podido comprobar que la URL sea una imagen. Puedes guardarla igualmente; si no carga, se mostrará el icono.")
+                else:
+                    st.caption("✓ La URL devuelve una imagen.")
+            if cur:
+                st.caption(f"{cur['n']} actividades · {fnum(cur['km'])} km en total" + (f" (incluye {fnum(cur['km_prev'])} km previos)" if cur["km_prev"] else ""))
+
+        if st.button("Revisar cambios", type="primary", key="mt_review"):
+            if not f_marca.strip() or not f_modelo.strip():
+                st.error("La marca y el modelo son obligatorios.")
+            else:
+                st.session_state["mat_pending"] = dict(
+                    kind="gear", gid=None if gsel == NEW else gsel, name=f"{f_marca.strip()} {f_modelo.strip()}",
+                    purchased=f_compra.isoformat() if f_compra else None, retired=f_retd.isoformat() if f_retd else None,
+                    notes=build_notes(f_marca, f_modelo, f_foto, float(f_prev or 0), f_libre),
+                    lim=float(f_lim) if f_lim else None)
+        pend = st.session_state.get("mat_pending")
+        if pend and pend.get("kind") == "gear" and (pend["gid"] or NEW) == gsel:
+            with st.container(border=True):
+                st.markdown(f"**{'Crear' if not pend['gid'] else 'Actualizar'} en intervals.icu:** {_html.escape(pend['name'])}")
+                st.markdown(f"- Compra: {pend['purchased'] or '—'} · Retirada: {pend['retired'] or 'no'}\n"
+                            f"- Límite de km: {fnum(pend['lim']) + ' km' if pend['lim'] else 'sin aviso'}\n"
+                            f"- Notas:\n```\n{pend['notes']}\n```")
+                b1, b2, _ = st.columns([1.2, 1, 3])
+                if b1.button("Confirmar y guardar", type="primary", key="mt_conf"):
+                    body = {"type": "Shoes", "name": pend["name"], "notes": pend["notes"],
+                            "purchased": f"{pend['purchased']}T00:00:00" if pend["purchased"] else None,
+                            "retired": f"{pend['retired']}T00:00:00" if pend["retired"] else None}
+                    try:
+                        if demo:
+                            store = st.session_state["demo_gear"]
+                            if pend["gid"]:
+                                g0 = next(g for g in store if g["id"] == pend["gid"])
+                            else:
+                                g0 = {"id": f"gd{len(store) + 1}_{random.randint(100, 999)}", "reminders": []}
+                                store.append(g0)
+                            g0.update(body)
+                            rem0 = next((r for r in g0["reminders"] if (r.get("distance") or 0) > 0), None)
+                            if pend["lim"]:
+                                if rem0:
+                                    rem0["distance"] = pend["lim"] * 1000
+                                else:
+                                    g0["reminders"].append(dict(id=random.randint(1000, 9999), name="Límite de km", distance=pend["lim"] * 1000))
+                            elif rem0:
+                                g0["reminders"].remove(rem0)
+                            gid_saved = g0["id"]
+                        else:
+                            if pend["gid"]:
+                                g0 = next(g for g in shoes if g["id"] == pend["gid"])
+                                g_new = icu_write("PUT", f"/athlete/{athlete}/gear/{pend['gid']}", {**g0, **body}) or g0
+                            else:
+                                g0 = {}
+                                g_new = icu_write("POST", f"/athlete/{athlete}/gear", body)
+                            gid_saved = (g_new or {}).get("id") or pend["gid"]
+                            rem0, _l = km_limit(g0)
+                            if pend["lim"]:
+                                if rem0:
+                                    icu_write("PUT", f"/athlete/{athlete}/gear/{gid_saved}/reminder/{rem0['id']}",
+                                              {**rem0, "distance": pend["lim"] * 1000})
+                                else:
+                                    icu_write("POST", f"/athlete/{athlete}/gear/{gid_saved}/reminder",
+                                              {"name": "Límite de km", "distance": pend["lim"] * 1000})
+                            elif rem0:
+                                icu_write("DELETE", f"/athlete/{athlete}/gear/{gid_saved}/reminder/{rem0['id']}")
+                            icu_write("GET", f"/athlete/{athlete}/gear/{gid_saved}/calc")
+                            st.cache_data.clear()
+                        st.session_state.pop("mat_pending", None)
+                        st.session_state["mt_sel_next"] = gid_saved
+                        st.session_state["mat_msg"] = f"Guardada «{pend['name']}» en intervals.icu." if not demo else f"Guardada «{pend['name']}» (DEMO)."
+                        st.rerun()
+                    except Exception as e:  # noqa: BLE001
+                        st.error(f"No se pudo guardar: {e}")
+                if b2.button("Cancelar", key="mt_cancel"):
+                    st.session_state.pop("mat_pending", None)
+                    st.rerun()
+
+    # ═══════════════════════════ Asignar a actividades ═══════════════════════════
+    else:
+        if not len(SB):
+            st.info("Primero crea alguna zapatilla en «Zapatillas».")
+        else:
+            a1, a2, a3 = st.columns([2.1, 2, 1], vertical_alignment="bottom")
+            with a1:
+                per_a = st.segmented_control("Periodo", ["30 días", "90 días", f"Año {year}", "Todo"], default="90 días",
+                                             key="mt_as_per") or "90 días"
+            with a2:
+                tip_a = st.pills("Tipo", ["Carrera", "Trail", "Cinta", "Caminata"], selection_mode="multi",
+                                 default=["Carrera", "Trail", "Cinta", "Caminata"], key="mt_as_tipo") or []
+            with a3:
+                solo_sin = st.toggle("Solo sin zapatilla", value=False, key="mt_as_none")
+            la = shoe_hist[shoe_hist["sport"].isin([s_ for s_, t_ in SHOE_SPORTS.items() if t_ in tip_a])]
+            if per_a == "30 días":
+                la = la[la["date"] >= today - dt.timedelta(days=30)]
+            elif per_a == "90 días":
+                la = la[la["date"] >= today - dt.timedelta(days=90)]
+            elif per_a.startswith("Año"):
+                la = la[la["ts"].dt.year == year]
+            if solo_sin:
+                la = la[~la["gear_id"].isin(list(shoe_name))]
+            la = la.sort_values("ts", ascending=False)
+            n_sin = int((~la["gear_id"].isin(list(shoe_name))).sum())
+            st.markdown(f'<div class="note">{len(la)} actividades · {n_sin} sin zapatilla</div>', unsafe_allow_html=True)
+            if not len(la):
+                st.info("No hay actividades con esos filtros.")
+            else:
+                PPA = 20
+                npg = max(1, math.ceil(len(la) / PPA))
+                sig_a = f"{per_a}|{','.join(tip_a)}|{solo_sin}|{len(la)}"
+                if st.session_state.get("mt_as_sig") != sig_a:
+                    st.session_state["mt_as_sig"] = sig_a
+                    st.session_state["mt_as_page"] = 1
+                pg = min(max(1, int(st.session_state.get("mt_as_page", 1))), npg)
+                if npg > 1:
+                    q1, q2, q3, _ = st.columns([1, 1.6, 1, 3], vertical_alignment="center")
+                    with q1:
+                        if st.button("◀ Anterior", disabled=pg <= 1, width="stretch", key="mt_as_prev"):
+                            st.session_state["mt_as_page"] = pg - 1
+                            st.rerun()
+                    with q2:
+                        st.markdown(f'<div class="note" style="text-align:center">Página <b style="color:{INK}">{pg}</b> de {npg}</div>',
+                                    unsafe_allow_html=True)
+                    with q3:
+                        if st.button("Siguiente ▶", disabled=pg >= npg, width="stretch", key="mt_as_next"):
+                            st.session_state["mt_as_page"] = pg + 1
+                            st.rerun()
+                rows_a = la.iloc[(pg - 1) * PPA: pg * PPA]
+                act_ids = list(SB.loc[~SB["ret"], "id"])
+                CWA = [1.0, 2.6, 0.9, 0.8, 0.8, 2.3]
+                ha = st.columns(CWA, vertical_alignment="center")
+                for col, (t, r) in zip(ha, [("Fecha", ""), ("Actividad", ""), ("Tipo", ""), ("Km", "r"), ("D+", "r"), ("Zapatilla", "")]):
+                    col.markdown(f'<div class="chd {r}">{t}</div>', unsafe_allow_html=True)
+                with st.form("mat_assign_form", border=False):
+                    sel_a = {}
+                    for i, (_, rw) in enumerate(rows_a.iterrows()):
+                        cur_g = rw["gear_id"] if rw["gear_id"] in shoe_name else ""
+                        opts = [""] + act_ids + ([cur_g] if cur_g and cur_g not in act_ids else [])
+                        with st.container(key=f"crow{'E' if i % 2 else 'O'}_m{i}"):
+                            cc = st.columns(CWA, vertical_alignment="center")
+                            cc[0].markdown(f'<div class="ctd" style="font-family:IBM Plex Mono,monospace">{rw["ts"].strftime("%d/%m/%y")}</div>',
+                                           unsafe_allow_html=True)
+                            cc[1].markdown(f'<div class="ctd" title="{_html.escape(rw["name"])}">{_html.escape(rw["name"])}</div>',
+                                           unsafe_allow_html=True)
+                            cc[2].markdown(f'<div class="ctd">{SHOE_SPORTS.get(rw["sport"], rw["sport"])}</div>', unsafe_allow_html=True)
+                            cc[3].markdown(f'<div class="ctd r">{fnum(rw["km"], 1)}</div>', unsafe_allow_html=True)
+                            cc[4].markdown(f'<div class="ctd r">{fnum(rw["dp"])}</div>', unsafe_allow_html=True)
+                            sel_a[rw["id"]] = (cur_g, cc[5].selectbox(
+                                "Zapatilla", opts, index=opts.index(cur_g), label_visibility="collapsed", key=f"mas_{rw['id']}",
+                                format_func=lambda i: "— sin zapatilla —" if not i else shoe_name.get(i, i)))
+                    sub_a = st.form_submit_button("Revisar cambios", type="primary")
+                if sub_a:
+                    ch = [(aid, old, new) for aid, (old, new) in sel_a.items() if (old or "") != (new or "")]
+                    if not ch:
+                        st.info("No hay cambios que guardar.")
+                        st.session_state.pop("mat_pending", None)
+                    else:
+                        st.session_state["mat_pending"] = dict(kind="assign", changes=ch)
+                pend = st.session_state.get("mat_pending")
+                if pend and pend.get("kind") == "assign":
+                    info_ = la.set_index("id")
+                    with st.container(border=True):
+                        n_ch = len(pend["changes"])
+                        st.markdown(f"**Vas a cambiar la zapatilla de {n_ch} actividad{'es' if n_ch != 1 else ''}:**")
+                        st.markdown("\n".join(
+                            f"- {info_.loc[aid, 'ts'].strftime('%d/%m/%y') if aid in info_.index else aid} · "
+                            f"{_html.escape(str(info_.loc[aid, 'name'])) if aid in info_.index else ''}: "
+                            f"{shoe_name.get(old, '—') if old else '—'} → **{shoe_name.get(new, '—') if new else 'sin zapatilla'}**"
+                            for aid, old, new in pend["changes"]))
+                        b1, b2, _ = st.columns([1.2, 1, 3])
+                        if b1.button("Confirmar y guardar", type="primary", key="mt_as_conf"):
+                            ov = dict(st.session_state.get("gear_overrides", {}))
+                            ok, fails, touched = 0, [], set()
+                            for aid, old, new in pend["changes"]:
+                                try:
+                                    if not demo:
+                                        icu_write("PUT", f"/activity/{aid}", {"gear": {"id": new} if new else None})
+                                    ov[aid] = new or None
+                                    touched |= {x for x in (old, new) if x}
+                                    ok += 1
+                                except Exception as e:  # noqa: BLE001
+                                    fails.append(f"{aid}: {e}")
+                            if not demo:
+                                for gid in touched:
+                                    try:
+                                        icu_write("GET", f"/athlete/{athlete}/gear/{gid}/calc")
+                                    except Exception as e:  # noqa: BLE001
+                                        fails.append(f"recalcular {shoe_name.get(gid, gid)}: {e}")
+                                st.cache_data.clear()
+                            st.session_state["gear_overrides"] = ov
+                            st.session_state.pop("mat_pending", None)
+                            if fails:
+                                st.error("Algunos cambios no se guardaron:\n\n" + "\n\n".join(fails))
+                            if ok:
+                                st.session_state["mat_msg"] = (f"Zapatilla actualizada en {ok} actividad{'es' if ok != 1 else ''}"
+                                                               + (" (DEMO)." if demo else "."))
+                                st.rerun()
+                        if b2.button("Cancelar", key="mt_as_cancel"):
+                            st.session_state.pop("mat_pending", None)
+                            st.rerun()
