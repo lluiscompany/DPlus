@@ -309,6 +309,7 @@ def map_activity(a: dict) -> dict:
         pace=(1000 / sp) if sp > 0 else ((mt / dist) if dist > 0 and mt else None),
         incline=a.get(INCLINE_FIELD),
         gear_id=(a.get("gear") or {}).get("id"), gear_name=(a.get("gear") or {}).get("name"),
+        device=a.get("device_name"),
     )
 
 
@@ -348,14 +349,21 @@ def demo_year(year: int) -> list[dict]:
                         secs=secs, elapsed=secs * 1.1, load=int(secs / 60 * (1.1 if s != "Workout" else .2)), hr_avg=140, hr_max=165,
                         kcal=int(secs / 4), carbs=None, feel=rnd.choice([2, 3]), pace=secs / km if km else None,
                         incline=rnd.choice([None, None, 3, 5, 8]) if s == "VirtualRun" else None,
-                        gear_id=demo_gear_for(s, d, rnd), gear_name=None))
+                        gear_id=demo_gear_for(s, d, rnd), gear_name=None, device="SUUNTO Suunto Race 2"))
         d += dt.timedelta(days=rnd.choice([1, 1, 2, 3]))
+    # Tres salidas de ejemplo por la misma ruta (para la pestaña Comparar)
+    for aid, day, km, dp, dev, secs, el in DEMO_ROUTE:
+        if day.year == year and day <= today:
+            out.append(dict(id=aid, start=f"{day}T08:15:00", sport="TrailRun", name="Ruta de ejemplo (3 cimas)", km=km, dp=dp, dm=dp * .99,
+                            secs=secs, elapsed=el, load={"demoRA": 246, "demoRB": 280}.get(aid, 298),
+                            hr_avg={"demoRA": 137, "demoRB": 144}.get(aid, 142), hr_max=170, kcal=2400, carbs=None, feel=3,
+                            pace=secs / km, incline=None, gear_id="gd1", gear_name=None, device=dev))
     return out
 
 
 def to_frame(rows: list[dict], hike: bool, cinta_dp: bool = True, overrides: dict | None = None) -> pd.DataFrame:
     cols = ["id", "start", "sport", "name", "km", "dp", "dm", "secs", "elapsed", "load", "hr_avg", "hr_max", "kcal", "carbs", "feel", "pace",
-            "incline", "gear_id", "gear_name"]
+            "incline", "gear_id", "gear_name", "device"]
     df = pd.DataFrame(rows, columns=cols)
     if df.empty:
         return df.assign(ts=pd.Series(dtype="datetime64[ns]"), date=pd.Series(dtype=object))
@@ -524,6 +532,294 @@ def icu_write(method: str, path: str, body=None):
     return r.json() if r.content else None
 
 
+# ─────────────────────────── Comparar: datos por segundo y análisis ───────────────────────────
+STREAM_TYPES = "time,distance,altitude,heartrate,velocity_smooth,latlng,cadence"
+BANDS = [(-1e9, -20, "≤ −20 %"), (-20, -10, "−20/−10 %"), (-10, -3, "−10/−3 %"), (-3, 3, "Llano ±3 %"),
+         (3, 10, "3/10 %"), (10, 20, "10/20 %"), (20, 30, "20/30 %"), (30, 1e9, "> 30 %")]
+# id, fecha, km, D+, reloj, tiempo en movimiento, tiempo total (DEMO)
+DEMO_ROUTE = [("demoRA", dt.date(2026, 10, 24), 21.36, 1395, "SUUNTO Suunto Race 2", 13708, 14485),
+              ("demoRB", dt.date(2025, 11, 1), 21.73, 1395, "SUUNTO Suunto 9", 13619, 14021),
+              ("demoRC", dt.date(2025, 9, 24), 21.78, 1377, "SUUNTO Suunto 9", 14524, 15924)]
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def fetch_streams(key: str, act_id: str) -> list:
+    r = requests.get(f"{API}/activity/{act_id}/streams.json", params={"types": STREAM_TYPES}, auth=("API_KEY", key),
+                     headers={"Accept": "application/json", "User-Agent": "LlibretaD+ (Streamlit)"}, timeout=60)
+    r.raise_for_status()
+    data = r.json()
+    return data if isinstance(data, list) else []
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def fetch_fit_streams(key: str, act_id: str) -> list:
+    """Alternativa: fichero original (FIT) de la actividad, convertido al formato de streams."""
+    try:
+        import fitdecode
+    except ImportError:
+        return []
+    import gzip
+    import io
+    r = requests.get(f"{API}/activity/{act_id}/file", auth=("API_KEY", key),
+                     headers={"User-Agent": "LlibretaD+ (Streamlit)"}, timeout=90)
+    if r.status_code >= 400 or not r.content:
+        return []
+    blob = r.content
+    if blob[:2] == b"\x1f\x8b":
+        blob = gzip.decompress(blob)
+    recs = []
+    try:
+        with fitdecode.FitReader(io.BytesIO(blob)) as fr:
+            for f in fr:
+                if isinstance(f, fitdecode.FitDataMessage) and f.name == "record":
+                    g = lambda k: f.get_value(k) if f.has_field(k) else None  # noqa: E731
+                    recs.append((g("timestamp"), g("distance"), g("enhanced_altitude") if f.has_field("enhanced_altitude") else g("altitude"),
+                                 g("heart_rate"), g("enhanced_speed") if f.has_field("enhanced_speed") else g("speed"),
+                                 g("position_lat"), g("position_long"), g("cadence")))
+    except Exception:  # noqa: BLE001
+        return []
+    recs = [x for x in recs if x[0] is not None]
+    if not recs:
+        return []
+    t0, sc = recs[0][0], 180 / 2 ** 31
+    col = lambda i: [x[i] for x in recs]  # noqa: E731
+    return [dict(type="time", data=[int((x[0] - t0).total_seconds()) for x in recs]),
+            dict(type="distance", data=col(1)), dict(type="altitude", data=col(2)), dict(type="heartrate", data=col(3)),
+            dict(type="velocity_smooth", data=col(4)), dict(type="cadence", data=col(7)),
+            dict(type="latlng", data=[v * sc if v is not None else None for v in col(5)],
+                 data2=[v * sc if v is not None else None for v in col(6)])]
+
+
+def streams_to_df(raw: list) -> pd.DataFrame:
+    """Streams de intervals.icu → DataFrame limpio (t, dist, alt, alt_s, hr, v, lat, lng, cad, dt, mov)."""
+    m = {s_.get("type"): s_ for s_ in (raw or []) if isinstance(s_, dict)}
+
+    def arr(t, k="data"):
+        v = (m.get(t) or {}).get(k)
+        return None if v is None else pd.to_numeric(pd.Series(list(v), dtype="object"), errors="coerce").astype(float)
+
+    t = arr("time")
+    if t is None or len(t) < 30:
+        return pd.DataFrame()
+    n = len(t)
+    df = pd.DataFrame({"t": t.values})
+    for c, typ, k in [("dist", "distance", "data"), ("alt", "altitude", "data"), ("hr", "heartrate", "data"),
+                      ("v", "velocity_smooth", "data"), ("cad", "cadence", "data"), ("lat", "latlng", "data"), ("lng", "latlng", "data2")]:
+        a = arr(typ, k)
+        df[c] = a.values if a is not None and len(a) == n else np.nan
+    return clean_stream(df)
+
+
+def clean_stream(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.dropna(subset=["t"]).sort_values("t").drop_duplicates("t").reset_index(drop=True)
+    ok = (df["dist"].notna() & df["alt"].notna()).to_numpy()
+    if ok.sum() < 30:
+        return pd.DataFrame()
+    i0, i1 = int(np.argmax(ok)), len(ok) - 1 - int(np.argmax(ok[::-1]))   # sin nulls al principio ni al final
+    df = df.iloc[i0:i1 + 1].reset_index(drop=True)
+    for c in ("dist", "alt", "hr", "v", "cad"):
+        df[c] = df[c].interpolate(limit=10, limit_area="inside")          # huecos cortos (≤ 10 muestras)
+    for c in ("lat", "lng"):                                              # GPS en modo ahorro: huecos más largos
+        df[c] = df[c].interpolate(limit=120, limit_area="inside")
+    df["dist"] = df["dist"].ffill().cummax()
+    df["alt"] = df["alt"].ffill()
+    df["dt"] = df["t"].diff().fillna(0).clip(0, 10)
+    if df["v"].notna().sum() < len(df) * .5:
+        dd = df["dist"].diff().fillna(0)
+        df["v"] = (dd.rolling(5, min_periods=1).sum() / df["t"].diff().fillna(1).clip(lower=1).rolling(5, min_periods=1).sum())
+    df["mov"] = (df["v"].fillna(0) >= 0.25) & (df["dt"] > 0)
+    df["alt_s"] = df["alt"].rolling(15, center=True, min_periods=1).median().rolling(9, center=True, min_periods=1).mean()
+    return df
+
+
+def stream_stats(df: pd.DataFrame) -> dict:
+    d_alt = df["alt_s"].diff().fillna(0)
+    mt = float((df["dt"] * df["mov"]).sum())
+    w = df["dt"] * df["mov"]
+    hr = float((df["hr"] * w).sum() / w[df["hr"].notna()].sum()) if df["hr"].notna().any() and w[df["hr"].notna()].sum() > 0 else np.nan
+    return dict(km=float(df["dist"].iloc[-1] - df["dist"].iloc[0]) / 1000, mov=mt, elapsed=float(df["t"].iloc[-1] - df["t"].iloc[0]),
+                dp=float(d_alt.clip(lower=0).sum()), dm=float(-d_alt.clip(upper=0).sum()), hr=hr)
+
+
+def grade_bands(df: pd.DataFrame, seg_m: float = 100) -> pd.DataFrame:
+    """Estadísticas por banda de pendiente (segmentos de seg_m metros)."""
+    x = df.assign(seg=((df["dist"] - df["dist"].iloc[0]) // seg_m).astype(int), w=df["dt"] * df["mov"])
+    x["hrw"] = x["hr"].fillna(0) * x["w"]
+    x["wh"] = np.where(x["hr"].notna(), x["w"], 0)
+    g = x.groupby("seg").agg(d0=("dist", "first"), a0=("alt_s", "first"), mt=("w", "sum"), hrw=("hrw", "sum"), wh=("wh", "sum"))
+    g["dist"] = g["d0"].shift(-1).fillna(df["dist"].iloc[-1]) - g["d0"]
+    g["dalt"] = g["a0"].shift(-1).fillna(df["alt_s"].iloc[-1]) - g["a0"]
+    g = g[g["dist"] > 20]
+    g["grade"] = 100 * g["dalt"] / g["dist"]
+    g["band"] = pd.cut(g["grade"], [b[0] for b in BANDS] + [BANDS[-1][1]], labels=[b[2] for b in BANDS])
+    tot = g["mt"].sum() or 1
+    rows = []
+    for lab in [b[2] for b in BANDS]:
+        b = g[g["band"] == lab]
+        km, mt = b["dist"].sum() / 1000, b["mt"].sum()
+        up, dn = b["dalt"].clip(lower=0).sum(), -b["dalt"].clip(upper=0).sum()
+        rows.append(dict(band=lab, km=km, pct_t=100 * mt / tot, dp=up, dm=dn, mt=mt,
+                         pace=(mt / km) if km > 0 and mt > 0 else np.nan,
+                         vam=(up / mt * 3600) if mt > 0 and up > dn else np.nan,
+                         vdesc=(dn / mt * 3600) if mt > 0 and dn > up else np.nan,
+                         hr=(b["hrw"].sum() / b["wh"].sum()) if b["wh"].sum() > 0 else np.nan))
+    return pd.DataFrame(rows)
+
+
+def _xy_m(lat, lng, lat0):
+    return (np.asarray(lng) * 111320 * math.cos(math.radians(lat0)), np.asarray(lat) * 110540)
+
+
+def route_similarity(a: pd.DataFrame, b: pd.DataFrame) -> dict | None:
+    """Parecido del recorrido con GPS: desviación media entre trazas, distancia entre inicios y entre puntos más altos."""
+    pa, pb = a.dropna(subset=["lat", "lng"]), b.dropna(subset=["lat", "lng"])
+    if len(pa) < 50 or len(pb) < 50:
+        return None
+    lat0 = float(pa["lat"].iloc[0])
+    sa = pa.iloc[np.linspace(0, len(pa) - 1, 80).astype(int)]
+    sb = pb.iloc[::max(1, len(pb) // 2000)]
+    ax, ay = _xy_m(sa["lat"], sa["lng"], lat0)
+    bx, by = _xy_m(sb["lat"], sb["lng"], lat0)
+    dmin = np.sqrt((ax[:, None] - bx[None, :]) ** 2 + (ay[:, None] - by[None, :]) ** 2).min(axis=1)
+    p2 = lambda r1, r2: float(np.hypot(*(np.subtract(_xy_m(r1["lat"], r1["lng"], lat0), _xy_m(r2["lat"], r2["lng"], lat0)))))  # noqa: E731
+    start = p2(pa.iloc[0], pb.iloc[0])
+    ta = pa.loc[pa["alt_s"].idxmax()]                 # punto más alto de A → punto de B más cercano
+    tx, ty = _xy_m([ta["lat"]], [ta["lng"]], lat0)
+    top = float(np.sqrt((bx - tx[0]) ** 2 + (by - ty[0]) ** 2).min())
+    dev = float(np.median(dmin))
+    p90 = float(np.percentile(dmin, 90))
+    label = "misma ruta" if dev < 60 and p90 < 250 else "parecida" if dev < 250 else "distinta"
+    return dict(dev=dev, p90=p90, start=start, top=top, label=label)
+
+
+def find_segments(df: pd.DataFrame, amp: float = 60) -> list[tuple[float, float]]:
+    """Subidas y bajadas principales (zigzag sobre la altitud suavizada): lista de (dist_ini, dist_fin)."""
+    d = df["dist"].to_numpy()
+    grid = np.arange(d[0], d[-1], 20.0)
+    if len(grid) < 3:
+        return []
+    a = np.interp(grid, d, df["alt_s"].to_numpy())
+    piv, trend, ext = [0], None, 0
+    lo = hi = 0
+    for i in range(1, len(a)):
+        if trend is None:
+            lo, hi = (i if a[i] < a[lo] else lo), (i if a[i] > a[hi] else hi)
+            if a[i] - a[lo] >= amp:
+                trend, ext = "up", i
+                if lo > 0:
+                    piv.append(lo)
+            elif a[hi] - a[i] >= amp:
+                trend, ext = "down", i
+                if hi > 0:
+                    piv.append(hi)
+        elif trend == "up":
+            if a[i] > a[ext]:
+                ext = i
+            elif a[ext] - a[i] >= amp:
+                piv.append(ext)
+                trend, ext = "down", i
+        else:
+            if a[i] < a[ext]:
+                ext = i
+            elif a[i] - a[ext] >= amp:
+                piv.append(ext)
+                trend, ext = "up", i
+    if trend is not None and ext not in piv:
+        piv.append(ext)
+    if piv[-1] != len(a) - 1:
+        piv.append(len(a) - 1)
+    piv = sorted(set(piv))
+    return [(float(grid[i]), float(grid[j])) for i, j in zip(piv[:-1], piv[1:]) if grid[j] - grid[i] >= 200]
+
+
+def locate_in(b: pd.DataFrame, a: pd.DataFrame, bounds_a: list[float], use_gps: bool) -> list[float]:
+    """Distancias en B equivalentes a cada distancia de A (monótonas)."""
+    out, prev = [], float(b["dist"].iloc[0])
+    tot_a, tot_b = a["dist"].iloc[-1] - a["dist"].iloc[0], b["dist"].iloc[-1] - b["dist"].iloc[0]
+    pa = a.dropna(subset=["lat", "lng"])
+    pb = b.dropna(subset=["lat", "lng"])
+    lat0 = float(pa["lat"].iloc[0]) if len(pa) else 0.0
+    for k, da in enumerate(bounds_a):
+        guess = b["dist"].iloc[0] + (da - a["dist"].iloc[0]) * tot_b / tot_a if tot_a > 0 else prev
+        if k == 0:
+            out.append(float(b["dist"].iloc[0]) if da <= a["dist"].iloc[0] + 1 else guess)
+            prev = out[-1]
+            continue
+        if k == len(bounds_a) - 1 and da >= a["dist"].iloc[-1] - 1:
+            out.append(float(b["dist"].iloc[-1]))
+            continue
+        lo, hi = max(prev, guess - 1500), guess + 1500
+        win = (pb if use_gps else b)
+        win = win[(win["dist"] >= lo) & (win["dist"] <= hi)]
+        if use_gps and len(win) and len(pa):
+            ia = int(np.searchsorted(pa["dist"].to_numpy(), da).clip(0, len(pa) - 1))
+            ax, ay = _xy_m([pa["lat"].iloc[ia]], [pa["lng"].iloc[ia]], lat0)
+            bx, by = _xy_m(win["lat"], win["lng"], lat0)
+            j = int(np.argmin((bx - ax[0]) ** 2 + (by - ay[0]) ** 2))
+        elif len(win):
+            alt_a = float(np.interp(da, a["dist"], a["alt_s"]))
+            j = int(np.argmin(np.abs(win["alt_s"].to_numpy() - alt_a) + np.abs(win["dist"].to_numpy() - guess) / 50))
+        else:
+            out.append(max(prev, guess))
+            prev = out[-1]
+            continue
+        out.append(max(prev, float(win["dist"].iloc[j])))
+        prev = out[-1]
+    return out
+
+
+def span_stats(df: pd.DataFrame, d0: float, d1: float) -> dict:
+    x = df[(df["dist"] >= d0) & (df["dist"] <= d1)]
+    if len(x) < 2:
+        return dict(mt=np.nan, el=np.nan, gain=np.nan, loss=np.nan, hr=np.nan, a0=np.nan, a1=np.nan, km=(d1 - d0) / 1000)
+    w = x["dt"].iloc[1:] * x["mov"].iloc[1:]
+    da = x["alt_s"].diff().fillna(0)
+    hrw = (x["hr"].iloc[1:] * w)
+    wh = w[x["hr"].iloc[1:].notna()].sum()
+    return dict(mt=float(w.sum()), el=float(x["t"].iloc[-1] - x["t"].iloc[0]), gain=float(da.clip(lower=0).sum()),
+                loss=float(-da.clip(upper=0).sum()), hr=float(hrw.sum() / wh) if wh > 0 else np.nan,
+                a0=float(x["alt_s"].iloc[0]), a1=float(x["alt_s"].iloc[-1]), km=(d1 - d0) / 1000)
+
+
+def demo_streams(aid: str, km: float, dp: float, secs: float) -> list:
+    """Streams sintéticos: las salidas DEMO_ROUTE comparten recorrido (3 cimas); el resto, recorrido propio."""
+    rnd = random.Random(aid)
+    same = aid.startswith("demoR")
+    hr_off = {"demoRA": -6, "demoRB": 0, "demoRC": -2}.get(aid, 0)
+    total = max(1000.0, km * 1000)
+    h = max(30.0, dp / 3)
+    lat_c, lng_c = (42.60, 0.52) if same else (41.5 + rnd.random(), 1.0 + rnd.random())
+    t_, d_, out = 0, 0.0, {k: [] for k in ("time", "distance", "altitude", "heartrate", "velocity_smooth", "lat", "lng")}
+    hr = 110.0
+    stop_at = total * (0.36 if aid == "demoRA" else 0.5)
+    stopped = 0
+    shape = lambda g: math.exp(-3.5 * abs(g + 0.05))  # noqa: E731  (forma de la velocidad según la pendiente, Tobler)
+    grid_ = np.arange(0, total, 10.0)
+    t_shape = float(np.sum(10.0 / np.array([shape(h * 3 * math.pi * math.sin(6 * math.pi * x_ / total) / total) for x_ in grid_])))
+    c_v = t_shape / max(600.0, float(secs) or 600.0)          # escala para que el tiempo en movimiento cuadre
+    while d_ < total:
+        x = d_ / total
+        alt = 1800 + h * (1 - math.cos(6 * math.pi * x)) / 2
+        g = h * 3 * math.pi * math.sin(6 * math.pi * x) / total
+        v = c_v * shape(g) * (1 + rnd.uniform(-.06, .06))
+        if stopped < (420 if aid == "demoRA" else 180) and d_ >= stop_at:
+            v, stopped = 0.0, stopped + 1
+        hr += ((128 + 70 * max(-0.25, min(0.6, g * 2.5)) + hr_off) - hr) * 0.05 + rnd.uniform(-1, 1)
+        for k, val in (("time", t_), ("distance", round(d_, 1)), ("altitude", round(alt + rnd.uniform(-1.5, 1.5), 1)),
+                       ("heartrate", round(hr)), ("velocity_smooth", round(v, 2)),
+                       ("lat", lat_c + 0.02 * math.sin(2 * math.pi * x) + rnd.uniform(-2e-5, 2e-5)),
+                       ("lng", lng_c + 0.03 * (1 - math.cos(2 * math.pi * x)) + rnd.uniform(-2e-5, 2e-5))):
+            out[k].append(val)
+        t_ += 1
+        d_ += v
+    gaps = set(range(0, 25))                      # GPS aún sin señal al principio
+    nul = lambda arr: [None if i in gaps else v for i, v in enumerate(arr)]  # noqa: E731
+    return [dict(type="time", data=out["time"]), dict(type="distance", data=nul(out["distance"])),
+            dict(type="altitude", data=nul(out["altitude"])), dict(type="heartrate", data=out["heartrate"]),
+            dict(type="velocity_smooth", data=out["velocity_smooth"]),
+            dict(type="latlng", data=nul(out["lat"]), data2=nul(out["lng"]))]
+
+
 # ─────────────────────────── Barra lateral ───────────────────────────
 today = dt.date.today()
 now_y = today.year
@@ -665,8 +961,9 @@ def zone_mono(v):
     return ("Variada", GREEN) if v < 1.5 else ("Moderada", ORANGE) if v <= 2 else ("Repetitiva", RED)
 
 
-tab_temp, tab_cw, tab_lw, tab_fat, tab_sets, tab_long, tab_cinta, tab_mat = st.tabs(
-    ["Temporada", "Semana en curso", "Última semana", "Esfuerzo y fatiga", "Hoja por Sets", "Entrenamientos largos", "Cinta", "Material"])
+tab_temp, tab_cw, tab_lw, tab_fat, tab_sets, tab_long, tab_cmp, tab_cinta, tab_mat = st.tabs(
+    ["Temporada", "Semana en curso", "Última semana", "Esfuerzo y fatiga", "Hoja por Sets", "Entrenamientos largos", "Comparar",
+     "Cinta", "Material"])
 
 with tab_temp:
     # Hero
@@ -1951,3 +2248,355 @@ with tab_mat:
                         if b2.button("Cancelar", key="mt_as_cancel"):
                             st.session_state.pop("mat_pending", None)
                             st.rerun()
+
+with tab_cmp:
+    # ─────────────────────────── Comparar dos actividades ───────────────────────────
+    # (usa `hist`, el histórico completo cargado en la pestaña Material)
+    st.subheader("Comparar dos actividades")
+    CMP_SPORTS = {"Trail": ["TrailRun"], "Carrera": ["Run"], "Caminata": ["Hike", "Walk"]}
+    hms = lambda s_: "—" if s_ is None or pd.isna(s_) else f"{int(s_ // 3600)}:{int(s_ % 3600 // 60):02d}:{int(s_ % 60):02d}"  # noqa: E731
+    mmss = lambda s_: "—" if s_ is None or pd.isna(s_) or s_ <= 0 else f"{int(s_ // 60)}:{int(round(s_ % 60)) % 60:02d}"  # noqa: E731
+
+    def sgn_time(d_):
+        if d_ is None or pd.isna(d_):
+            return "—"
+        return ("−" if d_ < 0 else "+") + mmss(abs(d_)) if abs(d_) >= 1 else "0:00"
+
+    all_cmp = hist[hist["sport"].isin(sum(CMP_SPORTS.values(), []))].sort_values("ts", ascending=False) if len(hist) else hist
+    if not len(all_cmp):
+        st.info("No hay actividades de carrera, trail o caminata para comparar.")
+    else:
+        f1_, f2_ = st.columns([2, 1])
+        with f1_:
+            tip_c = st.pills("Tipo", list(CMP_SPORTS), selection_mode="multi", default=["Trail"], key="cmp_tipo") or list(CMP_SPORTS)
+        years_c = sorted(all_cmp["ts"].dt.year.unique().tolist(), reverse=True)
+        with f2_:
+            yr_c = st.selectbox("Año de A", ["Todos"] + years_c, key="cmp_year")
+        sp_sel = sum((CMP_SPORTS[t_] for t_ in tip_c), [])
+        pool = all_cmp[all_cmp["sport"].isin(sp_sel)]
+        pool_a = pool if yr_c == "Todos" else pool[pool["ts"].dt.year == yr_c]
+        info_c = all_cmp.set_index("id")
+        lab_c = lambda i: (f"{info_c.loc[i, 'ts']:%d/%m/%y} · {str(info_c.loc[i, 'name'])[:34]} · "  # noqa: E731
+                           f"{fnum(info_c.loc[i, 'km'], 1)} km · {fnum(info_c.loc[i, 'dp'])} m")
+        if not len(pool_a):
+            st.info("No hay actividades con esos filtros.")
+            st.stop()
+        opts_a = list(pool_a["id"])
+        if st.session_state.get("cmp_a") not in opts_a:
+            st.session_state.pop("cmp_a", None)
+
+        def _swap():
+            a_, b_ = st.session_state.get("cmp_a"), st.session_state.get("cmp_b")
+            if a_ and b_:
+                st.session_state["cmp_a"], st.session_state["cmp_b"] = b_, a_
+                st.session_state["cmp_b_for"] = b_           # mantener la B intercambiada
+                st.session_state["cmp_year"] = "Todos"
+
+        s1_, s2_ = st.columns([4, 1.3], vertical_alignment="bottom")
+        with s1_:
+            act_a = st.selectbox("Actividad A", opts_a, format_func=lab_c, key="cmp_a")
+        with s2_:
+            st.button("⇅ Intercambiar", on_click=_swap, width="stretch", key="cmp_swap")
+        ra = info_c.loc[act_a]
+
+        # Rutas parecidas a A (distancia ±5 %, D+ ±7 %), comprobadas con GPS
+        sim_pool = all_cmp[(all_cmp["id"] != act_a) & (all_cmp["km"].between(ra["km"] * .95, ra["km"] * 1.05))
+                           & (all_cmp["dp"].between(ra["dp"] * .93, ra["dp"] * 1.07))].copy()
+
+        def load_df(aid):
+            r_ = info_c.loc[aid]
+            if demo:
+                return streams_to_df(demo_streams(aid, float(r_["km"]), float(r_["dp"]), float(r_["secs"]))), "demo"
+            try:
+                d_ = streams_to_df(fetch_streams(key, aid))
+            except Exception:  # noqa: BLE001
+                d_ = pd.DataFrame()
+            if len(d_):
+                return d_, "streams"
+            try:
+                d_ = streams_to_df(fetch_fit_streams(key, aid))
+            except Exception:  # noqa: BLE001
+                d_ = pd.DataFrame()
+            return d_, "fichero original" if len(d_) else "sin datos"
+
+        with st.spinner("Leyendo los datos por segundo…"):
+            df_a, src_a = load_df(act_a)
+            if len(sim_pool):
+                sim_pool["_k"] = (sim_pool["km"] / ra["km"] - 1).abs() + (sim_pool["dp"] / max(1, ra["dp"]) - 1).abs()
+                top_ = sim_pool.nsmallest(6, "_k")
+                rec = {}
+                for aid in top_["id"]:
+                    d_, _src = load_df(aid)
+                    sim_ = route_similarity(df_a, d_) if len(df_a) and len(d_) else None
+                    rec[aid] = sim_["label"] if sim_ else "sin GPS"
+                sim_pool["recorrido"] = sim_pool["id"].map(rec).fillna("sin comprobar")
+                sim_pool["_o"] = sim_pool["recorrido"].map({"misma ruta": 0, "parecida": 1, "sin GPS": 2, "sin comprobar": 3, "distinta": 4})
+                sim_pool = sim_pool.sort_values(["_o", "ts"], ascending=[True, False])
+        if len(sim_pool):
+            st.markdown('<div class="note" style="margin:6px 0 2px">Rutas parecidas a A (distancia ±5 %, D+ ±7 %; recorrido comprobado con GPS)</div>',
+                        unsafe_allow_html=True)
+            badge = {"misma ruta": GREEN, "parecida": ORANGE, "distinta": RED, "sin GPS": MUTED, "sin comprobar": MUTED}
+            html_table(pd.DataFrame({"Fecha": sim_pool["ts"].dt.strftime("%d/%m/%y").values, "Actividad": sim_pool["name"].values,
+                                     "Km": sim_pool["km"].values, "D+": sim_pool["dp"].values, "Recorrido": sim_pool["recorrido"].values}),
+                       left={"Actividad", "Recorrido"}, max_height=230,
+                       fmt={"Km": lambda v: fnum(v, 1), "D+": lambda v: fnum(v),
+                            "Actividad": lambda v: (str(v)[:40] + "…") if len(str(v)) > 41 else str(v),
+                            "Recorrido": lambda v: f'<span class="chip" style="--c:{badge[v]};--o:{on(badge[v])}">{v}</span>'})
+        else:
+            st.markdown('<div class="note">No hay otras actividades con distancia ±5 % y D+ ±7 % que A.</div>', unsafe_allow_html=True)
+        opts_b = list(sim_pool["id"]) + [i for i in pool["id"] if i != act_a and i not in set(sim_pool["id"])]
+        if not opts_b:
+            st.info("No hay otra actividad con la que comparar.")
+            st.stop()
+        if (st.session_state.get("cmp_b") not in opts_b or st.session_state.get("cmp_b") == act_a
+                or st.session_state.get("cmp_b_for") != act_a):     # al cambiar A, proponer la ruta más parecida
+            if not (st.session_state.get("cmp_b_for") == act_a and st.session_state.get("cmp_b") in opts_b):
+                st.session_state["cmp_b"] = opts_b[0]
+        st.session_state["cmp_b_for"] = act_a
+        sim_ids = set(sim_pool["id"])
+        act_b = st.selectbox("Actividad B", opts_b, key="cmp_b",
+                             format_func=lambda i: ("≈ " if i in sim_ids else "") + lab_c(i))
+        rb = info_c.loc[act_b]
+        with st.spinner("Leyendo los datos por segundo…"):
+            df_b, src_b = load_df(act_b)
+
+        # ── Resumen ──
+        st.markdown(f'<div class="note" style="margin-top:8px"><span style="color:{GOLD}">●</span> A · {lab_c(act_a)}<br>'
+                    f'<span style="color:{GLACIER}">●</span> B · {lab_c(act_b)}</div>', unsafe_allow_html=True)
+        stop_a, stop_b = ra["elapsed"] - ra["secs"], rb["elapsed"] - rb["secs"]
+
+        def dnum(va, vb, d=0, u="", inv=False):
+            if pd.isna(va) or pd.isna(vb):
+                return "—"
+            x = vb - va
+            good = x < 0 if inv else x > 0
+            c_ = GREEN if good else RED if abs(x) > 1e-9 else MUTED
+            return f'<span style="color:{c_}">{"+" if x > 0 else "−" if x < 0 else ""}{fnum(abs(x), d)}{u}</span>'
+
+        def dtime(va, vb):
+            if pd.isna(va) or pd.isna(vb):
+                return "—"
+            x = vb - va
+            return f'<span style="color:{GREEN if x < 0 else RED if x > 0 else MUTED}">{sgn_time(x)}</span>'
+
+        pace_a = ra["secs"] / ra["km"] if ra["km"] else np.nan
+        pace_b = rb["secs"] / rb["km"] if rb["km"] else np.nan
+        summ = pd.DataFrame([
+            ("Fecha", f"{ra['ts']:%d/%m/%y}", f"{rb['ts']:%d/%m/%y}", ""),
+            ("Reloj", str(ra.get("device") or "—").replace("SUUNTO ", ""), str(rb.get("device") or "—").replace("SUUNTO ", ""), ""),
+            ("Distancia", f"{fnum(ra['km'], 2)} km", f"{fnum(rb['km'], 2)} km", dnum(ra["km"], rb["km"], 2, " km")),
+            ("D+", f"{fnum(ra['dp'])} m", f"{fnum(rb['dp'])} m", dnum(ra["dp"], rb["dp"], 0, " m")),
+            ("D−", f"{fnum(ra['dm'])} m", f"{fnum(rb['dm'])} m", dnum(ra["dm"], rb["dm"], 0, " m")),
+            ("Tiempo en movimiento", hms(ra["secs"]), hms(rb["secs"]), dtime(ra["secs"], rb["secs"])),
+            ("Tiempo total", hms(ra["elapsed"]), hms(rb["elapsed"]), dtime(ra["elapsed"], rb["elapsed"])),
+            ("Tiempo parado", hms(stop_a), hms(stop_b), dtime(stop_a, stop_b)),
+            ("Ritmo (min/km)", mmss(pace_a), mmss(pace_b), dtime(pace_a, pace_b)),
+            ("FC media", f"{fnum(ra['hr_avg'])} ppm" if pd.notna(ra["hr_avg"]) else "—",
+             f"{fnum(rb['hr_avg'])} ppm" if pd.notna(rb["hr_avg"]) else "—", dnum(ra["hr_avg"], rb["hr_avg"], 0, " ppm", inv=True)),
+            ("Carga", fnum(ra["load"]), fnum(rb["load"]), dnum(ra["load"], rb["load"], 0, "", inv=True)),
+        ], columns=["Métrica", "A", "B", "Diferencia B − A"])
+        html_table(summ, left={"Métrica"})
+
+        notes_ = []        # «A tener en cuenta»
+        if not len(df_a) or not len(df_b):
+            falta = " y ".join(x for x, d_ in (("A", df_a), ("B", df_b)) if not len(d_))
+            st.warning(f"No hay datos por segundo de {falta} (ni en intervals.icu ni en el fichero original): solo se muestra el resumen.")
+        else:
+            for lab_, d_, r_, src_ in (("A", df_a, ra, src_a), ("B", df_b, rb, src_b)):
+                mv = stream_stats(d_)["mov"]
+                if r_["secs"] and abs(mv - r_["secs"]) / r_["secs"] > 0.02:
+                    notes_.append(f"En {lab_}, el tiempo en movimiento calculado por segundo ({hms(mv)}) difiere más de un 2 % "
+                                  f"del de intervals.icu ({hms(r_['secs'])}); los tiempos por tramo pueden desviarse algo.")
+                if src_ == "fichero original":
+                    notes_.append(f"Los datos por segundo de {lab_} salen del fichero original del reloj (intervals.icu no los devolvió).")
+
+            # ── Bandas de pendiente ──
+            st.subheader("Por pendiente")
+            ba, bb = grade_bands(df_a), grade_bands(df_b)
+            vv = lambda r_: r_["vam"] if pd.notna(r_["vam"]) else r_["vdesc"]  # noqa: E731
+            bt = pd.DataFrame({
+                "Pendiente": ba["band"], "Km|A": ba["km"], "Km|B": bb["km"], "Tiempo|A": ba["mt"], "Tiempo|B": bb["mt"],
+                "Ritmo|A": ba["pace"], "Ritmo|B": bb["pace"],
+                "VAM / bajada|A": [vv(r_) for _, r_ in ba.iterrows()], "VAM / bajada|B": [vv(r_) for _, r_ in bb.iterrows()],
+                "FC|A": ba["hr"], "FC|B": bb["hr"]})
+            bt["Δ m/h"] = bt["VAM / bajada|B"] - bt["VAM / bajada|A"]
+            bt = bt[["Pendiente", "Km|A", "Km|B", "Tiempo|A", "Tiempo|B", "Ritmo|A", "Ritmo|B", "VAM / bajada|A", "VAM / bajada|B", "Δ m/h", "FC|A", "FC|B"]]
+            nf = lambda d, u="": (lambda v: "—" if pd.isna(v) else f"{fnum(v, d)}{u}")  # noqa: E731
+            dcol = lambda v: "—" if pd.isna(v) else f'<span style="color:{GREEN if v > 0 else RED if v < 0 else MUTED}">{"+" if v > 0 else "−" if v < 0 else ""}{fnum(abs(v))}</span>'  # noqa: E731
+            html_table(bt, left={"Pendiente"}, group_start={"Km|A", "Tiempo|A", "Ritmo|A", "VAM / bajada|A", "FC|A"},
+                       groups=[("", 1, ""), ("Km", 2, "g"), ("Tiempo mov.", 2, "g"), ("Ritmo min/km", 2, "g"),
+                               ("VAM / bajada m/h", 3, "g"), ("FC media", 2, "g")],
+                       fmt={"Km|A": nf(1), "Km|B": nf(1), "Tiempo|A": hms, "Tiempo|B": hms, "Ritmo|A": mmss, "Ritmo|B": mmss,
+                            "VAM / bajada|A": nf(0), "VAM / bajada|B": nf(0), "Δ m/h": dcol, "FC|A": nf(0), "FC|B": nf(0)})
+            st.markdown('<span class="note">En subidas, VAM (metros subidos por hora); en bajadas, metros bajados por hora. '
+                        'Δ en verde: B sube o baja más rápido que A.</span>', unsafe_allow_html=True)
+            g1_, g2_ = st.columns(2)
+            with g1_:
+                f_v = go.Figure()
+                for lab_, b_, c_ in (("A", ba, GOLD), ("B", bb, GLACIER)):
+                    f_v.add_bar(x=b_["band"], y=[vv(r_) for _, r_ in b_.iterrows()], name=lab_, marker_color=c_,
+                                hovertemplate="%{x} · %{y:.0f} m/h<extra>" + lab_ + "</extra>")
+                f_v.update_layout(barmode="group")
+                f_v.update_yaxes(ticksuffix=" m/h")
+                st.markdown('<span class="note">VAM / velocidad de bajada por pendiente</span>', unsafe_allow_html=True)
+                st.plotly_chart(plot_layout(f_v, 280), width="stretch", theme=None)
+            with g2_:
+                f_h = go.Figure()
+                for lab_, b_, c_ in (("A", ba, GOLD), ("B", bb, GLACIER)):
+                    f_h.add_bar(x=b_["band"], y=b_["hr"], name=lab_, marker_color=c_, hovertemplate="%{x} · %{y:.0f} ppm<extra>" + lab_ + "</extra>")
+                f_h.update_layout(barmode="group")
+                lo_ = np.nanmin([ba["hr"].min(), bb["hr"].min()]) if ba["hr"].notna().any() or bb["hr"].notna().any() else 100
+                hi_ = np.nanmax([ba["hr"].max(), bb["hr"].max()]) if ba["hr"].notna().any() or bb["hr"].notna().any() else 180
+                f_h.update_yaxes(range=[max(0, (lo_ if pd.notna(lo_) else 100) - 15), (hi_ if pd.notna(hi_) else 180) + 8], ticksuffix=" ppm")
+                st.markdown('<span class="note">FC media por pendiente</span>', unsafe_allow_html=True)
+                st.plotly_chart(plot_layout(f_h, 280), width="stretch", theme=None)
+
+            # ── Tramo a tramo ──
+            sim_ab = route_similarity(df_a, df_b)
+            same_guess = (sim_ab["label"] == "misma ruta") if sim_ab else bool(
+                abs(rb["km"] / ra["km"] - 1) <= .05 and abs(rb["dp"] / max(1, ra["dp"]) - 1) <= .07)
+            st.subheader("Tramo a tramo")
+            t1_, t2_ = st.columns([2, 1], vertical_alignment="bottom")
+            with t1_:
+                if sim_ab:
+                    st.markdown(f'<div class="note">Recorrido según GPS: <b style="color:{INK}">{sim_ab["label"]}</b> · desviación mediana '
+                                f'{fnum(sim_ab["dev"])} m · inicios a {fnum(sim_ab["start"])} m · cimas a {fnum(sim_ab["top"])} m</div>',
+                                unsafe_allow_html=True)
+                else:
+                    st.markdown('<div class="note">Sin GPS en alguna de las dos: la ruta se supone igual por distancia y desnivel, '
+                                'y los tramos se sitúan por distancia y altitud.</div>', unsafe_allow_html=True)
+                do_seg = st.toggle("Comparar tramo a tramo (misma ruta)", value=same_guess, key=f"cmp_seg_{act_a}_{act_b}")
+            with t2_:
+                amp = st.slider("Desnivel mínimo de un tramo (m)", 30, 200, 60, 10, key="cmp_amp")
+            seg_rows = []
+            if do_seg:
+                segs = find_segments(df_a, amp)
+                if len(segs) < 2:
+                    st.info("No hay subidas ni bajadas con ese desnivel mínimo. Bájalo para ver más tramos.")
+                else:
+                    bnd_a = [segs[0][0]] + [s_[1] for s_ in segs]
+                    bnd_b = locate_in(df_b, df_a, bnd_a, use_gps=bool(sim_ab))
+                    for i_, (d0, d1) in enumerate(segs):
+                        sa_, sb_ = span_stats(df_a, d0, d1), span_stats(df_b, bnd_b[i_], bnd_b[i_ + 1])
+                        up_ = sa_["a1"] > sa_["a0"]
+                        rate = lambda s_: (s_["gain"] if up_ else s_["loss"]) / s_["mt"] * 3600 if s_["mt"] and s_["mt"] > 0 else np.nan  # noqa: E731
+                        seg_rows.append(dict(n=i_ + 1, up=up_, d0=d0, d1=d1, a0=sa_["a0"], a1=sa_["a1"], km=sa_["km"],
+                                             grade=100 * (sa_["a1"] - sa_["a0"]) / max(1, d1 - d0), ta=sa_["mt"], tb=sb_["mt"],
+                                             ra=rate(sa_), rb=rate(sb_), hra=sa_["hr"], hrb=sb_["hr"], kmb=sb_["km"]))
+                    SG = pd.DataFrame(seg_rows)
+                    SG["diff"] = SG["tb"] - SG["ta"]
+                    tbl = pd.DataFrame({
+                        "Nº": SG["n"], "Tramo": np.where(SG["up"], "▲ Subida", "▼ Bajada"),
+                        "Altitud": [f"{fnum(r_.a0)} → {fnum(r_.a1)} m" for r_ in SG.itertuples()],
+                        "Km": SG["km"], "Pend.": SG["grade"], "Tiempo|A": SG["ta"], "Tiempo|B": SG["tb"], "Dif. B−A": SG["diff"],
+                        "VAM / bajada|A": SG["ra"], "VAM / bajada|B": SG["rb"], "FC|A": SG["hra"], "FC|B": SG["hrb"]})
+                    tot_row = pd.DataFrame([{"Nº": "", "Tramo": "Total", "Altitud": "", "Km": SG["km"].sum(), "Pend.": np.nan,
+                                             "Tiempo|A": SG["ta"].sum(), "Tiempo|B": SG["tb"].sum(), "Dif. B−A": SG["diff"].sum(),
+                                             "VAM / bajada|A": np.nan, "VAM / bajada|B": np.nan, "FC|A": np.nan, "FC|B": np.nan}])
+                    tbl = pd.concat([tbl, tot_row], ignore_index=True)
+                    up_c = lambda v: (f'<span style="color:{GOLD}">{v}</span>' if str(v).startswith("▲") else  # noqa: E731
+                                      f'<span style="color:{GLACIER}">{v}</span>' if str(v).startswith("▼") else v)
+                    dtf = lambda v: "—" if pd.isna(v) else f'<span style="color:{GREEN if v < 0 else RED if v > 0 else MUTED}">{sgn_time(v)}</span>'  # noqa: E731
+                    html_table(tbl, left={"Tramo", "Altitud"}, total_last=True, group_start={"Tiempo|A", "VAM / bajada|A", "FC|A"},
+                               groups=[("", 5, ""), ("Tiempo en movimiento", 3, "g"), ("VAM / bajada m/h", 2, "g"), ("FC media", 2, "g")],
+                               fmt={"Km": nf(1), "Pend.": lambda v: "" if pd.isna(v) else f"{fnum(v)} %", "Tramo": up_c,
+                                    "Tiempo|A": hms, "Tiempo|B": hms, "Dif. B−A": dtf,
+                                    "VAM / bajada|A": nf(0), "VAM / bajada|B": nf(0), "FC|A": nf(0), "FC|B": nf(0)})
+                    st.markdown('<span class="note">Diferencia en verde: B fue más rápida en ese tramo. Los tramos se detectan en A '
+                                'y se buscan en B por GPS (o por distancia y altitud si no hay GPS).</span>', unsafe_allow_html=True)
+
+                    # Perfil de A con tramos
+                    f_p = go.Figure()
+                    xa = df_a["dist"] / 1000
+                    base_ = float(df_a["alt_s"].min()) - 30
+                    for r_ in SG.itertuples():
+                        f_p.add_vrect(x0=r_.d0 / 1000, x1=r_.d1 / 1000, fillcolor=GOLD if r_.up else GLACIER, opacity=.10, line_width=0,
+                                      annotation_text=str(r_.n), annotation_position="top", annotation_font=dict(color=INK, size=12))
+                    f_p.add_scatter(x=xa, y=df_a["alt_s"], mode="lines", line=dict(color=GOLD, width=2), name="A",
+                                    fill="tozeroy", fillcolor=rgba(GOLD, .12), hovertemplate="%{x:.1f} km · %{y:.0f} m<extra>A</extra>")
+                    f_p.update_yaxes(range=[base_, float(df_a["alt_s"].max()) + 60], ticksuffix=" m")
+                    f_p.update_xaxes(ticksuffix=" km")
+                    st.markdown('<span class="note">Perfil de A con los tramos numerados</span>', unsafe_allow_html=True)
+                    st.plotly_chart(plot_layout(f_p, 260, legend=False), width="stretch", theme=None)
+
+                    # Diferencia acumulada
+                    f_c = go.Figure()
+                    mid = ((SG["d0"] + SG["d1"]) / 2000).tolist()
+                    f_c.add_bar(x=mid, y=SG["diff"] / 60, width=((SG["d1"] - SG["d0"]) / 1000 * .9).tolist(),
+                                marker_color=[GREEN if v < 0 else RED for v in SG["diff"]], opacity=.55, name="por tramo",
+                                customdata=SG["n"], hovertemplate="Tramo %{customdata} · %{y:+.1f} min<extra></extra>")
+                    xs_ = [SG["d0"].iloc[0] / 1000] + (SG["d1"] / 1000).tolist()
+                    ys_ = [0.0] + (SG["diff"].cumsum() / 60).tolist()
+                    f_c.add_scatter(x=xs_, y=ys_, mode="lines+markers", line=dict(color=INK, width=2), name="acumulada",
+                                    hovertemplate="km %{x:.1f} · %{y:+.1f} min<extra>acumulada</extra>")
+                    f_c.add_hline(y=0, line=dict(color=MUTED, width=1))
+                    f_c.update_yaxes(ticksuffix=" min")
+                    f_c.update_xaxes(ticksuffix=" km")
+                    st.markdown('<span class="note">Diferencia de tiempo B − A: por debajo de 0, B va por delante</span>', unsafe_allow_html=True)
+                    st.plotly_chart(plot_layout(f_c, 260), width="stretch", theme=None)
+
+            # FC frente a distancia
+            f_hr = go.Figure()
+            for lab_, d_, c_ in (("A", df_a, GOLD), ("B", df_b, GLACIER)):
+                if d_["hr"].notna().any():
+                    f_hr.add_scatter(x=d_["dist"] / 1000, y=d_["hr"].rolling(30, min_periods=5, center=True).mean(), mode="lines",
+                                     line=dict(color=c_, width=1.6), name=lab_, hovertemplate="%{x:.1f} km · %{y:.0f} ppm<extra>" + lab_ + "</extra>")
+            f_hr.update_yaxes(ticksuffix=" ppm")
+            f_hr.update_xaxes(ticksuffix=" km")
+            st.markdown('<span class="note">Frecuencia cardiaca a lo largo de la distancia (media de 30 s)</span>', unsafe_allow_html=True)
+            st.plotly_chart(plot_layout(f_hr, 260), width="stretch", theme=None)
+
+            # ── Lectura automática ──
+            ver = []
+            if ra["secs"] and rb["secs"]:
+                dmv = rb["secs"] - ra["secs"]
+                pct = dmv / ra["secs"] * 100
+                txt = (f"En movimiento, B fue {mmss(abs(dmv))} min {'más rápida' if dmv < 0 else 'más lenta'} que A ({fnum(abs(pct), 1)} %)"
+                       if abs(dmv) >= 30 else "En movimiento, las dos tardaron prácticamente lo mismo")
+                if pd.notna(ra["hr_avg"]) and pd.notna(rb["hr_avg"]):
+                    dh = rb["hr_avg"] - ra["hr_avg"]
+                    txt += f", con {fnum(abs(dh))} ppm {'menos' if dh < 0 else 'más'} de FC media" if abs(dh) >= 1 else ", con la misma FC media"
+                    va_, vb_ = ra["km"] / ra["secs"], rb["km"] / rb["secs"]
+                    eff = ((vb_ / rb["hr_avg"]) / (va_ / ra["hr_avg"]) - 1) * 100
+                    if abs(eff) >= 1:
+                        txt += f". Velocidad por pulsación {fnum(abs(eff), 1)} % {'mejor' if eff > 0 else 'peor'} en B"
+                ver.append(txt + ".")
+            if seg_rows:
+                big = SG.loc[SG["diff"].abs().idxmax()]
+                ver.append(f"La mayor diferencia está en el tramo {int(big['n'])} ({'subida' if big['up'] else 'bajada'} "
+                           f"{fnum(big['a0'])} → {fnum(big['a1'])} m): B {mmss(abs(big['diff']))} min "
+                           f"{'más rápida' if big['diff'] < 0 else 'más lenta'}.")
+                su, ba_ = SG.loc[SG["up"], "diff"].sum(), SG.loc[~SG["up"], "diff"].sum()
+                ver.append(f"En las subidas B {'gana' if su < 0 else 'pierde'} {mmss(abs(su))} min y en las bajadas "
+                           f"{'gana' if ba_ < 0 else 'pierde'} {mmss(abs(ba_))} min.")
+            else:
+                up_b = bt[bt["Pendiente"].isin(["10/20 %", "20/30 %"]) & (bt["Km|A"] >= .3) & (bt["Km|B"] >= .3)]
+                if len(up_b) and up_b["Δ m/h"].notna().any():
+                    r_ = up_b.loc[up_b["Δ m/h"].abs().idxmax()]
+                    ver.append(f"En las rampas del {r_['Pendiente']}, B sube a {fnum(r_['VAM / bajada|B'])} m/h frente a "
+                               f"{fnum(r_['VAM / bajada|A'])} m/h de A.")
+            if abs(stop_b - stop_a) >= 60:
+                ver.append(f"Tiempo parado: {mmss(stop_a)} min en A y {mmss(stop_b)} min en B.")
+            st.subheader("Qué se ve")
+            st.markdown("\n".join(f"- {x}" for x in ver[:5]) or "- Sin diferencias destacables.")
+
+            if (ra.get("device") or "") != (rb.get("device") or "") and ra.get("device") and rb.get("device"):
+                notes_.insert(0, f"Cambia el reloj ({str(ra['device']).replace('SUUNTO ', '')} en A, {str(rb['device']).replace('SUUNTO ', '')} en B): "
+                                 "la FC de muñeca y el GPS pueden variar algo entre relojes, y la cadencia no es comparable.")
+            for lab_, r_ in (("A", ra), ("B", rb)):
+                if r_["dp"] > 0 and r_["dm"] > 0 and abs(r_["dp"] - r_["dm"]) / max(r_["dp"], r_["dm"]) > .07:
+                    notes_.append(f"En {lab_} el D+ ({fnum(r_['dp'])} m) y el D− ({fnum(r_['dm'])} m) difieren más de un 7 %: "
+                                  "puede ser una variante de la ruta o un error de altitud.")
+            for lab_, d_ in (("A", df_a), ("B", df_b)):
+                hr_ = d_["hr"]
+                if hr_.notna().sum() > 300:
+                    jumps = int((hr_.diff(5).abs() > 30).sum())
+                    desc = d_["alt_s"].diff(30) < -4
+                    hi_ = (hr_ >= hr_.quantile(.98)) & desc
+                    run_ = hi_.groupby((~hi_).cumsum()).sum().max() if hi_.any() else 0
+                    if jumps > 5 or run_ >= 60:
+                        notes_.append(f"La FC de {lab_} tiene saltos bruscos o tramos a FC máxima bajando: puede ser un error del sensor.")
+            if do_seg and not sim_ab:
+                notes_.append("Sin GPS, los tramos de B se sitúan por distancia y altitud: tómalo como aproximado.")
+            st.subheader("A tener en cuenta")
+            st.markdown("\n".join(f"- {x}" for x in notes_) if notes_ else "- Nada especial: datos completos y mismo reloj.")
