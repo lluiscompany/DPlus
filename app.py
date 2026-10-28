@@ -2061,6 +2061,8 @@ with tab_mat:
     st.subheader("Material · zapatillas")
     if st.session_state.get("mat_msg"):
         st.success(st.session_state.pop("mat_msg"))
+    if st.session_state.get("mat_warn"):
+        st.warning(st.session_state.pop("mat_warn"))
 
     # Maestro de zapatillas (intervals.icu, o memoria de la sesión en DEMO)
     gear_err = None
@@ -2373,7 +2375,7 @@ with tab_mat:
         if pend and pend.get("kind") == "gear" and (pend["gid"] or NEW) == gsel:
             with st.container(border=True):
                 st.markdown(f"**{'Crear' if not pend['gid'] else 'Actualizar'} en intervals.icu:** {_html.escape(pend['name'])}")
-                st.markdown(f"- Compra: {pend['purchased'] or '—'} · Retirada: {pend['retired'] or 'no'}\n"
+                st.markdown(f"- Compra: {pend['purchased'] or '—'} · Retirada: {pend['retired'] or ('no (se quita la retirada)' if cur.get('ret') else 'no')}\n"
                             f"- Límite de km: {fnum(pend['lim']) + ' km' if pend['lim'] else 'sin aviso'}\n"
                             f"- Notas:\n```\n{pend['notes']}\n```")
                 b1, b2, _ = st.columns([1.2, 1, 3])
@@ -2403,6 +2405,23 @@ with tab_mat:
                             if pend["gid"]:
                                 g0 = next(g for g in shoes if g["id"] == pend["gid"])
                                 g_new = icu_write("PUT", f"/athlete/{athlete}/gear/{pend['gid']}", {**g0, **body}) or g0
+                                # intervals.icu ignora los campos a null en un PUT: «retired": null» no reactiva la
+                                # zapatilla. Si había que quitar la retirada y sigue puesta, se prueba con cadena vacía.
+                                if not pend["retired"] and (g_new or {}).get("retired"):
+                                    try:
+                                        g_new = icu_write("PUT", f"/athlete/{athlete}/gear/{pend['gid']}", {"retired": ""}) or g_new
+                                    except Exception:  # noqa: BLE001
+                                        pass
+                                    try:
+                                        g_new = next((g for g in icu_write("GET", f"/athlete/{athlete}/gear") or []
+                                                      if str(g.get("id")) == str(pend["gid"])), g_new)
+                                    except Exception:  # noqa: BLE001
+                                        pass
+                                    if (g_new or {}).get("retired"):
+                                        st.session_state["mat_warn"] = (
+                                            f"intervals.icu no ha quitado la fecha de retirada de «{pend['name']}» "
+                                            f"(sigue retirada desde {str(g_new['retired'])[:10]}). Quítala desde la web de "
+                                            "intervals.icu, en la ficha de la zapatilla, y pulsa «Actualizar datos».")
                             else:
                                 g0 = {}
                                 g_new = icu_write("POST", f"/athlete/{athlete}/gear", body)
