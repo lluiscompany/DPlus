@@ -887,8 +887,9 @@ TERRAIN_TILES = dict(urls=["https://s3.amazonaws.com/elevation-tiles-prod/terrar
 
 
 def map_backgrounds(lat: float, lng: float) -> list[str]:
-    """Fondos disponibles: el topográfico del IGN solo para rutas en España (es el de por defecto allí)."""
-    return (["Topográfico IGN"] if in_spain(lat, lng) else []) + ["OpenTopoMap", "OpenStreetMap", "Satélite"]
+    """Fondos disponibles, en orden de selección; el primero (OpenTopoMap) es el de por defecto.
+    El topográfico del IGN solo se ofrece para rutas en España, al final."""
+    return ["OpenTopoMap", "OpenStreetMap", "Satélite"] + (["Topográfico IGN"] if in_spain(lat, lng) else [])
 
 
 def track_style(fondo: str) -> dict:
@@ -2114,8 +2115,13 @@ with tab_mat:
     if len(SB):
         SB["ret"] = SB["retirada"].notna()
         SB["_last"] = pd.to_datetime(SB["last"])
-        SB = SB.sort_values(["ret", "_last"], ascending=[True, False], na_position="last").reset_index(drop=True)
-        SB["color"] = [SHOE_COLORS[i % len(SHOE_COLORS)] for i in range(len(SB))]
+        # Color estable por zapatilla (orden de compra y, si no hay fecha, id): no cambia al reordenar la lista
+        SB["_compra"] = pd.to_datetime(SB["compra"])
+        c_ord = SB.sort_values(["_compra", "id"], na_position="last")["id"].tolist()
+        SB["color"] = [SHOE_COLORS[c_ord.index(i) % len(SHOE_COLORS)] for i in SB["id"]]
+        # Orden por defecto: activas y luego retiradas, cada grupo por km de por vida (desc.) y nombre (A→Z)
+        SB["_nm"] = SB["name"].str.casefold()
+        SB = SB.sort_values(["ret", "km", "_nm"], ascending=[True, False, True]).reset_index(drop=True)
     shoe_name = dict(zip(SB["id"], SB["name"])) if len(SB) else {}
     shoe_color = dict(zip(SB["id"], SB["color"])) if len(SB) else {}
 
@@ -2950,7 +2956,7 @@ with tab_cmp:
                 with mc2:
                     fondo = st.segmented_control(
                         "Fondo del mapa", bgs, key="race_bg2",
-                        help="Topográfico IGN: Mapa Topográfico Nacional (solo en España). Satélite: PNOA del IGN en España, Esri fuera. "
+                        help="Satélite: PNOA del IGN en España, Esri fuera. Topográfico IGN: Mapa Topográfico Nacional (solo en España). "
                              "Si el mapa no carga o ▶ no avanza, prueba otro fondo o la vista 3D.",
                     ) or bgs[0]
                 TS = track_style(fondo)
