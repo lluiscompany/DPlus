@@ -1,6 +1,7 @@
 """Llibreta D+ · dashboard de trail running sobre intervals.icu (Streamlit)."""
 from __future__ import annotations
 
+import base64
 import datetime as dt
 import html as _html
 import json
@@ -877,14 +878,25 @@ TILESETS = {
                  attr="PNOA CC BY 4.0 scne.es", maxzoom=19),
     "esri_img": dict(urls=["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
                      attr="Tiles © Esri — Esri, Maxar, Earthstar Geographics", maxzoom=19),
-    "carto_light": dict(urls=[f"https://{s_}.basemaps.cartocdn.com/light_all/{{z}}/{{x}}/{{y}}.png" for s_ in "abcd"],
-                        attr="© OpenStreetMap © CARTO", maxzoom=19),
-    "carto_dark": dict(urls=[f"https://{s_}.basemaps.cartocdn.com/dark_all/{{z}}/{{x}}/{{y}}.png" for s_ in "abcd"],
-                       attr="© OpenStreetMap © CARTO", maxzoom=19),
+    # OpenStreetMap: política de uso de tile.openstreetmap.org (atribución visible, Referer válido, solo lo que se ve, sin
+    # descargas masivas ni uso offline). El navegador envía el Referer de la app.
+    "osm": dict(urls=["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], attr="© OpenStreetMap contributors", maxzoom=19),
 }
 TERRAIN_TILES = dict(urls=["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
                      attr="Relieve: Terrain Tiles (Tilezen/Mapzen, AWS Open Data)", maxzoom=15)
-MAP_BACKGROUNDS = ["Topográfico", "Satélite", "Callejero", "Sin fondo"]
+
+
+def map_backgrounds(lat: float, lng: float) -> list[str]:
+    """Fondos disponibles: el topográfico del IGN solo para rutas en España (es el de por defecto allí)."""
+    return (["Topográfico IGN"] if in_spain(lat, lng) else []) + ["OpenTopoMap", "OpenStreetMap", "Satélite"]
+
+
+def track_style(fondo: str) -> dict:
+    """Colores de las trazas en el mapa: halo blanco sobre mapas claros, casi negro sobre satélite; colores más
+    saturados sobre fondos topográficos claros (el dorado de la app se pierde sobre el beige del MTN)."""
+    sat = fondo == "Satélite"
+    return dict(halo="#111417" if sat else "#ffffff", A="#ffc400" if sat else "#e09b00", B="#4cc9f0" if sat else "#0a84c6",
+                halo_op=.75 if sat else .95)
 
 # Vista 3D de la carrera virtual: MapLibre GL JS (relieve real con teselas de elevación), reproducción en el navegador.
 MAP3D_HTML = r"""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -907,9 +919,13 @@ MAP3D_HTML = r"""<!doctype html><html><head><meta charset="utf-8"><meta name="vi
  .dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;
       font:700 12px "IBM Plex Sans",sans-serif;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.55)}
  .maplibregl-ctrl-attrib{font-size:10px}
+ #leg{position:absolute;left:8px;bottom:8px;z-index:5;background:var(--surface);color:var(--ink);border:1px solid var(--line);
+      border-radius:4px;padding:4px 8px;font-size:12px;line-height:1.5;pointer-events:none}
+ #leg i{display:inline-block;width:22px;height:5px;border-radius:3px;margin-right:6px;vertical-align:middle;box-shadow:0 0 0 2px var(--halo)}
+ @media (max-width:520px){ .dot{width:26px;height:26px;font-size:13px} #map{height:380px} }
 </style></head><body>
 <div id="wrap">
- <div id="mapbox"><div id="map"></div><div id="lab"></div><div id="err"></div></div>
+ <div id="mapbox"><div id="map"></div><div id="lab"></div><div id="leg"></div><div id="err"></div></div>
  <div class="ctl">
   <button data-sp="30">▶ ×30</button><button data-sp="60">▶ ×60</button><button data-sp="120">▶ ×120</button>
   <button id="pause">⏸</button><input type="range" id="rng" min="0" step="1"><span id="tt"></span>
@@ -924,7 +940,8 @@ MAP3D_HTML = r"""<!doctype html><html><head><meta charset="utf-8"><meta name="vi
 <script>
 const D = __PAYLOAD__;
 const C = D.col, root = document.documentElement.style;
-for (const [k, v] of Object.entries({ink:C.ink, muted:C.muted, line:C.line, surface:C.surface, surface2:C.surface2, A:C.A})) root.setProperty('--'+k, v);
+for (const [k, v] of Object.entries({ink:C.ink, muted:C.muted, line:C.line, surface:C.surface, surface2:C.surface2, A:C.A, halo:D.trk.halo})) root.setProperty('--'+k, v);
+document.getElementById('leg').innerHTML = `<div><i style="background:${D.trk.A}"></i>${D.labA}</div><div><i style="background:${D.trk.B}"></i>${D.labB}</div>`;
 const fmt = (v, d=0) => { const [i, f] = Math.abs(Number(v)).toFixed(d).split('.'); return (v < 0 ? '−' : '') + i.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + (f ? ',' + f : ''); };
 const hms = s => { s = Math.max(0, Math.round(s)); return `${Math.floor(s/3600)}:${String(Math.floor(s%3600/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`; };
 const mmss = s => { s = Math.abs(Math.round(s)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; };
@@ -932,6 +949,9 @@ const T = D.T, n = T.length, tmax = T[n-1];
 function fidx(t){ let lo=0, hi=n-1; if (t<=T[0]) return 0; if (t>=T[hi]) return hi; while (hi-lo>1){ const m=(lo+hi)>>1; if (T[m]<=t) lo=m; else hi=m; } return lo + (t-T[lo])/(T[hi]-T[lo]); }
 function at(arr, f){ const i=Math.floor(f), j=Math.min(n-1, i+1), w=f-i; const a=arr[i], b=arr[j]; if (a==null) return b; if (b==null) return a; return a+(b-a)*w; }
 function interp(x, xs, ys){ if (x<=xs[0]) return ys[0]; if (x>=xs[xs.length-1]) return ys[ys.length-1]; let lo=0, hi=xs.length-1; while (hi-lo>1){ const m=(lo+hi)>>1; if (xs[m]<=x) lo=m; else hi=m; } return ys[lo]+(ys[hi]-ys[lo])*(x-xs[lo])/(xs[hi]-xs[lo]); }
+function lineFeat(coords){ const c = coords.filter(p => p && p[0] != null && p[1] != null);
+  if (c.length === 1) c.push([c[0][0] + 1e-6, c[0][1]]); if (!c.length) c.push([0, 0], [1e-6, 0]);
+  return {type:'Feature', properties:{}, geometry:{type:'LineString', coordinates:c}}; }
 function label(t, f){
   if (t >= D.endA && t >= D.endB) return D.endB < D.endA ? `B ${mmss(D.endA-D.endB)} más rápida` : `A ${mmss(D.endB-D.endA)} más rápida`;
   const g = at(D.gap, f), dd = at(D.dd, f);
@@ -955,15 +975,20 @@ try {
     map.addSource('dem', dem); map.addSource('demh', {...dem, attribution:undefined});
     map.addLayer({id:'hill', type:'hillshade', source:'demh', paint:{'hillshade-exaggeration': D.base ? 0.25 : 0.6, 'hillshade-shadow-color':'#000'}});
     map.setTerrain({source:'dem', exaggeration:1.5});
-    const line = (id, coords) => map.addSource(id, {type:'geojson', data:{type:'Feature', geometry:{type:'LineString', coordinates:coords}}});
-    line('trkA', D.trackA); line('trkB', D.trackB); line('doneA', []); line('doneB', []);
-    map.addLayer({id:'trkA', type:'line', source:'trkA', paint:{'line-color':C.A, 'line-width':3, 'line-opacity':.55}});
-    map.addLayer({id:'trkB', type:'line', source:'trkB', paint:{'line-color':C.B, 'line-width':3, 'line-opacity':.55}});
-    map.addLayer({id:'doneA', type:'line', source:'doneA', paint:{'line-color':C.A, 'line-width':6}});
-    map.addLayer({id:'doneB', type:'line', source:'doneB', paint:{'line-color':C.B, 'line-width':6}});
+    // GeoJSON válido: con properties y al menos dos puntos (una LineString vacía bloquea el worker de MapLibre)
+    const line = (id, coords) => map.addSource(id, {type:'geojson', data:lineFeat(coords)});
+    line('trkA', D.trackA); line('trkB', D.trackB); line('doneA', [D.trackA[0]]); line('doneB', [D.trackB[0]]);
+    const K = D.trk, lay = (id, src, color, width, op) => map.addLayer({id, type:'line', source:src, layout:{'line-cap':'round', 'line-join':'round'},
+                                                                       paint:{'line-color':color, 'line-width':width, 'line-opacity':op}});
+    // trazas completas: halo A ancho, A, halo B, B estrecha encima («doble línea»); recorrido más grueso y opaco
+    lay('trkAh', 'trkA', K.halo, 12, K.halo_op*.75); lay('trkA', 'trkA', K.A, 8, .7); lay('trkB', 'trkB', K.B, 3.5, .85);
+    lay('doneAh', 'doneA', K.halo, 15, K.halo_op);   lay('doneA', 'doneA', K.A, 10, 1);
+    lay('doneBh', 'doneB', K.halo, 8, K.halo_op);    lay('doneB', 'doneB', K.B, 4.5, 1);
+    map.addSource('se', {type:'geojson', data:{type:'FeatureCollection', features:D.se.map(c => ({type:'Feature', properties:{}, geometry:{type:'Point', coordinates:c}}))}});
+    map.addLayer({id:'se', type:'circle', source:'se', paint:{'circle-radius':5, 'circle-color':'#1c2420', 'circle-stroke-color':K.halo, 'circle-stroke-width':3}});
     const dot = (txt, bg, fg) => { const e=document.createElement('div'); e.className='dot'; e.style.background=bg; e.style.color=fg; e.textContent=txt; return e; };
-    mkA = new maplibregl.Marker({element:dot('A', C.A, C.onA)}).setLngLat(D.trackA[0]).addTo(map);
-    mkB = new maplibregl.Marker({element:dot('B', C.B, C.onB)}).setLngLat(D.trackB[0]).addTo(map);
+    mkA = new maplibregl.Marker({element:dot('A', K.A, K.onA)}).setLngLat(D.trackA[0]).addTo(map);
+    mkB = new maplibregl.Marker({element:dot('B', K.B, K.onB)}).setLngLat(D.trackB[0]).addTo(map);
     ready = true; render(tSim, true);
   });
 } catch (e) { fail('No se puede mostrar el mapa 3D: ' + e.message + '.<br>Vuelve a la vista 2D.'); }
@@ -1014,8 +1039,8 @@ function render(t, heavy){
   if (heavy || now - lastHeavy > 120) {
     lastHeavy = now; const k = Math.floor(f);
     const path = (lng, lat) => { const out=[]; const st=Math.max(1, Math.floor(k/400)); for (let i=0;i<=k;i+=st) if (lng[i]!=null) out.push([lng[i],lat[i]]); return out; };
-    map.getSource('doneA').setData({type:'Feature', geometry:{type:'LineString', coordinates:path(D.lngA, D.latA).concat([la])}});
-    map.getSource('doneB').setData({type:'Feature', geometry:{type:'LineString', coordinates:path(D.lngB, D.latB).concat([lb])}});
+    map.getSource('doneA').setData(lineFeat(path(D.lngA, D.latA).concat([la])));
+    map.getSource('doneB').setData(lineFeat(path(D.lngB, D.latB).concat([lb])));
   }
   if (cam.value !== 'fix' && (heavy || now - lastCam > 300)) { lastCam = now; map.easeTo({center: cam.value==='A' ? la : lb, duration: heavy ? 600 : 300}); }
 }
@@ -1040,16 +1065,11 @@ def in_spain(lat: float, lng: float) -> bool:
     return (35.8 <= lat <= 43.95 and -9.6 <= lng <= 4.6) or (27.5 <= lat <= 29.5 and -18.3 <= lng <= -13.3)
 
 
-def base_tiles(fondo: str, lat: float, lng: float, light: bool) -> dict | None:
-    """Capa raster de fondo según el selector (IGN en España; OpenTopoMap/Esri fuera)."""
+def base_tiles(fondo: str, lat: float, lng: float, light: bool = False) -> dict:
+    """Capa raster de fondo según el selector (Satélite: PNOA en España, Esri fuera)."""
     es = in_spain(lat, lng)
-    if fondo == "Topográfico":
-        return TILESETS["ign_mtn" if es else "otm"]
-    if fondo == "Satélite":
-        return TILESETS["pnoa" if es else "esri_img"]
-    if fondo == "Callejero":
-        return TILESETS["carto_light" if light else "carto_dark"]
-    return None
+    return {"Topográfico IGN": TILESETS["ign_mtn"], "OpenTopoMap": TILESETS["otm"], "OpenStreetMap": TILESETS["osm"],
+            "Satélite": TILESETS["pnoa" if es else "esri_img"]}.get(fondo, TILESETS["otm"])
 
 
 @st.cache_data(ttl=3600, show_spinner=False, max_entries=20)
@@ -2919,15 +2939,21 @@ with tab_cmp:
 
                 # Mapa animado (2D Plotly / 3D MapLibre) + diferencia + desnivel, sincronizados
                 okA, okB = df_a.dropna(subset=["lat", "lng"]), df_b.dropna(subset=["lat", "lng"])
+                c_lat0 = float(okA["lat"].mean()) if len(okA) else 0.0
+                c_lng0 = float(okA["lng"].mean()) if len(okA) else 0.0
+                bgs = map_backgrounds(c_lat0, c_lng0)
+                if st.session_state.get("race_bg2") not in bgs:          # p. ej. «Callejero» o «Sin fondo» de antes
+                    st.session_state["race_bg2"] = bgs[0]
                 mc1, mc2 = st.columns([1, 3], vertical_alignment="bottom")
                 with mc1:
                     vista_m = st.segmented_control("Vista del mapa", ["2D", "3D"], default="2D", key="race_view") or "2D"
                 with mc2:
                     fondo = st.segmented_control(
-                        "Fondo del mapa", MAP_BACKGROUNDS, default="Topográfico", key="race_bg2",
-                        help="Topográfico: Mapa Topográfico Nacional del IGN (fuera de España, OpenTopoMap). Satélite: PNOA del IGN "
-                             "(fuera de España, Esri). «Sin fondo» no descarga mapas: úsalo si tu red los bloquea y la animación no avanza.",
-                    ) or "Topográfico"
+                        "Fondo del mapa", bgs, key="race_bg2",
+                        help="Topográfico IGN: Mapa Topográfico Nacional (solo en España). Satélite: PNOA del IGN en España, Esri fuera. "
+                             "Si el mapa no carga o ▶ no avanza, prueba otro fondo o la vista 3D.",
+                    ) or bgs[0]
+                TS = track_style(fondo)
                 if len(okA) < 50 or len(okB) < 50:
                     st.info("Sin GPS en alguna de las dos actividades: no se puede dibujar el mapa.")
                 else:
@@ -2937,7 +2963,10 @@ with tab_cmp:
                     lat_all = np.concatenate([sa_["lat"].to_numpy(), sb_["lat"].to_numpy()])
                     lng_all = np.concatenate([sa_["lng"].to_numpy(), sb_["lng"].to_numpy()])
                     c_lat, c_lng = float(np.mean(lat_all)), float(np.mean(lng_all))
-                    tiles = base_tiles(fondo, c_lat, c_lng, LIGHT)
+                    tiles = base_tiles(fondo, c_lat, c_lng)
+                    lab_a, lab_b = f"A · {ra['ts']:%d/%m/%y}", f"B · {rb['ts']:%d/%m/%y}"
+                    st_lat = [round(float(sa_["lat"].iloc[0]), 5), round(float(sa_["lat"].iloc[-1]), 5)]
+                    st_lng = [round(float(sa_["lng"].iloc[0]), 5), round(float(sa_["lng"].iloc[-1]), 5)]
                     # perfil de la ruta (km de A) y posición de cada una sobre él
                     prof_i = np.unique(np.linspace(0, len(R["dA"]) - 1, min(len(R["dA"]), 220)).astype(int))
                     prof_x, prof_y = R["dA"][prof_i] / 1000, R["altA"][prof_i]
@@ -2956,7 +2985,7 @@ with tab_cmp:
                                 f"B {fnum(alt_on(R['posB'][k]))} m · D+ {fnum(R['dpB'][k])} m")
 
                     if vista_m == "2D":
-                        stepf = max(1, math.ceil(Tn / 240))
+                        stepf = max(1, math.ceil(Tn / 200))
                         fidx = list(range(0, Tn, stepf))
                         if fidx[-1] != Tn - 1:
                             fidx.append(Tn - 1)
@@ -2982,9 +3011,11 @@ with tab_cmp:
                             pxa, pya = prof_done(R["posA"][k])
                             pxb, pyb = prof_done(R["posB"][k])
                             th = R["T"][k] / 3600
-                            return [go.Scattermap(lat=la, lon=lo), go.Scattermap(lat=lb, lon=lob),
-                                    go.Scattermap(lat=[round(R["latA"][k], 5)], lon=[round(R["lngA"][k], 5)]),
-                                    go.Scattermap(lat=[round(R["latB"][k], 5)], lon=[round(R["lngB"][k], 5)]),
+                            pa_ = dict(lat=[round(R["latA"][k], 5)], lon=[round(R["lngA"][k], 5)])
+                            pb_ = dict(lat=[round(R["latB"][k], 5)], lon=[round(R["lngB"][k], 5)])
+                            return [go.Scattermap(lat=la, lon=lo), go.Scattermap(lat=la, lon=lo),          # recorrido A (halo + línea)
+                                    go.Scattermap(lat=lb, lon=lob), go.Scattermap(lat=lb, lon=lob),        # recorrido B
+                                    go.Scattermap(**pa_), go.Scattermap(**pa_), go.Scattermap(**pb_), go.Scattermap(**pb_),  # bolitas
                                     go.Scatter(x=[pos_ / 1000], y=[float(np.interp(pos_, R["dA"], R["dT"])) / 60]),
                                     go.Scatter(x=rd(pxa, 3), y=rd(pya, 0)), go.Scatter(x=rd(pxb, 3), y=rd(pyb, 0)),
                                     go.Scatter(x=[pxa[-1]], y=[pya[-1]]), go.Scatter(x=[pxb[-1]], y=[pyb[-1]]),
@@ -2992,45 +3023,61 @@ with tab_cmp:
 
                         f_m = make_subplots(rows=4, cols=1, specs=[[{"type": "map"}], [{"type": "xy"}], [{"type": "xy"}], [{"type": "xy"}]],
                                             row_heights=[.46, .18, .18, .18], vertical_spacing=.045)
-                        f_m.add_trace(go.Scattermap(lat=rd(sa_["lat"]), lon=rd(sa_["lng"]), mode="lines", line=dict(color=GOLD, width=2),
-                                                    opacity=.45, name="A", hoverinfo="skip", showlegend=False), row=1, col=1)       # 0
-                        f_m.add_trace(go.Scattermap(lat=rd(sb_["lat"]), lon=rd(sb_["lng"]), mode="lines", line=dict(color=GLACIER, width=2),
-                                                    opacity=.45, name="B", hoverinfo="skip", showlegend=False), row=1, col=1)    # 1
+                        ml = lambda **kw: go.Scattermap(mode="lines", hoverinfo="skip", **kw)  # noqa: E731
+                        # trazas completas (estáticas): halo A ancho, A, halo B, B estrecha encima («doble línea»)
+                        f_m.add_trace(ml(lat=rd(sa_["lat"]), lon=rd(sa_["lng"]), line=dict(color=TS["halo"], width=12), opacity=TS["halo_op"] * .75,
+                                         showlegend=False), row=1, col=1)                                                    # 0 halo común
+                        f_m.add_trace(ml(lat=rd(sa_["lat"]), lon=rd(sa_["lng"]), line=dict(color=TS["A"], width=8), opacity=.7,
+                                         name=lab_a, showlegend=True), row=1, col=1)                                         # 1 A ancha
+                        f_m.add_trace(ml(lat=rd(sb_["lat"]), lon=rd(sb_["lng"]), line=dict(color=TS["halo"], width=12), opacity=0,
+                                         showlegend=False), row=1, col=1)                                                    # 2 (reservada)
+                        f_m.add_trace(ml(lat=rd(sb_["lat"]), lon=rd(sb_["lng"]), line=dict(color=TS["B"], width=3.5), opacity=.85,
+                                         name=lab_b, showlegend=True), row=1, col=1)                                         # 3 B estrecha encima
+                        f_m.add_trace(go.Scattermap(lat=st_lat, lon=st_lng, mode="markers", marker=dict(size=13, color=TS["halo"]),
+                                                    hoverinfo="skip", showlegend=False), row=1, col=1)                       # 4
+                        f_m.add_trace(go.Scattermap(lat=st_lat, lon=st_lng, mode="markers", marker=dict(size=8, color=INK if not LIGHT else "#1c2420"),
+                                                    text=["Salida", "Meta"], hovertemplate="%{text}<extra></extra>", showlegend=False), row=1, col=1)  # 5
                         d0 = dyn(k0)
-                        f_m.add_trace(go.Scattermap(lat=d0[0].lat, lon=d0[0].lon, mode="lines", line=dict(color=GOLD, width=5),
-                                                    hoverinfo="skip", showlegend=False), row=1, col=1)                              # 2
-                        f_m.add_trace(go.Scattermap(lat=d0[1].lat, lon=d0[1].lon, mode="lines", line=dict(color=GLACIER, width=5),
-                                                    hoverinfo="skip", showlegend=False), row=1, col=1)                              # 3
-                        f_m.add_trace(go.Scattermap(lat=d0[2].lat, lon=d0[2].lon, mode="markers+text", text=["A"], name="A",
-                                                    marker=dict(size=20, color=GOLD), textfont=dict(color=on(GOLD), size=12),
-                                                    hoverinfo="skip"), row=1, col=1)                                                # 4
-                        f_m.add_trace(go.Scattermap(lat=d0[3].lat, lon=d0[3].lon, mode="markers+text", text=["B"], name="B",
-                                                    marker=dict(size=20, color=GLACIER), textfont=dict(color=on(GLACIER), size=12),
-                                                    hoverinfo="skip"), row=1, col=1)                                                # 5
+                        # recorrido (animado): más grueso y opaco, con halo
+                        f_m.add_trace(ml(lat=d0[0].lat, lon=d0[0].lon, line=dict(color=TS["halo"], width=15), opacity=TS["halo_op"],
+                                         showlegend=False), row=1, col=1)                                                    # 6 halo recorrido A
+                        f_m.add_trace(ml(lat=d0[1].lat, lon=d0[1].lon, line=dict(color=TS["A"], width=10), showlegend=False), row=1, col=1)  # 7
+                        f_m.add_trace(ml(lat=d0[2].lat, lon=d0[2].lon, line=dict(color=TS["halo"], width=8), opacity=TS["halo_op"],
+                                         showlegend=False), row=1, col=1)                                                    # 8 halo recorrido B
+                        f_m.add_trace(ml(lat=d0[3].lat, lon=d0[3].lon, line=dict(color=TS["B"], width=4.5), showlegend=False), row=1, col=1)  # 9
+                        dot_ = lambda d_, size, color, **kw: go.Scattermap(lat=d_.lat, lon=d_.lon, hoverinfo="skip", showlegend=False,  # noqa: E731
+                                                                           marker=dict(size=size, color=color), **kw)
+                        f_m.add_trace(dot_(d0[4], 27, "#ffffff", mode="markers"), row=1, col=1)                     # 10 borde A
+                        f_m.add_trace(dot_(d0[5], 22, TS["A"], mode="markers+text", text=["A"],
+                                           textfont=dict(color=on(TS["A"]), size=12)), row=1, col=1)               # 11
+                        f_m.add_trace(dot_(d0[6], 27, "#ffffff", mode="markers"), row=1, col=1)                     # 12 borde B
+                        f_m.add_trace(dot_(d0[7], 22, TS["B"], mode="markers+text", text=["B"],
+                                           textfont=dict(color=on(TS["B"]), size=12)), row=1, col=1)               # 13
                         f_m.add_trace(go.Scatter(x=xk_m, y=yk_m, mode="lines", line=dict(color=INK, width=1.3), showlegend=False,
-                                                 hovertemplate="km %{x:.2f} · %{y:+.1f} min<extra>B − A</extra>"), row=2, col=1)     # 6
-                        f_m.add_trace(go.Scatter(x=d0[4].x, y=d0[4].y, mode="markers", marker=dict(size=11, color=INK, line=dict(color=BG, width=2)),
-                                                 showlegend=False, hoverinfo="skip"), row=2, col=1)                                 # 7
+                                                 hovertemplate="km %{x:.2f} · %{y:+.1f} min<extra>B − A</extra>"), row=2, col=1)     # 14
+                        f_m.add_trace(go.Scatter(x=d0[8].x, y=d0[8].y, mode="markers", marker=dict(size=11, color=INK, line=dict(color=BG, width=2)),
+                                                 showlegend=False, hoverinfo="skip"), row=2, col=1)                                 # 15
                         f_m.add_trace(go.Scatter(x=rd(prof_x, 3), y=rd(prof_y, 0), mode="lines", line=dict(color=MUTED, width=1.4),
-                                                 showlegend=False, hovertemplate="km %{x:.2f} · %{y:.0f} m<extra>perfil</extra>"), row=3, col=1)  # 8
-                        f_m.add_trace(go.Scatter(x=d0[5].x, y=d0[5].y, mode="lines", fill="tozeroy", line=dict(color=GOLD, width=2),
-                                                 fillcolor=rgba(GOLD, .28), showlegend=False, hoverinfo="skip"), row=3, col=1)       # 9
-                        f_m.add_trace(go.Scatter(x=d0[6].x, y=d0[6].y, mode="lines", fill="tozeroy", line=dict(color=GLACIER, width=2),
-                                                 fillcolor=rgba(GLACIER, .22), showlegend=False, hoverinfo="skip"), row=3, col=1)    # 10
-                        f_m.add_trace(go.Scatter(x=d0[7].x, y=d0[7].y, mode="markers+text", text=["A"], textposition="top center",
+                                                 showlegend=False, hovertemplate="km %{x:.2f} · %{y:.0f} m<extra>perfil</extra>"), row=3, col=1)  # 16
+                        f_m.add_trace(go.Scatter(x=d0[9].x, y=d0[9].y, mode="lines", fill="tozeroy", line=dict(color=GOLD, width=2),
+                                                 fillcolor=rgba(GOLD, .28), showlegend=False, hoverinfo="skip"), row=3, col=1)       # 17
+                        f_m.add_trace(go.Scatter(x=d0[10].x, y=d0[10].y, mode="lines", fill="tozeroy", line=dict(color=GLACIER, width=2),
+                                                 fillcolor=rgba(GLACIER, .22), showlegend=False, hoverinfo="skip"), row=3, col=1)    # 18
+                        f_m.add_trace(go.Scatter(x=d0[11].x, y=d0[11].y, mode="markers+text", text=["A"], textposition="top center",
                                                  marker=dict(size=13, color=GOLD, line=dict(color=BG, width=1.5)), textfont=dict(color=GOLD),
-                                                 showlegend=False, hoverinfo="skip"), row=3, col=1)                                 # 11
-                        f_m.add_trace(go.Scatter(x=d0[8].x, y=d0[8].y, mode="markers+text", text=["B"], textposition="top center",
+                                                 showlegend=False, hoverinfo="skip"), row=3, col=1)                                 # 19
+                        f_m.add_trace(go.Scatter(x=d0[12].x, y=d0[12].y, mode="markers+text", text=["B"], textposition="top center",
                                                  marker=dict(size=13, color=GLACIER, line=dict(color=BG, width=1.5)), textfont=dict(color=GLACIER),
-                                                 showlegend=False, hoverinfo="skip"), row=3, col=1)                                 # 12
+                                                 showlegend=False, hoverinfo="skip"), row=3, col=1)                                 # 20
                         f_m.add_trace(go.Scatter(x=rd(R["T"][dp_i] / 3600, 4), y=rd(R["dpA"][dp_i], 0), mode="lines", line=dict(color=GOLD, width=1.8),
-                                                 name="D+ A", hovertemplate="%{x:.2f} h · %{y:.0f} m<extra>D+ A</extra>"), row=4, col=1)  # 13
+                                                 showlegend=False, hovertemplate="%{x:.2f} h · %{y:.0f} m<extra>D+ A</extra>"), row=4, col=1)  # 21
                         f_m.add_trace(go.Scatter(x=rd(R["T"][dp_i] / 3600, 4), y=rd(R["dpB"][dp_i], 0), mode="lines", line=dict(color=GLACIER, width=1.8),
-                                                 name="D+ B", hovertemplate="%{x:.2f} h · %{y:.0f} m<extra>D+ B</extra>"), row=4, col=1)  # 14
-                        f_m.add_trace(go.Scatter(x=d0[9].x, y=d0[9].y, mode="markers", marker=dict(size=10, color=GOLD, line=dict(color=BG, width=1.5)),
-                                                 showlegend=False, hoverinfo="skip"), row=4, col=1)                                 # 15
-                        f_m.add_trace(go.Scatter(x=d0[10].x, y=d0[10].y, mode="markers", marker=dict(size=10, color=GLACIER, line=dict(color=BG, width=1.5)),
-                                                 showlegend=False, hoverinfo="skip"), row=4, col=1)                                 # 16
+                                                 showlegend=False, hovertemplate="%{x:.2f} h · %{y:.0f} m<extra>D+ B</extra>"), row=4, col=1)  # 22
+                        f_m.add_trace(go.Scatter(x=d0[13].x, y=d0[13].y, mode="markers", marker=dict(size=10, color=GOLD, line=dict(color=BG, width=1.5)),
+                                                 showlegend=False, hoverinfo="skip"), row=4, col=1)                                 # 23
+                        f_m.add_trace(go.Scatter(x=d0[14].x, y=d0[14].y, mode="markers", marker=dict(size=10, color=GLACIER, line=dict(color=BG, width=1.5)),
+                                                 showlegend=False, hoverinfo="skip"), row=4, col=1)                                 # 24
+                        ANIM = [6, 7, 8, 9, 10, 11, 12, 13, 15, 17, 18, 19, 20, 23, 24]
 
                         def anns(k):
                             base_ = dict(xref="paper", yref="paper", xanchor="left", yanchor="top", showarrow=False, bgcolor=SURFACE,
@@ -3039,20 +3086,19 @@ with tab_cmp:
                             return [dict(text=f"<b>{label_at(k)}</b>", x=0.01, y=0.995, font=dict(color=INK, size=13), **base_),
                                     dict(text=elev_label(k), x=0.01, y=y3 + .005, font=dict(color=INK, size=11), **base_)]
 
-                        f_m.frames = [go.Frame(name=str(k), data=dyn(k), traces=[2, 3, 4, 5, 7, 9, 10, 11, 12, 15, 16],
-                                               layout=dict(annotations=anns(k))) for k in fidx]
+                        f_m.frames = [go.Frame(name=str(k), data=dyn(k), traces=ANIM, layout=dict(annotations=anns(k))) for k in fidx]
                         span_ = max(float(np.ptp(lat_all)) * 1.6, float(np.ptp(lng_all)) * math.cos(math.radians(c_lat)) * 1.1, 0.002)
                         zoom_ = float(np.clip(math.log2(360 / span_) - 1.2, 8, 16))
-                        if tiles:
-                            map_cfg = dict(style="white-bg", layers=[dict(sourcetype="raster", source=tiles["urls"], below="traces",
-                                                                          sourceattribution=tiles["attr"], maxzoom=tiles["maxzoom"])])
-                        else:
-                            map_cfg = dict(style="white-bg")
+                        map_cfg = dict(style="white-bg", layers=[dict(sourcetype="raster", source=tiles["urls"], below="traces",
+                                                                      sourceattribution=tiles["attr"], maxzoom=tiles["maxzoom"])])
                         dur = lambda sp: max(30, int(stepf * 10 / sp * 1000))  # noqa: E731
                         play = lambda sp: dict(label=f"▶ ×{sp}", method="animate",  # noqa: E731
                                                args=[None, dict(frame=dict(duration=dur(sp), redraw=True), transition=dict(duration=0),
                                                                 fromcurrent=True, mode="immediate")])
                         plot_layout(f_m, 980, legend=False)
+                        f_m.update_layout(showlegend=True, legend=dict(x=.99, y=.995, xanchor="right", yanchor="top", orientation="v",
+                                                                       bgcolor=SURFACE, bordercolor=LINE, borderwidth=1,
+                                                                       font=dict(color=INK, size=11)))
                         alt_lo, alt_hi = float(np.nanmin(prof_y)), float(np.nanmax(prof_y))
                         f_m.update_layout(
                             map=dict(**map_cfg, center=dict(lat=c_lat, lon=c_lng), zoom=zoom_),
@@ -3075,7 +3121,8 @@ with tab_cmp:
                         f_m.update_yaxes(ticksuffix=" m", row=4, col=1)
                         f_m.update_xaxes(ticksuffix=" h", row=4, col=1)
                         st.markdown('<span class="note">Pulsa ▶ (×30, ×60 o ×120 la velocidad real) o arrastra la barra. Debajo del mapa: diferencia '
-                                    'B − A a lo largo de la ruta, perfil con la posición de cada una y D+ acumulado frente al tiempo.</span>',
+                                    'B − A a lo largo de la ruta, perfil con la posición de cada una y D+ acumulado frente al tiempo. '
+                                    '<b>Si el mapa no carga o ▶ no avanza</b> (red que bloquea los mapas), prueba otro fondo o la vista 3D.</span>',
                                     unsafe_allow_html=True)
                         st.plotly_chart(f_m, width="stretch", theme=None, config={"scrollZoom": True})
                     else:
@@ -3095,7 +3142,9 @@ with tab_cmp:
                             k0=int(np.searchsorted(R["T"][sub_k], R["T"][k_t])) if k_t < Tn - 1 else 0,
                             center=[c_lng, c_lat],
                             bounds=[[float(np.min(lng_all)), float(np.min(lat_all))], [float(np.max(lng_all)), float(np.max(lat_all))]],
-                            base=tiles, terrain=TERRAIN_TILES,
+                            base=tiles, terrain=TERRAIN_TILES, labA=lab_a, labB=lab_b,
+                            trk=dict(**TS, onA=on(TS["A"]), onB=on(TS["B"])),
+                            se=[[st_lng[0], st_lat[0]], [st_lng[1], st_lat[1]]],
                             col=dict(A=GOLD, B=GLACIER, ink=INK, muted=MUTED, line=LINE, surface=SURFACE, surface2=SURFACE2, bg=BG,
                                      green=GREEN, red=RED, onA=on(GOLD), onB=on(GLACIER)),
                         )
@@ -3103,10 +3152,13 @@ with tab_cmp:
                                     'Si no ves el mapa (navegador sin WebGL o red que bloquea los mapas), vuelve a 2D.</span>',
                                     unsafe_allow_html=True)
                         html3d = MAP3D_HTML.replace("__PAYLOAD__", json.dumps(payload, separators=(",", ":")))
+                        # Se carga como data: URL (origen propio). Con srcdoc el iframe hereda el origen de la app y MapLibre deja de
+                        # procesar las trazas y el relieve en sus workers.
+                        src3d = "data:text/html;base64," + base64.b64encode(html3d.encode("utf-8")).decode("ascii")
                         if hasattr(st, "iframe"):
-                            st.iframe(html3d, height=800)
+                            st.iframe(src3d, height=800)
                         else:                                  # Streamlit antiguo
-                            components.html(html3d, height=800)
+                            components.iframe(src3d, height=800)
 
                 # Lectura de la carrera
                 lec = []
