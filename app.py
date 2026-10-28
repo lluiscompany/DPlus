@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import datetime as dt
 import html as _html
+import json
 import math
 import os
 import random
@@ -13,6 +14,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import requests
 import streamlit as st
+import streamlit.components.v1 as components
 from urllib.parse import quote_plus
 
 # En redes corporativas con inspección TLS, usa los certificados de confianza del sistema
@@ -843,7 +845,11 @@ def race_align(a: pd.DataFrame, b: pd.DataFrame, use_gps: bool, moving: bool, st
         v = df_[col].to_numpy(float)
         ok = np.isfinite(v)
         return np.interp(T, c_[ok], v[ok]) if ok.sum() > 1 else np.full(len(T), np.nan)
+    def cum_gain(df_, c_):
+        g = np.clip(np.diff(df_["alt_s"].to_numpy(float), prepend=df_["alt_s"].iloc[0]), 0, None).cumsum()
+        return np.interp(T, c_, g)
     return dict(dA=dA, dB=dB, tA=tA, tB=tB, dT=dT, altA=altA, off=off, T=T, endA=endA, endB=endB,
+                dpA=cum_gain(a, ca), dpB=cum_gain(b, cb),
                 posA=posA, posB=posB, ownA=own_a, ownB=own_b, totA=tot_a, totB=tot_b,
                 latA=at(a, ca, "lat"), lngA=at(a, ca, "lng"), latB=at(b, cb, "lat"), lngB=at(b, cb, "lng"),
                 altTA=at(a, ca, "alt_s"), altTB=at(b, cb, "alt_s"), hrA=at(a, ca, "hr"), hrB=at(b, cb, "hr"))
@@ -856,6 +862,194 @@ def race_gap(r: dict, k: int) -> tuple[float, float]:
     p = min(pa, pb)                                   # el que va detrás pasa por p: tiempo que le saca el de delante
     dt_ = float(np.interp(p, r["dA"], r["dT"]))
     return float(dd), -dt_
+
+
+# Capas de mapa (sin clave). Condiciones: IGN/CNIG CC BY 4.0 (atribución visible); OpenTopoMap CC-BY-SA;
+# Esri World Imagery con atribución; AWS Terrain Tiles (Tilezen/Mapzen, datos abiertos).
+_IGN_WMTS = ("https://www.ign.es/wmts/{svc}?service=WMTS&request=GetTile&version=1.0.0&Format=image/{fmt}&layer={layer}"
+             "&style=default&tilematrixset=GoogleMapsCompatible&TileMatrix={{z}}&TileRow={{y}}&TileCol={{x}}")
+TILESETS = {
+    "ign_mtn": dict(urls=[_IGN_WMTS.format(svc="mapa-raster", fmt="jpeg", layer="MTN")],
+                    attr="Mapa Topográfico Nacional CC BY 4.0 ign.es", maxzoom=18),
+    "otm": dict(urls=[f"https://{s_}.tile.opentopomap.org/{{z}}/{{x}}/{{y}}.png" for s_ in "abc"],
+                attr="© OpenStreetMap, SRTM · estilo © OpenTopoMap (CC-BY-SA)", maxzoom=17),
+    "pnoa": dict(urls=[_IGN_WMTS.format(svc="pnoa-ma", fmt="png", layer="OI.OrthoimageCoverage")],
+                 attr="PNOA CC BY 4.0 scne.es", maxzoom=19),
+    "esri_img": dict(urls=["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+                     attr="Tiles © Esri — Esri, Maxar, Earthstar Geographics", maxzoom=19),
+    "carto_light": dict(urls=[f"https://{s_}.basemaps.cartocdn.com/light_all/{{z}}/{{x}}/{{y}}.png" for s_ in "abcd"],
+                        attr="© OpenStreetMap © CARTO", maxzoom=19),
+    "carto_dark": dict(urls=[f"https://{s_}.basemaps.cartocdn.com/dark_all/{{z}}/{{x}}/{{y}}.png" for s_ in "abcd"],
+                       attr="© OpenStreetMap © CARTO", maxzoom=19),
+}
+TERRAIN_TILES = dict(urls=["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
+                     attr="Relieve: Terrain Tiles (Tilezen/Mapzen, AWS Open Data)", maxzoom=15)
+MAP_BACKGROUNDS = ["Topográfico", "Satélite", "Callejero", "Sin fondo"]
+
+# Vista 3D de la carrera virtual: MapLibre GL JS (relieve real con teselas de elevación), reproducción en el navegador.
+MAP3D_HTML = r"""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<style>
+ html,body{margin:0;padding:0;background:transparent;font-family:"IBM Plex Sans",system-ui,sans-serif;color:var(--ink)}
+ #wrap{display:flex;flex-direction:column;gap:6px}
+ #mapbox{position:relative}
+ #map{height:440px;border-radius:8px;border:1px solid var(--line);overflow:hidden;background:var(--surface2)}
+ #lab{position:absolute;top:8px;left:8px;z-index:5;background:var(--surface);color:var(--ink);border:1px solid var(--line);
+      padding:4px 8px;border-radius:4px;font-size:13px;font-weight:600;pointer-events:none}
+ #err{display:none;position:absolute;inset:0;z-index:6;padding:24px;font-size:14px;color:var(--ink);background:var(--surface2)}
+ .ctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px;color:var(--muted)}
+ button,select{background:var(--surface2);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px 10px;font-size:13px;cursor:pointer}
+ button.on{border-color:var(--A);color:var(--A)}
+ input[type=range]{flex:1;min-width:150px;accent-color:var(--A)}
+ #tt{font:12px "IBM Plex Mono",monospace;min-width:62px;color:var(--ink)}
+ canvas{width:100%;display:block;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+ .dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+      font:700 12px "IBM Plex Sans",sans-serif;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.55)}
+ .maplibregl-ctrl-attrib{font-size:10px}
+</style></head><body>
+<div id="wrap">
+ <div id="mapbox"><div id="map"></div><div id="lab"></div><div id="err"></div></div>
+ <div class="ctl">
+  <button data-sp="30">▶ ×30</button><button data-sp="60">▶ ×60</button><button data-sp="120">▶ ×120</button>
+  <button id="pause">⏸</button><input type="range" id="rng" min="0" step="1"><span id="tt"></span>
+ </div>
+ <div class="ctl">
+  <label>Cámara <select id="cam"><option value="fix">Vista fija</option><option value="A">Seguir a A</option><option value="B">Seguir a B</option></select></label>
+  <label>Relieve <select id="exa"><option value="1">1×</option><option value="1.5" selected>1,5×</option><option value="2">2×</option></select></label>
+ </div>
+ <canvas id="prof" style="height:150px"></canvas>
+ <canvas id="dp" style="height:110px"></canvas>
+</div>
+<script>
+const D = __PAYLOAD__;
+const C = D.col, root = document.documentElement.style;
+for (const [k, v] of Object.entries({ink:C.ink, muted:C.muted, line:C.line, surface:C.surface, surface2:C.surface2, A:C.A})) root.setProperty('--'+k, v);
+const fmt = (v, d=0) => { const [i, f] = Math.abs(Number(v)).toFixed(d).split('.'); return (v < 0 ? '−' : '') + i.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + (f ? ',' + f : ''); };
+const hms = s => { s = Math.max(0, Math.round(s)); return `${Math.floor(s/3600)}:${String(Math.floor(s%3600/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`; };
+const mmss = s => { s = Math.abs(Math.round(s)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; };
+const T = D.T, n = T.length, tmax = T[n-1];
+function fidx(t){ let lo=0, hi=n-1; if (t<=T[0]) return 0; if (t>=T[hi]) return hi; while (hi-lo>1){ const m=(lo+hi)>>1; if (T[m]<=t) lo=m; else hi=m; } return lo + (t-T[lo])/(T[hi]-T[lo]); }
+function at(arr, f){ const i=Math.floor(f), j=Math.min(n-1, i+1), w=f-i; const a=arr[i], b=arr[j]; if (a==null) return b; if (b==null) return a; return a+(b-a)*w; }
+function interp(x, xs, ys){ if (x<=xs[0]) return ys[0]; if (x>=xs[xs.length-1]) return ys[ys.length-1]; let lo=0, hi=xs.length-1; while (hi-lo>1){ const m=(lo+hi)>>1; if (xs[m]<=x) lo=m; else hi=m; } return ys[lo]+(ys[hi]-ys[lo])*(x-xs[lo])/(xs[hi]-xs[lo]); }
+function label(t, f){
+  if (t >= D.endA && t >= D.endB) return D.endB < D.endA ? `B ${mmss(D.endA-D.endB)} más rápida` : `A ${mmss(D.endB-D.endA)} más rápida`;
+  const g = at(D.gap, f), dd = at(D.dd, f);
+  if (Math.abs(g) < 3 && Math.abs(dd) < 10) return 'Empatadas';
+  return g > 0 ? `B ${mmss(g)} por delante` : `A ${mmss(g)} por delante`;
+}
+
+// ── mapa ──
+let map = null, mkA = null, mkB = null, ready = false;
+const err = document.getElementById('err');
+function fail(msg){ err.style.display='block'; err.innerHTML = msg; }
+try {
+  if (typeof maplibregl === 'undefined') throw new Error('no se pudo cargar MapLibre (¿red que bloquea unpkg.com?)');
+  const sources = {}, layers = [{id:'bg', type:'background', paint:{'background-color': C.surface2}}];
+  if (D.base) { sources.base = {type:'raster', tiles:D.base.urls, tileSize:256, maxzoom:D.base.maxzoom, attribution:D.base.attr}; layers.push({id:'base', type:'raster', source:'base'}); }
+  map = new maplibregl.Map({container:'map', style:{version:8, sources, layers}, bounds:D.bounds,
+                            fitBoundsOptions:{padding:40}, pitch:55, bearing:-15, maxPitch:80, attributionControl:{compact:true}});
+  map.addControl(new maplibregl.NavigationControl({visualizePitch:true}), 'top-right');
+  map.on('load', () => {
+    const dem = {type:'raster-dem', tiles:D.terrain.urls, tileSize:256, encoding:'terrarium', maxzoom:D.terrain.maxzoom, attribution:D.terrain.attr};
+    map.addSource('dem', dem); map.addSource('demh', {...dem, attribution:undefined});
+    map.addLayer({id:'hill', type:'hillshade', source:'demh', paint:{'hillshade-exaggeration': D.base ? 0.25 : 0.6, 'hillshade-shadow-color':'#000'}});
+    map.setTerrain({source:'dem', exaggeration:1.5});
+    const line = (id, coords) => map.addSource(id, {type:'geojson', data:{type:'Feature', geometry:{type:'LineString', coordinates:coords}}});
+    line('trkA', D.trackA); line('trkB', D.trackB); line('doneA', []); line('doneB', []);
+    map.addLayer({id:'trkA', type:'line', source:'trkA', paint:{'line-color':C.A, 'line-width':3, 'line-opacity':.55}});
+    map.addLayer({id:'trkB', type:'line', source:'trkB', paint:{'line-color':C.B, 'line-width':3, 'line-opacity':.55}});
+    map.addLayer({id:'doneA', type:'line', source:'doneA', paint:{'line-color':C.A, 'line-width':6}});
+    map.addLayer({id:'doneB', type:'line', source:'doneB', paint:{'line-color':C.B, 'line-width':6}});
+    const dot = (txt, bg, fg) => { const e=document.createElement('div'); e.className='dot'; e.style.background=bg; e.style.color=fg; e.textContent=txt; return e; };
+    mkA = new maplibregl.Marker({element:dot('A', C.A, C.onA)}).setLngLat(D.trackA[0]).addTo(map);
+    mkB = new maplibregl.Marker({element:dot('B', C.B, C.onB)}).setLngLat(D.trackB[0]).addTo(map);
+    ready = true; render(tSim, true);
+  });
+} catch (e) { fail('No se puede mostrar el mapa 3D: ' + e.message + '.<br>Vuelve a la vista 2D.'); }
+
+// ── perfil y D+ ──
+function canvas(id){ const c=document.getElementById(id), r=window.devicePixelRatio||1, w=c.clientWidth, h=c.clientHeight;
+  if (c.width !== Math.round(w*r)) { c.width=Math.round(w*r); c.height=Math.round(h*r); } const x=c.getContext('2d'); x.setTransform(r,0,0,r,0,0); x.clearRect(0,0,w,h); return [x,w,h]; }
+const pX = D.profX, pY = D.profY, ymin = Math.min(...pY)-40, ymax = Math.max(...pY)+70, dpmax = Math.max(D.dpA[n-1], D.dpB[n-1], 1);
+function drawProfile(posA, posB, f){
+  const [x,w,h] = canvas('prof'), L=56, R=8, Tp=24, B=18;
+  const sx = v => L + (w-L-R)*v/pX[pX.length-1], sy = v => Tp + (h-Tp-B)*(1-(v-ymin)/(ymax-ymin));
+  const area = (upto, col, alpha) => { x.beginPath(); x.moveTo(sx(0), sy(ymin)); for (let i=0;i<pX.length && pX[i]<=upto;i++) x.lineTo(sx(pX[i]), sy(pY[i]));
+    x.lineTo(sx(upto), sy(interp(upto,pX,pY))); x.lineTo(sx(upto), sy(ymin)); x.closePath(); x.globalAlpha=alpha; x.fillStyle=col; x.fill(); x.globalAlpha=1; };
+  area(posA, C.A, .30); area(posB, C.B, .25);
+  x.beginPath(); pX.forEach((v,i)=> i? x.lineTo(sx(v),sy(pY[i])) : x.moveTo(sx(v),sy(pY[i]))); x.strokeStyle=C.muted; x.lineWidth=1.4; x.stroke();
+  x.fillStyle=C.muted; x.font='10px "IBM Plex Mono",monospace'; x.textAlign='right';
+  [ymin+40, (ymin+ymax)/2, ymax-70].forEach(v=>x.fillText(fmt(v)+' m', L-4, sy(v)+3)); x.textAlign='center';
+  for (let k=0;k<=pX[pX.length-1];k+=5) x.fillText(k+' km', sx(k), h-4);
+  const dotp = (p, col, txt) => { const yy=sy(interp(p,pX,pY)); x.beginPath(); x.arc(sx(p), yy, 6, 0, 7); x.fillStyle=col; x.fill(); x.lineWidth=1.5; x.strokeStyle=C.bg; x.stroke();
+    x.fillStyle=col; x.font='bold 11px sans-serif'; x.fillText(txt, sx(p), yy-10); };
+  dotp(posB, C.B, 'B'); dotp(posA, C.A, 'A');
+  x.textAlign='left'; x.font='11px "IBM Plex Sans",sans-serif'; x.fillStyle=C.ink;
+  x.fillText(`A ${fmt(interp(posA,pX,pY))} m · D+ ${fmt(at(D.dpA,f))} m    |    B ${fmt(interp(posB,pX,pY))} m · D+ ${fmt(at(D.dpB,f))} m`, L, 14);
+}
+function drawDp(t, f){
+  const [x,w,h] = canvas('dp'), L=56, R=8, Tp=8, B=18;
+  const sx = v => L + (w-L-R)*v/tmax, sy = v => Tp + (h-Tp-B)*(1-v/dpmax);
+  [[D.dpA, C.A], [D.dpB, C.B]].forEach(([arr, col]) => { x.beginPath(); arr.forEach((v,i)=> i? x.lineTo(sx(T[i]),sy(v)) : x.moveTo(sx(T[i]),sy(v))); x.strokeStyle=col; x.lineWidth=1.8; x.stroke(); });
+  x.strokeStyle=C.line; x.setLineDash([3,3]); x.beginPath(); x.moveTo(sx(t), Tp); x.lineTo(sx(t), h-B); x.stroke(); x.setLineDash([]);
+  [[at(D.dpA,f), C.A], [at(D.dpB,f), C.B]].forEach(([v,col]) => { x.beginPath(); x.arc(sx(t), sy(v), 5, 0, 7); x.fillStyle=col; x.fill(); });
+  x.fillStyle=C.muted; x.font='10px "IBM Plex Mono",monospace'; x.textAlign='right'; x.fillText(fmt(dpmax)+' m', L-4, sy(dpmax)+8); x.fillText('0', L-4, sy(0));
+  x.textAlign='center'; for (let hh=0; hh*3600<=tmax; hh++) x.fillText(hh+' h', sx(hh*3600), h-4);
+  x.textAlign='left'; x.fillStyle=C.ink; x.font='11px "IBM Plex Sans",sans-serif'; x.fillText('D+ acumulado', L+6, Tp+10);
+}
+
+// ── reproducción ──
+const rng = document.getElementById('rng'), tt = document.getElementById('tt'), lab = document.getElementById('lab'), cam = document.getElementById('cam');
+rng.max = tmax; rng.step = 10;
+let tSim = T[Math.min(D.k0, n-1)], speed = 0, last = null, lastHeavy = 0, lastCam = 0;
+function render(t, heavy){
+  const f = fidx(t), pa = at(D.posA, f), pb = at(D.posB, f);
+  rng.value = t; tt.textContent = hms(t); lab.textContent = `${hms(t)} · ${label(t, f)}`;
+  drawProfile(pa, pb, f); drawDp(t, f);
+  if (!ready) return;
+  const la=[at(D.lngA,f), at(D.latA,f)], lb=[at(D.lngB,f), at(D.latB,f)];
+  if (la[0]!=null) mkA.setLngLat(la); if (lb[0]!=null) mkB.setLngLat(lb);
+  const now = performance.now();
+  if (heavy || now - lastHeavy > 120) {
+    lastHeavy = now; const k = Math.floor(f);
+    const path = (lng, lat) => { const out=[]; const st=Math.max(1, Math.floor(k/400)); for (let i=0;i<=k;i+=st) if (lng[i]!=null) out.push([lng[i],lat[i]]); return out; };
+    map.getSource('doneA').setData({type:'Feature', geometry:{type:'LineString', coordinates:path(D.lngA, D.latA).concat([la])}});
+    map.getSource('doneB').setData({type:'Feature', geometry:{type:'LineString', coordinates:path(D.lngB, D.latB).concat([lb])}});
+  }
+  if (cam.value !== 'fix' && (heavy || now - lastCam > 300)) { lastCam = now; map.easeTo({center: cam.value==='A' ? la : lb, duration: heavy ? 600 : 300}); }
+}
+function loop(ts){
+  if (speed && last != null) { tSim = Math.min(tmax, tSim + (ts-last)/1000*speed); render(tSim, false); if (tSim >= tmax) setSpeed(0); }
+  last = ts; requestAnimationFrame(loop);
+}
+function setSpeed(sp){ speed = sp; document.querySelectorAll('button[data-sp]').forEach(b => b.classList.toggle('on', Number(b.dataset.sp)===sp)); if (sp && tSim>=tmax) tSim = 0; }
+document.querySelectorAll('button[data-sp]').forEach(b => b.onclick = () => setSpeed(Number(b.dataset.sp)));
+document.getElementById('pause').onclick = () => setSpeed(0);
+rng.oninput = () => { setSpeed(0); tSim = Number(rng.value); render(tSim, true); };
+cam.onchange = () => { if (!ready) return; if (cam.value==='fix') map.fitBounds(D.bounds, {padding:40, pitch:55, bearing:-15, duration:800});
+  else { map.easeTo({pitch:62, zoom:Math.max(map.getZoom(), 14), duration:800}); render(tSim, true); } };
+document.getElementById('exa').onchange = e => { if (ready) map.setTerrain({source:'dem', exaggeration:Number(e.target.value)}); };
+window.addEventListener('resize', () => render(tSim, true));
+render(tSim, true); requestAnimationFrame(loop);
+</script></body></html>"""
+
+
+
+def in_spain(lat: float, lng: float) -> bool:
+    return (35.8 <= lat <= 43.95 and -9.6 <= lng <= 4.6) or (27.5 <= lat <= 29.5 and -18.3 <= lng <= -13.3)
+
+
+def base_tiles(fondo: str, lat: float, lng: float, light: bool) -> dict | None:
+    """Capa raster de fondo según el selector (IGN en España; OpenTopoMap/Esri fuera)."""
+    es = in_spain(lat, lng)
+    if fondo == "Topográfico":
+        return TILESETS["ign_mtn" if es else "otm"]
+    if fondo == "Satélite":
+        return TILESETS["pnoa" if es else "esri_img"]
+    if fondo == "Callejero":
+        return TILESETS["carto_light" if light else "carto_dark"]
+    return None
 
 
 @st.cache_data(ttl=3600, show_spinner=False, max_entries=20)
@@ -2723,28 +2917,31 @@ with tab_cmp:
                                 unsafe_allow_html=True)
                 st.plotly_chart(f_r, width="stretch", theme=None)
 
-                # Mapa animado + diferencia, sincronizados
+                # Mapa animado (2D Plotly / 3D MapLibre) + diferencia + desnivel, sincronizados
                 okA, okB = df_a.dropna(subset=["lat", "lng"]), df_b.dropna(subset=["lat", "lng"])
-                fondo = st.segmented_control("Fondo del mapa", ["Mapa", "Sin fondo"], default="Mapa", key="race_bg",
-                                             help="«Sin fondo» no descarga teselas: úsalo si tu red bloquea los mapas y la animación no avanza.") or "Mapa"
+                mc1, mc2 = st.columns([1, 3], vertical_alignment="bottom")
+                with mc1:
+                    vista_m = st.segmented_control("Vista del mapa", ["2D", "3D"], default="2D", key="race_view") or "2D"
+                with mc2:
+                    fondo = st.segmented_control(
+                        "Fondo del mapa", MAP_BACKGROUNDS, default="Topográfico", key="race_bg2",
+                        help="Topográfico: Mapa Topográfico Nacional del IGN (fuera de España, OpenTopoMap). Satélite: PNOA del IGN "
+                             "(fuera de España, Esri). «Sin fondo» no descarga mapas: úsalo si tu red los bloquea y la animación no avanza.",
+                    ) or "Topográfico"
                 if len(okA) < 50 or len(okB) < 50:
                     st.info("Sin GPS en alguna de las dos actividades: no se puede dibujar el mapa.")
                 else:
-                    simp = lambda d_: d_.iloc[np.unique(np.linspace(0, len(d_) - 1, min(len(d_), 1500)).astype(int))]  # noqa: E731
+                    simp = lambda d_, n=1500: d_.iloc[np.unique(np.linspace(0, len(d_) - 1, min(len(d_), n)).astype(int))]  # noqa: E731
                     sa_, sb_ = simp(okA), simp(okB)
-                    stepf = max(1, math.ceil(Tn / 350))
-                    fidx = list(range(0, Tn, stepf))
-                    if fidx[-1] != Tn - 1:
-                        fidx.append(Tn - 1)
-                    k0 = min(fidx, key=lambda i: abs(i - k_t))
-                    if k0 == fidx[-1]:          # con el deslizador en meta, el mapa empieza en la salida para poder reproducir
-                        k0 = fidx[0]
-                    rd = lambda v: np.round(np.asarray(v, dtype=float), 5)  # noqa: E731
-                    xk_m, yk_m = R["dA"] / 1000, R["dT"] / 60
-
-                    def done(lat, lng, k):
-                        idx = np.unique(np.linspace(0, k, min(k + 1, 60)).astype(int))
-                        return rd(lat[idx]), rd(lng[idx])
+                    rd = lambda v, n=5: np.round(np.asarray(v, dtype=float), n)  # noqa: E731
+                    lat_all = np.concatenate([sa_["lat"].to_numpy(), sb_["lat"].to_numpy()])
+                    lng_all = np.concatenate([sa_["lng"].to_numpy(), sb_["lng"].to_numpy()])
+                    c_lat, c_lng = float(np.mean(lat_all)), float(np.mean(lng_all))
+                    tiles = base_tiles(fondo, c_lat, c_lng, LIGHT)
+                    # perfil de la ruta (km de A) y posición de cada una sobre él
+                    prof_i = np.unique(np.linspace(0, len(R["dA"]) - 1, min(len(R["dA"]), 220)).astype(int))
+                    prof_x, prof_y = R["dA"][prof_i] / 1000, R["altA"][prof_i]
+                    alt_on = lambda pos_m: float(np.interp(pos_m, R["dA"], R["altA"]))  # noqa: E731
 
                     def label_at(k):
                         g_dd, g_gt = race_gap(R, k)
@@ -2752,76 +2949,164 @@ with tab_cmp:
                         if R["T"][k] >= R["endA"] and R["T"][k] >= R["endB"]:
                             t_ = (f"B {mmss(R['endA'] - R['endB'])} más rápida" if R["endB"] < R["endA"]
                                   else f"A {mmss(R['endB'] - R['endA'])} más rápida")
-                        return f"<b>{hms(R['T'][k])}</b> · {t_}"
+                        return f"{hms(R['T'][k])} · {t_}"
 
-                    def dyn(k):
-                        la, lo = done(R["latA"], R["lngA"], k)
-                        lb, lob = done(R["latB"], R["lngB"], k)
-                        pos_ = min(R["posA"][k], R["posB"][k])
-                        return [go.Scattermap(lat=la, lon=lo), go.Scattermap(lat=lb, lon=lob),
-                                go.Scattermap(lat=[round(R["latA"][k], 5)], lon=[round(R["lngA"][k], 5)]),
-                                go.Scattermap(lat=[round(R["latB"][k], 5)], lon=[round(R["lngB"][k], 5)]),
-                                go.Scatter(x=[pos_ / 1000], y=[float(np.interp(pos_, R["dA"], R["dT"])) / 60])]
+                    def elev_label(k):
+                        return (f"A {fnum(alt_on(R['posA'][k]))} m · D+ {fnum(R['dpA'][k])} m   |   "
+                                f"B {fnum(alt_on(R['posB'][k]))} m · D+ {fnum(R['dpB'][k])} m")
 
-                    f_m = make_subplots(rows=2, cols=1, specs=[[{"type": "map"}], [{"type": "xy"}]], row_heights=[.68, .32],
-                                        vertical_spacing=.06)
-                    f_m.add_trace(go.Scattermap(lat=rd(sa_["lat"]), lon=rd(sa_["lng"]), mode="lines", line=dict(color=GOLD, width=2),
-                                                opacity=.35, name="A", hoverinfo="skip", showlegend=False), row=1, col=1)
-                    f_m.add_trace(go.Scattermap(lat=rd(sb_["lat"]), lon=rd(sb_["lng"]), mode="lines", line=dict(color=GLACIER, width=2),
-                                                opacity=.35, name="B", hoverinfo="skip", showlegend=False), row=1, col=1)
-                    d0 = dyn(k0)
-                    f_m.add_trace(go.Scattermap(lat=d0[0].lat, lon=d0[0].lon, mode="lines", line=dict(color=GOLD, width=5),
-                                                hoverinfo="skip", showlegend=False), row=1, col=1)
-                    f_m.add_trace(go.Scattermap(lat=d0[1].lat, lon=d0[1].lon, mode="lines", line=dict(color=GLACIER, width=5),
-                                                hoverinfo="skip", showlegend=False), row=1, col=1)
-                    f_m.add_trace(go.Scattermap(lat=d0[2].lat, lon=d0[2].lon, mode="markers+text", text=["A"], name="A",
-                                                marker=dict(size=20, color=GOLD), textfont=dict(color=on(GOLD), size=12),
-                                                hoverinfo="skip"), row=1, col=1)
-                    f_m.add_trace(go.Scattermap(lat=d0[3].lat, lon=d0[3].lon, mode="markers+text", text=["B"], name="B",
-                                                marker=dict(size=20, color=GLACIER), textfont=dict(color=on(GLACIER), size=12),
-                                                hoverinfo="skip"), row=1, col=1)
-                    f_m.add_trace(go.Scatter(x=xk_m, y=yk_m, mode="lines", line=dict(color=INK, width=1.3), showlegend=False,
-                                             hovertemplate="km %{x:.2f} · %{y:+.1f} min<extra>B − A</extra>"), row=2, col=1)
-                    f_m.add_trace(go.Scatter(x=d0[4].x, y=d0[4].y, mode="markers", marker=dict(size=11, color=INK, line=dict(color=BG, width=2)),
-                                             showlegend=False, hoverinfo="skip"), row=2, col=1)
-                    frames = [go.Frame(name=str(k), data=dyn(k), traces=[2, 3, 4, 5, 7],
-                                       layout=dict(annotations=[dict(text=label_at(k), x=0.01, y=0.995, xref="paper", yref="paper",
-                                                                     xanchor="left", yanchor="top", showarrow=False, bgcolor=SURFACE,
-                                                                     bordercolor=LINE, borderwidth=1, borderpad=5, font=dict(color=INK, size=13))]))
-                              for k in fidx]
-                    f_m.frames = frames
-                    lat_all = np.concatenate([sa_["lat"].to_numpy(), sb_["lat"].to_numpy()])
-                    lng_all = np.concatenate([sa_["lng"].to_numpy(), sb_["lng"].to_numpy()])
-                    span_ = max(float(np.ptp(lat_all)) * 1.6, float(np.ptp(lng_all)) * math.cos(math.radians(float(np.mean(lat_all)))) * 1.1, 0.002)
-                    zoom_ = float(np.clip(math.log2(360 / span_) - 1.2, 8, 16))
-                    dur = lambda sp: max(30, int(stepf * 10 / sp * 1000))  # noqa: E731
-                    play = lambda sp: dict(label=f"▶ ×{sp}", method="animate",  # noqa: E731
-                                           args=[None, dict(frame=dict(duration=dur(sp), redraw=True), transition=dict(duration=0),
-                                                            fromcurrent=True, mode="immediate")])
-                    plot_layout(f_m, 640, legend=False)
-                    f_m.update_layout(
-                        map=dict(style=(("carto-positron" if LIGHT else "carto-darkmatter") if fondo == "Mapa" else "white-bg"),
-                                 center=dict(lat=float(np.mean(lat_all)), lon=float(np.mean(lng_all))), zoom=zoom_),
-                        margin=dict(l=8, r=8, t=8, b=120),
-                        annotations=[dict(text=label_at(k0), x=0.01, y=0.995, xref="paper", yref="paper", xanchor="left", yanchor="top",
-                                          showarrow=False, bgcolor=SURFACE, bordercolor=LINE, borderwidth=1, borderpad=5,
-                                          font=dict(color=INK, size=13))],
-                        updatemenus=[dict(type="buttons", direction="left", x=0, y=-0.07, xanchor="left", yanchor="top", showactive=False,
-                                          bgcolor=SURFACE2, bordercolor=LINE, font=dict(color=INK, size=12), pad=dict(r=4, t=0),
-                                          buttons=[play(30), play(60), play(120),
-                                                   dict(label="⏸", method="animate",
-                                                        args=[[None], dict(frame=dict(duration=0, redraw=False), mode="immediate")])])],
-                        sliders=[dict(active=fidx.index(k0), x=0, len=1, y=-0.115, yanchor="top", pad=dict(t=0, b=0),
-                                      bgcolor=SURFACE2, bordercolor=LINE, activebgcolor=GOLD, font=dict(color=MUTED, size=10),
-                                      currentvalue=dict(visible=False), tickcolor=MUTED, ticklen=0, minorticklen=0,
-                                      steps=[dict(method="animate", label=hms(R["T"][k]) if i % max(1, len(fidx) // 6) == 0 else "",
-                                                  args=[[str(k)], dict(frame=dict(duration=0, redraw=True), mode="immediate",
-                                                                       transition=dict(duration=0))]) for i, k in enumerate(fidx)])])
-                    f_m.update_yaxes(ticksuffix=" min", zeroline=True, zerolinecolor=MUTED, row=2, col=1)
-                    f_m.update_xaxes(ticksuffix=" km", row=2, col=1)
-                    st.markdown('<span class="note">Pulsa ▶ para ver la carrera (×30, ×60 o ×120 la velocidad real) o arrastra la barra. '
-                                'Abajo, la diferencia B − A a lo largo de la ruta.</span>', unsafe_allow_html=True)
-                    st.plotly_chart(f_m, width="stretch", theme=None, config={"scrollZoom": True})
+                    if vista_m == "2D":
+                        stepf = max(1, math.ceil(Tn / 240))
+                        fidx = list(range(0, Tn, stepf))
+                        if fidx[-1] != Tn - 1:
+                            fidx.append(Tn - 1)
+                        k0 = min(fidx, key=lambda i: abs(i - k_t))
+                        if k0 == fidx[-1]:          # con el deslizador en meta, el mapa empieza en la salida para poder reproducir
+                            k0 = fidx[0]
+                        xk_m, yk_m = R["dA"] / 1000, R["dT"] / 60
+                        dp_i = np.unique(np.linspace(0, Tn - 1, min(Tn, 400)).astype(int))
+
+                        def done(lat, lng, k):
+                            idx = np.unique(np.linspace(0, k, min(k + 1, 40)).astype(int))
+                            return rd(lat[idx]), rd(lng[idx])
+
+                        def prof_done(pos_m):
+                            m_ = prof_x[::2] <= pos_m / 1000                  # perfil a media resolución en cada frame
+                            xs, ys = list(prof_x[::2][m_]), list(prof_y[::2][m_])
+                            return xs + [pos_m / 1000], ys + [alt_on(pos_m)]
+
+                        def dyn(k):
+                            la, lo = done(R["latA"], R["lngA"], k)
+                            lb, lob = done(R["latB"], R["lngB"], k)
+                            pos_ = min(R["posA"][k], R["posB"][k])
+                            pxa, pya = prof_done(R["posA"][k])
+                            pxb, pyb = prof_done(R["posB"][k])
+                            th = R["T"][k] / 3600
+                            return [go.Scattermap(lat=la, lon=lo), go.Scattermap(lat=lb, lon=lob),
+                                    go.Scattermap(lat=[round(R["latA"][k], 5)], lon=[round(R["lngA"][k], 5)]),
+                                    go.Scattermap(lat=[round(R["latB"][k], 5)], lon=[round(R["lngB"][k], 5)]),
+                                    go.Scatter(x=[pos_ / 1000], y=[float(np.interp(pos_, R["dA"], R["dT"])) / 60]),
+                                    go.Scatter(x=rd(pxa, 3), y=rd(pya, 0)), go.Scatter(x=rd(pxb, 3), y=rd(pyb, 0)),
+                                    go.Scatter(x=[pxa[-1]], y=[pya[-1]]), go.Scatter(x=[pxb[-1]], y=[pyb[-1]]),
+                                    go.Scatter(x=[th], y=[R["dpA"][k]]), go.Scatter(x=[th], y=[R["dpB"][k]])]
+
+                        f_m = make_subplots(rows=4, cols=1, specs=[[{"type": "map"}], [{"type": "xy"}], [{"type": "xy"}], [{"type": "xy"}]],
+                                            row_heights=[.46, .18, .18, .18], vertical_spacing=.045)
+                        f_m.add_trace(go.Scattermap(lat=rd(sa_["lat"]), lon=rd(sa_["lng"]), mode="lines", line=dict(color=GOLD, width=2),
+                                                    opacity=.45, name="A", hoverinfo="skip", showlegend=False), row=1, col=1)       # 0
+                        f_m.add_trace(go.Scattermap(lat=rd(sb_["lat"]), lon=rd(sb_["lng"]), mode="lines", line=dict(color=GLACIER, width=2),
+                                                    opacity=.45, name="B", hoverinfo="skip", showlegend=False), row=1, col=1)    # 1
+                        d0 = dyn(k0)
+                        f_m.add_trace(go.Scattermap(lat=d0[0].lat, lon=d0[0].lon, mode="lines", line=dict(color=GOLD, width=5),
+                                                    hoverinfo="skip", showlegend=False), row=1, col=1)                              # 2
+                        f_m.add_trace(go.Scattermap(lat=d0[1].lat, lon=d0[1].lon, mode="lines", line=dict(color=GLACIER, width=5),
+                                                    hoverinfo="skip", showlegend=False), row=1, col=1)                              # 3
+                        f_m.add_trace(go.Scattermap(lat=d0[2].lat, lon=d0[2].lon, mode="markers+text", text=["A"], name="A",
+                                                    marker=dict(size=20, color=GOLD), textfont=dict(color=on(GOLD), size=12),
+                                                    hoverinfo="skip"), row=1, col=1)                                                # 4
+                        f_m.add_trace(go.Scattermap(lat=d0[3].lat, lon=d0[3].lon, mode="markers+text", text=["B"], name="B",
+                                                    marker=dict(size=20, color=GLACIER), textfont=dict(color=on(GLACIER), size=12),
+                                                    hoverinfo="skip"), row=1, col=1)                                                # 5
+                        f_m.add_trace(go.Scatter(x=xk_m, y=yk_m, mode="lines", line=dict(color=INK, width=1.3), showlegend=False,
+                                                 hovertemplate="km %{x:.2f} · %{y:+.1f} min<extra>B − A</extra>"), row=2, col=1)     # 6
+                        f_m.add_trace(go.Scatter(x=d0[4].x, y=d0[4].y, mode="markers", marker=dict(size=11, color=INK, line=dict(color=BG, width=2)),
+                                                 showlegend=False, hoverinfo="skip"), row=2, col=1)                                 # 7
+                        f_m.add_trace(go.Scatter(x=rd(prof_x, 3), y=rd(prof_y, 0), mode="lines", line=dict(color=MUTED, width=1.4),
+                                                 showlegend=False, hovertemplate="km %{x:.2f} · %{y:.0f} m<extra>perfil</extra>"), row=3, col=1)  # 8
+                        f_m.add_trace(go.Scatter(x=d0[5].x, y=d0[5].y, mode="lines", fill="tozeroy", line=dict(color=GOLD, width=2),
+                                                 fillcolor=rgba(GOLD, .28), showlegend=False, hoverinfo="skip"), row=3, col=1)       # 9
+                        f_m.add_trace(go.Scatter(x=d0[6].x, y=d0[6].y, mode="lines", fill="tozeroy", line=dict(color=GLACIER, width=2),
+                                                 fillcolor=rgba(GLACIER, .22), showlegend=False, hoverinfo="skip"), row=3, col=1)    # 10
+                        f_m.add_trace(go.Scatter(x=d0[7].x, y=d0[7].y, mode="markers+text", text=["A"], textposition="top center",
+                                                 marker=dict(size=13, color=GOLD, line=dict(color=BG, width=1.5)), textfont=dict(color=GOLD),
+                                                 showlegend=False, hoverinfo="skip"), row=3, col=1)                                 # 11
+                        f_m.add_trace(go.Scatter(x=d0[8].x, y=d0[8].y, mode="markers+text", text=["B"], textposition="top center",
+                                                 marker=dict(size=13, color=GLACIER, line=dict(color=BG, width=1.5)), textfont=dict(color=GLACIER),
+                                                 showlegend=False, hoverinfo="skip"), row=3, col=1)                                 # 12
+                        f_m.add_trace(go.Scatter(x=rd(R["T"][dp_i] / 3600, 4), y=rd(R["dpA"][dp_i], 0), mode="lines", line=dict(color=GOLD, width=1.8),
+                                                 name="D+ A", hovertemplate="%{x:.2f} h · %{y:.0f} m<extra>D+ A</extra>"), row=4, col=1)  # 13
+                        f_m.add_trace(go.Scatter(x=rd(R["T"][dp_i] / 3600, 4), y=rd(R["dpB"][dp_i], 0), mode="lines", line=dict(color=GLACIER, width=1.8),
+                                                 name="D+ B", hovertemplate="%{x:.2f} h · %{y:.0f} m<extra>D+ B</extra>"), row=4, col=1)  # 14
+                        f_m.add_trace(go.Scatter(x=d0[9].x, y=d0[9].y, mode="markers", marker=dict(size=10, color=GOLD, line=dict(color=BG, width=1.5)),
+                                                 showlegend=False, hoverinfo="skip"), row=4, col=1)                                 # 15
+                        f_m.add_trace(go.Scatter(x=d0[10].x, y=d0[10].y, mode="markers", marker=dict(size=10, color=GLACIER, line=dict(color=BG, width=1.5)),
+                                                 showlegend=False, hoverinfo="skip"), row=4, col=1)                                 # 16
+
+                        def anns(k):
+                            base_ = dict(xref="paper", yref="paper", xanchor="left", yanchor="top", showarrow=False, bgcolor=SURFACE,
+                                         bordercolor=LINE, borderwidth=1, borderpad=4)
+                            y3 = f_m.layout.yaxis2.domain[1] if f_m.layout.yaxis2.domain else .5
+                            return [dict(text=f"<b>{label_at(k)}</b>", x=0.01, y=0.995, font=dict(color=INK, size=13), **base_),
+                                    dict(text=elev_label(k), x=0.01, y=y3 + .005, font=dict(color=INK, size=11), **base_)]
+
+                        f_m.frames = [go.Frame(name=str(k), data=dyn(k), traces=[2, 3, 4, 5, 7, 9, 10, 11, 12, 15, 16],
+                                               layout=dict(annotations=anns(k))) for k in fidx]
+                        span_ = max(float(np.ptp(lat_all)) * 1.6, float(np.ptp(lng_all)) * math.cos(math.radians(c_lat)) * 1.1, 0.002)
+                        zoom_ = float(np.clip(math.log2(360 / span_) - 1.2, 8, 16))
+                        if tiles:
+                            map_cfg = dict(style="white-bg", layers=[dict(sourcetype="raster", source=tiles["urls"], below="traces",
+                                                                          sourceattribution=tiles["attr"], maxzoom=tiles["maxzoom"])])
+                        else:
+                            map_cfg = dict(style="white-bg")
+                        dur = lambda sp: max(30, int(stepf * 10 / sp * 1000))  # noqa: E731
+                        play = lambda sp: dict(label=f"▶ ×{sp}", method="animate",  # noqa: E731
+                                               args=[None, dict(frame=dict(duration=dur(sp), redraw=True), transition=dict(duration=0),
+                                                                fromcurrent=True, mode="immediate")])
+                        plot_layout(f_m, 980, legend=False)
+                        alt_lo, alt_hi = float(np.nanmin(prof_y)), float(np.nanmax(prof_y))
+                        f_m.update_layout(
+                            map=dict(**map_cfg, center=dict(lat=c_lat, lon=c_lng), zoom=zoom_),
+                            margin=dict(l=8, r=8, t=8, b=120), annotations=anns(k0),
+                            updatemenus=[dict(type="buttons", direction="left", x=0, y=-0.035, xanchor="left", yanchor="top", showactive=False,
+                                              bgcolor=SURFACE2, bordercolor=LINE, font=dict(color=INK, size=12), pad=dict(r=4, t=0),
+                                              buttons=[play(30), play(60), play(120),
+                                                       dict(label="⏸", method="animate",
+                                                            args=[[None], dict(frame=dict(duration=0, redraw=False), mode="immediate")])])],
+                            sliders=[dict(active=fidx.index(k0), x=0, len=1, y=-0.075, yanchor="top", pad=dict(t=0, b=0),
+                                          bgcolor=SURFACE2, bordercolor=LINE, activebgcolor=GOLD, font=dict(color=MUTED, size=10),
+                                          currentvalue=dict(visible=False), tickcolor=MUTED, ticklen=0, minorticklen=0,
+                                          steps=[dict(method="animate", label=hms(R["T"][k]) if i % max(1, len(fidx) // 6) == 0 else "",
+                                                      args=[[str(k)], dict(frame=dict(duration=0, redraw=True), mode="immediate",
+                                                                           transition=dict(duration=0))]) for i, k in enumerate(fidx)])])
+                        f_m.update_yaxes(ticksuffix=" min", zeroline=True, zerolinecolor=MUTED, row=2, col=1)
+                        f_m.update_xaxes(ticksuffix=" km", row=2, col=1)
+                        f_m.update_yaxes(range=[alt_lo - 40, alt_hi + 90], ticksuffix=" m", row=3, col=1)
+                        f_m.update_xaxes(ticksuffix=" km", range=[0, float(prof_x[-1]) * 1.01], row=3, col=1)
+                        f_m.update_yaxes(ticksuffix=" m", row=4, col=1)
+                        f_m.update_xaxes(ticksuffix=" h", row=4, col=1)
+                        st.markdown('<span class="note">Pulsa ▶ (×30, ×60 o ×120 la velocidad real) o arrastra la barra. Debajo del mapa: diferencia '
+                                    'B − A a lo largo de la ruta, perfil con la posición de cada una y D+ acumulado frente al tiempo.</span>',
+                                    unsafe_allow_html=True)
+                        st.plotly_chart(f_m, width="stretch", theme=None, config={"scrollZoom": True})
+                    else:
+                        # ── Vista 3D (MapLibre GL JS, relieve real) ──
+                        sub_k = np.unique(np.linspace(0, Tn - 1, min(Tn, 1800)).astype(int))
+                        tri = lambda v: [None if not np.isfinite(x) else round(float(x), 5) for x in v]  # noqa: E731
+                        payload = dict(
+                            trackA=[[round(float(a), 5), round(float(b), 5)] for a, b in zip(sa_["lng"], sa_["lat"])],
+                            trackB=[[round(float(a), 5), round(float(b), 5)] for a, b in zip(sb_["lng"], sb_["lat"])],
+                            T=[int(x) for x in R["T"][sub_k]],
+                            latA=tri(R["latA"][sub_k]), lngA=tri(R["lngA"][sub_k]), latB=tri(R["latB"][sub_k]), lngB=tri(R["lngB"][sub_k]),
+                            posA=[round(float(x) / 1000, 3) for x in R["posA"][sub_k]], posB=[round(float(x) / 1000, 3) for x in R["posB"][sub_k]],
+                            dpA=[int(x) for x in R["dpA"][sub_k]], dpB=[int(x) for x in R["dpB"][sub_k]],
+                            gap=[round(race_gap(R, int(k))[1], 1) for k in sub_k], dd=[round(race_gap(R, int(k))[0]) for k in sub_k],
+                            endA=float(R["endA"]), endB=float(R["endB"]),
+                            profX=[round(float(x), 3) for x in prof_x], profY=[round(float(y)) for y in prof_y],
+                            k0=int(np.searchsorted(R["T"][sub_k], R["T"][k_t])) if k_t < Tn - 1 else 0,
+                            center=[c_lng, c_lat],
+                            bounds=[[float(np.min(lng_all)), float(np.min(lat_all))], [float(np.max(lng_all)), float(np.max(lat_all))]],
+                            base=tiles, terrain=TERRAIN_TILES,
+                            col=dict(A=GOLD, B=GLACIER, ink=INK, muted=MUTED, line=LINE, surface=SURFACE, surface2=SURFACE2, bg=BG,
+                                     green=GREEN, red=RED, onA=on(GOLD), onB=on(GLACIER)),
+                        )
+                        st.markdown('<span class="note">Vista 3D con relieve real: arrastra con el botón derecho (o dos dedos) para inclinar y girar. '
+                                    'Si no ves el mapa (navegador sin WebGL o red que bloquea los mapas), vuelve a 2D.</span>',
+                                    unsafe_allow_html=True)
+                        html3d = MAP3D_HTML.replace("__PAYLOAD__", json.dumps(payload, separators=(",", ":")))
+                        if hasattr(st, "iframe"):
+                            st.iframe(html3d, height=800)
+                        else:                                  # Streamlit antiguo
+                            components.html(html3d, height=800)
 
                 # Lectura de la carrera
                 lec = []
