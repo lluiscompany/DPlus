@@ -10,6 +10,7 @@ import random
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import requests
 import streamlit as st
 from urllib.parse import quote_plus
@@ -781,6 +782,87 @@ def span_stats(df: pd.DataFrame, d0: float, d1: float) -> dict:
                 a0=float(x["alt_s"].iloc[0]), a1=float(x["alt_s"].iloc[-1]), km=(d1 - d0) / 1000)
 
 
+def race_align(a: pd.DataFrame, b: pd.DataFrame, use_gps: bool, moving: bool, step_m: float = 25.0, step_t: float = 10.0) -> dict:
+    """Carrera virtual: alinea B sobre la ruta de A.
+
+    Devuelve, sobre una rejilla de distancia de A (cada step_m): dA, dB (posición equivalente de B), tA, tB, dT = tB − tA
+    (negativo = B por delante), alt de A; y sobre una rejilla de tiempo de carrera (cada step_t): T, posición en la ruta
+    de A y B (km de A), distancia propia de cada una, lat/lng, altitud y FC de cada una.
+    """
+    def clock(d):
+        c = (d["dt"] * d["mov"]).cumsum() if moving else d["t"] - d["t"].iloc[0]
+        return c.to_numpy(dtype=float)
+
+    ca, cb = clock(a), clock(b)
+    da_all, db_all = a["dist"].to_numpy(float) - a["dist"].iloc[0], b["dist"].to_numpy(float) - b["dist"].iloc[0]
+    dA = np.arange(0, da_all[-1], step_m)
+    tot_a, tot_b = da_all[-1], db_all[-1]
+    # posición equivalente de B para cada punto de A (búsqueda hacia delante, monótona)
+    dB = dA * (tot_b / tot_a if tot_a > 0 else 1)
+    off = np.zeros(len(dA), dtype=bool)
+    pa, pb = a[["lat", "lng"]].to_numpy(float), b[["lat", "lng"]].to_numpy(float)
+    if use_gps and np.isfinite(pa).all(axis=1).mean() > .5 and np.isfinite(pb).all(axis=1).mean() > .5:
+        lat0 = float(np.nanmean(pa[:, 0]))
+        kx, ky = 111320 * math.cos(math.radians(lat0)), 110540
+        ia = np.clip(np.searchsorted(da_all, dA), 0, len(da_all) - 1)
+        ax, ay = pa[ia, 1] * kx, pa[ia, 0] * ky
+        sub = max(1, len(db_all) // 6000)
+        bd, bx, by = db_all[::sub], pb[::sub, 1] * kx, pb[::sub, 0] * ky
+        prev = 0.0
+        for k in range(len(dA)):                      # ~1 iteración cada 25 m (no por segundo)
+            if not (np.isfinite(ax[k]) and np.isfinite(ay[k])):
+                dB[k] = max(prev, dB[k])
+                prev = dB[k]
+                continue
+            lo, hi = np.searchsorted(bd, prev - 30), np.searchsorted(bd, prev + 400)
+            if hi <= lo:
+                dB[k] = max(prev, dB[k])
+                prev = dB[k]
+                continue
+            d2 = (bx[lo:hi] - ax[k]) ** 2 + (by[lo:hi] - ay[k]) ** 2
+            j = int(np.nanargmin(d2)) if np.isfinite(d2).any() else 0
+            if not np.isfinite(d2[j]) or d2[j] > 150 ** 2:   # fuera de ruta: seguir por proporción
+                off[k] = True
+                dB[k] = max(prev, min(prev + step_m * tot_b / max(tot_a, 1), tot_b))
+            else:
+                dB[k] = max(prev, bd[lo + j])
+            prev = dB[k]
+    tA = np.interp(dA, da_all, ca)
+    tB = np.interp(dB, db_all, cb)
+    dT = tB - tA
+    altA = np.interp(dA, da_all, a["alt_s"].to_numpy(float))
+    # rejilla de tiempo de carrera
+    endA, endB = float(ca[-1]), float(cb[-1])
+    T = np.arange(0, max(endA, endB) + step_t, step_t)
+    own_a = np.interp(T, ca, da_all)
+    own_b = np.interp(T, cb, db_all)
+    posA = own_a                                   # posición en km de la ruta de A
+    posB = np.interp(own_b, dB, dA)                # distancia de B convertida a la ruta de A
+
+    def at(df_, c_, col):
+        v = df_[col].to_numpy(float)
+        ok = np.isfinite(v)
+        return np.interp(T, c_[ok], v[ok]) if ok.sum() > 1 else np.full(len(T), np.nan)
+    return dict(dA=dA, dB=dB, tA=tA, tB=tB, dT=dT, altA=altA, off=off, T=T, endA=endA, endB=endB,
+                posA=posA, posB=posB, ownA=own_a, ownB=own_b, totA=tot_a, totB=tot_b,
+                latA=at(a, ca, "lat"), lngA=at(a, ca, "lng"), latB=at(b, cb, "lat"), lngB=at(b, cb, "lng"),
+                altTA=at(a, ca, "alt_s"), altTB=at(b, cb, "alt_s"), hrA=at(a, ca, "hr"), hrB=at(b, cb, "hr"))
+
+
+def race_gap(r: dict, k: int) -> tuple[float, float]:
+    """En el instante r['T'][k]: (ventaja en distancia de B en m, ventaja en tiempo de B en s; >0 = B por delante)."""
+    pa, pb = r["posA"][k], r["posB"][k]
+    dd = pb - pa
+    p = min(pa, pb)                                   # el que va detrás pasa por p: tiempo que le saca el de delante
+    dt_ = float(np.interp(p, r["dA"], r["dT"]))
+    return float(dd), -dt_
+
+
+@st.cache_data(ttl=3600, show_spinner=False, max_entries=20)
+def race_cached(aid_a: str, aid_b: str, moving: bool, use_gps: bool, _a: pd.DataFrame, _b: pd.DataFrame) -> dict:
+    return race_align(_a, _b, use_gps, moving)
+
+
 def demo_streams(aid: str, km: float, dp: float, secs: float) -> list:
     """Streams sintéticos: las salidas DEMO_ROUTE comparten recorrido (3 cimas); el resto, recorrido propio."""
     rnd = random.Random(aid)
@@ -793,15 +875,16 @@ def demo_streams(aid: str, km: float, dp: float, secs: float) -> list:
     hr = 110.0
     stop_at = total * (0.36 if aid == "demoRA" else 0.5)
     stopped = 0
-    shape = lambda g: math.exp(-3.5 * abs(g + 0.05))  # noqa: E731  (forma de la velocidad según la pendiente, Tobler)
+    mod = (lambda x_: 1.06 if x_ < 0.36 else 0.965) if aid == "demoRA" else (lambda x_: 1.0)  # noqa: E731
+    shape = lambda g, x_=0.0: math.exp(-3.5 * abs(g + 0.05)) * mod(x_)  # noqa: E731  (velocidad según la pendiente, Tobler)
     grid_ = np.arange(0, total, 10.0)
-    t_shape = float(np.sum(10.0 / np.array([shape(h * 3 * math.pi * math.sin(6 * math.pi * x_ / total) / total) for x_ in grid_])))
+    t_shape = float(np.sum(10.0 / np.array([shape(h * 3 * math.pi * math.sin(6 * math.pi * x_ / total) / total, x_ / total) for x_ in grid_])))
     c_v = t_shape / max(600.0, float(secs) or 600.0)          # escala para que el tiempo en movimiento cuadre
     while d_ < total:
         x = d_ / total
         alt = 1800 + h * (1 - math.cos(6 * math.pi * x)) / 2
         g = h * 3 * math.pi * math.sin(6 * math.pi * x) / total
-        v = c_v * shape(g) * (1 + rnd.uniform(-.06, .06))
+        v = c_v * shape(g, x) * (1 + rnd.uniform(-.06, .06))
         if stopped < (420 if aid == "demoRA" else 180) and d_ >= stop_at:
             v, stopped = 0.0, stopped + 1
         hr += ((128 + 70 * max(-0.25, min(0.6, g * 2.5)) + hr_off) - hr) * 0.05 + rnd.uniform(-1, 1)
@@ -2545,6 +2628,233 @@ with tab_cmp:
             f_hr.update_xaxes(ticksuffix=" km")
             st.markdown('<span class="note">Frecuencia cardiaca a lo largo de la distancia (media de 30 s)</span>', unsafe_allow_html=True)
             st.plotly_chart(plot_layout(f_hr, 260), width="stretch", theme=None)
+
+            # ── Carrera virtual ──
+            st.subheader("Carrera virtual A vs B")
+            race_ok = (sim_ab["label"] != "distinta") if sim_ab else same_guess
+            if not race_ok:
+                st.info("Las dos actividades no siguen el mismo recorrido: la carrera virtual solo tiene sentido en la misma ruta.")
+            else:
+                rv1, rv2 = st.columns([1, 2], vertical_alignment="center")
+                with rv1:
+                    mov_clock = st.toggle("Descontar paradas", value=False, key="race_mov",
+                                          help="Activado: cada una avanza solo con su tiempo en movimiento. Desactivado: tiempo real, con paradas.")
+                with rv2:
+                    y_mode = st.segmented_control("Gráfico de diferencia", ["Tiempo por distancia", "Distancia por tiempo"],
+                                                  default="Tiempo por distancia", key="race_y", label_visibility="collapsed") or "Tiempo por distancia"
+                R = race_cached(act_a, act_b, mov_clock, bool(sim_ab), df_a, df_b)
+                if not sim_ab:
+                    st.caption("Sin GPS en alguna de las dos: B se sitúa sobre la ruta de A por distancia (aproximado).")
+                elif R["off"].mean() > .05:
+                    st.caption(f"B se sale del recorrido de A en un {fnum(R['off'].mean() * 100)} % de la ruta: ahí la diferencia es aproximada.")
+                Tn = len(R["T"])
+                tmax = int(R["T"][-1])
+                skey = f"race_t_{act_a}_{act_b}_{int(mov_clock)}"
+                if skey not in st.session_state:
+                    st.session_state[skey] = tmax
+
+                def _nudge(delta, k_=skey, mx=tmax):
+                    st.session_state[k_] = int(min(mx, max(0, st.session_state.get(k_, 0) + delta)))
+
+                n1, n2, n3 = st.columns([1, 10, 1], vertical_alignment="bottom")
+                n1.button("◀", on_click=_nudge, args=(-60,), key=skey + "_m", help="−1 min", width="stretch")
+                with n2:
+                    t_sel = st.select_slider("Tiempo de carrera", options=list(range(0, tmax + 1, 10)), key=skey,
+                                             format_func=lambda v: f"{int(v // 3600)}:{int(v % 3600 // 60):02d}:{int(v % 60):02d}")
+                n3.button("▶", on_click=_nudge, args=(60,), key=skey + "_p", help="+1 min", width="stretch")
+                k_t = int(min(Tn - 1, max(0, round(t_sel / 10))))
+                dd_, gt_ = race_gap(R, k_t)
+                fin_a, fin_b = R["T"][k_t] >= R["endA"], R["T"][k_t] >= R["endB"]
+
+                def who(gt, dd):
+                    if abs(gt) < 3 and abs(dd) < 10:
+                        return "Empatadas", MUTED
+                    return ((f"B {mmss(abs(gt))} por delante", GLACIER) if gt > 0 else (f"A {mmss(abs(gt))} por delante", GOLD))
+
+                txt_, col_ = who(gt_, dd_)
+                lineA = (f"🏁 meta en {hms(R['endA'])}" if fin_a else f"{fnum(R['altTA'][k_t])} m · {fnum(R['hrA'][k_t])} ppm")
+                lineB = (f"🏁 meta en {hms(R['endB'])}" if fin_b else f"{fnum(R['altTB'][k_t])} m · {fnum(R['hrB'][k_t])} ppm")
+                if fin_a and fin_b:
+                    txt_, col_ = ((f"B {mmss(R['endA'] - R['endB'])} más rápida", GLACIER) if R["endB"] < R["endA"]
+                                  else (f"A {mmss(R['endB'] - R['endA'])} más rápida", GOLD))
+                cards([
+                    ("Tiempo de carrera", INK, hms(R["T"][k_t]), "", ["con paradas descontadas" if mov_clock else "tiempo real, con paradas"]),
+                    ("Distancia A", GOLD, fnum(R["ownA"][k_t] / 1000, 2), "km", [lineA]),
+                    ("Distancia B", GLACIER, fnum(R["ownB"][k_t] / 1000, 2), "km", [lineB]),
+                    ("Diferencia", col_, txt_, "", ["resultado final" if fin_a and fin_b else f"{fnum(abs(dd_))} m de distancia en la ruta"]),
+                ])
+
+                # Gráfico de diferencia (+ perfil de A)
+                if y_mode == "Tiempo por distancia":
+                    xk, y_ = R["dA"] / 1000, R["dT"] / 60
+                    f_r = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[.72, .28], vertical_spacing=.04)
+                    f_r.add_scatter(x=xk, y=np.minimum(y_, 0), fill="tozeroy", mode="lines", line=dict(color=GREEN, width=0),
+                                    fillcolor=rgba(GREEN, .45), name="B por delante", hoverinfo="skip", row=1, col=1)
+                    f_r.add_scatter(x=xk, y=np.maximum(y_, 0), fill="tozeroy", mode="lines", line=dict(color=RED, width=0),
+                                    fillcolor=rgba(RED, .45), name="B por detrás", hoverinfo="skip", row=1, col=1)
+                    f_r.add_scatter(x=xk, y=y_, mode="lines", line=dict(color=INK, width=1.4), showlegend=False,
+                                    customdata=np.stack([R["altA"], R["tA"], R["tB"]], axis=-1),
+                                    hovertemplate="km %{x:.2f} · %{customdata[0]:.0f} m<br>B − A: %{y:+.1f} min<extra></extra>", row=1, col=1)
+                    f_r.add_scatter(x=xk, y=R["altA"], mode="lines", fill="tozeroy", line=dict(color=GOLD, width=1.2),
+                                    fillcolor=rgba(GOLD, .14), showlegend=False, hovertemplate="km %{x:.2f} · %{y:.0f} m<extra>perfil A</extra>",
+                                    row=2, col=1)
+                    plot_layout(f_r, 380)
+                    f_r.update_yaxes(ticksuffix=" min", zeroline=True, zerolinecolor=MUTED, row=1, col=1)
+                    f_r.update_yaxes(range=[float(np.nanmin(R["altA"])) - 30, float(np.nanmax(R["altA"])) + 40], ticksuffix=" m", row=2, col=1)
+                    f_r.update_xaxes(ticksuffix=" km", row=2, col=1)
+                    f_r.add_vline(x=min(R["posA"][k_t], R["posB"][k_t]) / 1000, line=dict(color=INK, width=1, dash="dot"))
+                    st.markdown('<span class="note">Diferencia de tiempo B − A al pasar por cada punto de la ruta (por debajo de 0, B va por '
+                                'delante) y, debajo, el perfil de A. La línea de puntos es el instante elegido.</span>', unsafe_allow_html=True)
+                else:
+                    both = R["T"] <= min(R["endA"], R["endB"]) + 1
+                    xk, y_ = R["T"][both] / 3600, (R["posB"] - R["posA"])[both]
+                    f_r = go.Figure()
+                    f_r.add_scatter(x=xk, y=np.maximum(y_, 0), fill="tozeroy", mode="lines", line=dict(color=GREEN, width=0),
+                                    fillcolor=rgba(GREEN, .45), name="B por delante", hoverinfo="skip")
+                    f_r.add_scatter(x=xk, y=np.minimum(y_, 0), fill="tozeroy", mode="lines", line=dict(color=RED, width=0),
+                                    fillcolor=rgba(RED, .45), name="B por detrás", hoverinfo="skip")
+                    f_r.add_scatter(x=xk, y=y_, mode="lines", line=dict(color=INK, width=1.4), showlegend=False,
+                                    hovertemplate="%{x:.2f} h · B − A: %{y:+.0f} m<extra></extra>")
+                    plot_layout(f_r, 320)
+                    f_r.update_yaxes(ticksuffix=" m", zeroline=True, zerolinecolor=MUTED)
+                    f_r.update_xaxes(ticksuffix=" h")
+                    f_r.add_vline(x=R["T"][k_t] / 3600, line=dict(color=INK, width=1, dash="dot"))
+                    st.markdown('<span class="note">Distancia que B saca a A en cada momento de la carrera (por encima de 0, B va por delante).</span>',
+                                unsafe_allow_html=True)
+                st.plotly_chart(f_r, width="stretch", theme=None)
+
+                # Mapa animado + diferencia, sincronizados
+                okA, okB = df_a.dropna(subset=["lat", "lng"]), df_b.dropna(subset=["lat", "lng"])
+                fondo = st.segmented_control("Fondo del mapa", ["Mapa", "Sin fondo"], default="Mapa", key="race_bg",
+                                             help="«Sin fondo» no descarga teselas: úsalo si tu red bloquea los mapas y la animación no avanza.") or "Mapa"
+                if len(okA) < 50 or len(okB) < 50:
+                    st.info("Sin GPS en alguna de las dos actividades: no se puede dibujar el mapa.")
+                else:
+                    simp = lambda d_: d_.iloc[np.unique(np.linspace(0, len(d_) - 1, min(len(d_), 1500)).astype(int))]  # noqa: E731
+                    sa_, sb_ = simp(okA), simp(okB)
+                    stepf = max(1, math.ceil(Tn / 350))
+                    fidx = list(range(0, Tn, stepf))
+                    if fidx[-1] != Tn - 1:
+                        fidx.append(Tn - 1)
+                    k0 = min(fidx, key=lambda i: abs(i - k_t))
+                    if k0 == fidx[-1]:          # con el deslizador en meta, el mapa empieza en la salida para poder reproducir
+                        k0 = fidx[0]
+                    rd = lambda v: np.round(np.asarray(v, dtype=float), 5)  # noqa: E731
+                    xk_m, yk_m = R["dA"] / 1000, R["dT"] / 60
+
+                    def done(lat, lng, k):
+                        idx = np.unique(np.linspace(0, k, min(k + 1, 60)).astype(int))
+                        return rd(lat[idx]), rd(lng[idx])
+
+                    def label_at(k):
+                        g_dd, g_gt = race_gap(R, k)
+                        t_, _c = who(g_gt, g_dd)
+                        if R["T"][k] >= R["endA"] and R["T"][k] >= R["endB"]:
+                            t_ = (f"B {mmss(R['endA'] - R['endB'])} más rápida" if R["endB"] < R["endA"]
+                                  else f"A {mmss(R['endB'] - R['endA'])} más rápida")
+                        return f"<b>{hms(R['T'][k])}</b> · {t_}"
+
+                    def dyn(k):
+                        la, lo = done(R["latA"], R["lngA"], k)
+                        lb, lob = done(R["latB"], R["lngB"], k)
+                        pos_ = min(R["posA"][k], R["posB"][k])
+                        return [go.Scattermap(lat=la, lon=lo), go.Scattermap(lat=lb, lon=lob),
+                                go.Scattermap(lat=[round(R["latA"][k], 5)], lon=[round(R["lngA"][k], 5)]),
+                                go.Scattermap(lat=[round(R["latB"][k], 5)], lon=[round(R["lngB"][k], 5)]),
+                                go.Scatter(x=[pos_ / 1000], y=[float(np.interp(pos_, R["dA"], R["dT"])) / 60])]
+
+                    f_m = make_subplots(rows=2, cols=1, specs=[[{"type": "map"}], [{"type": "xy"}]], row_heights=[.68, .32],
+                                        vertical_spacing=.06)
+                    f_m.add_trace(go.Scattermap(lat=rd(sa_["lat"]), lon=rd(sa_["lng"]), mode="lines", line=dict(color=GOLD, width=2),
+                                                opacity=.35, name="A", hoverinfo="skip", showlegend=False), row=1, col=1)
+                    f_m.add_trace(go.Scattermap(lat=rd(sb_["lat"]), lon=rd(sb_["lng"]), mode="lines", line=dict(color=GLACIER, width=2),
+                                                opacity=.35, name="B", hoverinfo="skip", showlegend=False), row=1, col=1)
+                    d0 = dyn(k0)
+                    f_m.add_trace(go.Scattermap(lat=d0[0].lat, lon=d0[0].lon, mode="lines", line=dict(color=GOLD, width=5),
+                                                hoverinfo="skip", showlegend=False), row=1, col=1)
+                    f_m.add_trace(go.Scattermap(lat=d0[1].lat, lon=d0[1].lon, mode="lines", line=dict(color=GLACIER, width=5),
+                                                hoverinfo="skip", showlegend=False), row=1, col=1)
+                    f_m.add_trace(go.Scattermap(lat=d0[2].lat, lon=d0[2].lon, mode="markers+text", text=["A"], name="A",
+                                                marker=dict(size=20, color=GOLD), textfont=dict(color=on(GOLD), size=12),
+                                                hoverinfo="skip"), row=1, col=1)
+                    f_m.add_trace(go.Scattermap(lat=d0[3].lat, lon=d0[3].lon, mode="markers+text", text=["B"], name="B",
+                                                marker=dict(size=20, color=GLACIER), textfont=dict(color=on(GLACIER), size=12),
+                                                hoverinfo="skip"), row=1, col=1)
+                    f_m.add_trace(go.Scatter(x=xk_m, y=yk_m, mode="lines", line=dict(color=INK, width=1.3), showlegend=False,
+                                             hovertemplate="km %{x:.2f} · %{y:+.1f} min<extra>B − A</extra>"), row=2, col=1)
+                    f_m.add_trace(go.Scatter(x=d0[4].x, y=d0[4].y, mode="markers", marker=dict(size=11, color=INK, line=dict(color=BG, width=2)),
+                                             showlegend=False, hoverinfo="skip"), row=2, col=1)
+                    frames = [go.Frame(name=str(k), data=dyn(k), traces=[2, 3, 4, 5, 7],
+                                       layout=dict(annotations=[dict(text=label_at(k), x=0.01, y=0.995, xref="paper", yref="paper",
+                                                                     xanchor="left", yanchor="top", showarrow=False, bgcolor=SURFACE,
+                                                                     bordercolor=LINE, borderwidth=1, borderpad=5, font=dict(color=INK, size=13))]))
+                              for k in fidx]
+                    f_m.frames = frames
+                    lat_all = np.concatenate([sa_["lat"].to_numpy(), sb_["lat"].to_numpy()])
+                    lng_all = np.concatenate([sa_["lng"].to_numpy(), sb_["lng"].to_numpy()])
+                    span_ = max(float(np.ptp(lat_all)) * 1.6, float(np.ptp(lng_all)) * math.cos(math.radians(float(np.mean(lat_all)))) * 1.1, 0.002)
+                    zoom_ = float(np.clip(math.log2(360 / span_) - 1.2, 8, 16))
+                    dur = lambda sp: max(30, int(stepf * 10 / sp * 1000))  # noqa: E731
+                    play = lambda sp: dict(label=f"▶ ×{sp}", method="animate",  # noqa: E731
+                                           args=[None, dict(frame=dict(duration=dur(sp), redraw=True), transition=dict(duration=0),
+                                                            fromcurrent=True, mode="immediate")])
+                    plot_layout(f_m, 640, legend=False)
+                    f_m.update_layout(
+                        map=dict(style=(("carto-positron" if LIGHT else "carto-darkmatter") if fondo == "Mapa" else "white-bg"),
+                                 center=dict(lat=float(np.mean(lat_all)), lon=float(np.mean(lng_all))), zoom=zoom_),
+                        margin=dict(l=8, r=8, t=8, b=120),
+                        annotations=[dict(text=label_at(k0), x=0.01, y=0.995, xref="paper", yref="paper", xanchor="left", yanchor="top",
+                                          showarrow=False, bgcolor=SURFACE, bordercolor=LINE, borderwidth=1, borderpad=5,
+                                          font=dict(color=INK, size=13))],
+                        updatemenus=[dict(type="buttons", direction="left", x=0, y=-0.07, xanchor="left", yanchor="top", showactive=False,
+                                          bgcolor=SURFACE2, bordercolor=LINE, font=dict(color=INK, size=12), pad=dict(r=4, t=0),
+                                          buttons=[play(30), play(60), play(120),
+                                                   dict(label="⏸", method="animate",
+                                                        args=[[None], dict(frame=dict(duration=0, redraw=False), mode="immediate")])])],
+                        sliders=[dict(active=fidx.index(k0), x=0, len=1, y=-0.115, yanchor="top", pad=dict(t=0, b=0),
+                                      bgcolor=SURFACE2, bordercolor=LINE, activebgcolor=GOLD, font=dict(color=MUTED, size=10),
+                                      currentvalue=dict(visible=False), tickcolor=MUTED, ticklen=0, minorticklen=0,
+                                      steps=[dict(method="animate", label=hms(R["T"][k]) if i % max(1, len(fidx) // 6) == 0 else "",
+                                                  args=[[str(k)], dict(frame=dict(duration=0, redraw=True), mode="immediate",
+                                                                       transition=dict(duration=0))]) for i, k in enumerate(fidx)])])
+                    f_m.update_yaxes(ticksuffix=" min", zeroline=True, zerolinecolor=MUTED, row=2, col=1)
+                    f_m.update_xaxes(ticksuffix=" km", row=2, col=1)
+                    st.markdown('<span class="note">Pulsa ▶ para ver la carrera (×30, ×60 o ×120 la velocidad real) o arrastra la barra. '
+                                'Abajo, la diferencia B − A a lo largo de la ruta.</span>', unsafe_allow_html=True)
+                    st.plotly_chart(f_m, width="stretch", theme=None, config={"scrollZoom": True})
+
+                # Lectura de la carrera
+                lec = []
+                both_k = R["T"] <= min(R["endA"], R["endB"])
+                dd_all = (R["posB"] - R["posA"])[both_k]
+                if len(dd_all):
+                    pb_, pa_ = float((dd_all > 5).mean() * 100), float((dd_all < -5).mean() * 100)
+                    lec.append(f"B fue por delante el {fnum(pb_)} % del tiempo y A el {fnum(pa_)} %"
+                               + (f" (el resto, prácticamente juntas)." if pb_ + pa_ < 97 else "."))
+                iB, iA = int(np.argmin(R["dT"])), int(np.argmax(R["dT"]))
+                if R["dT"][iB] < -5:
+                    lec.append(f"Máxima ventaja de B: {mmss(-R['dT'][iB])} min en el km {fnum(R['dA'][iB] / 1000, 1)} ({fnum(R['altA'][iB])} m).")
+                if R["dT"][iA] > 5:
+                    lec.append(f"Máxima ventaja de A: {mmss(R['dT'][iA])} min en el km {fnum(R['dA'][iA] / 1000, 1)} ({fnum(R['altA'][iA])} m).")
+                sg_ = np.sign(R["dT"])
+                sg_[np.abs(R["dT"]) < 10] = 0                       # ±10 s: empate (evita falsos adelantamientos)
+                nz = np.flatnonzero(sg_)
+                if len(nz):
+                    chg = nz[1:][np.diff(sg_[nz]) != 0]
+                    if len(chg):
+                        lec.append(f"{len(chg)} adelantamiento{'s' if len(chg) != 1 else ''}: en el km "
+                                   + ", ".join(fnum(R["dA"][i] / 1000, 1) for i in chg[:6]) + ".")
+                    else:
+                        lec.append("No hubo adelantamientos: " + ("B" if sg_[nz[-1]] < 0 else "A") + " fue por delante desde el principio.")
+                segs_r = find_segments(df_a, amp)
+                if segs_r:
+                    ch_ = [(float(np.interp(d1, R["dA"], R["dT"]) - np.interp(d0, R["dA"], R["dT"])), d0, d1) for d0, d1 in segs_r]
+                    big_r = max(ch_, key=lambda x: abs(x[0]))
+                    a0_, a1_ = np.interp([big_r[1], big_r[2]], R["dA"], R["altA"])
+                    lec.append(f"Donde más se abrió la diferencia: {'subida' if a1_ > a0_ else 'bajada'} del km {fnum(big_r[1] / 1000, 1)} al "
+                               f"{fnum(big_r[2] / 1000, 1)} ({fnum(a0_)} → {fnum(a1_)} m), {'B gana' if big_r[0] < 0 else 'A gana'} "
+                               f"{mmss(abs(big_r[0]))} min.")
+                st.markdown("\n".join(f"- {x}" for x in lec))
 
             # ── Lectura automática ──
             ver = []
