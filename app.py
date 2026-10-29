@@ -1453,6 +1453,537 @@ def _rows(items) -> str:
                                            for t, s_ in items) + "</div>"
 
 
+# ─────────────────────────── Salud (wellness de intervals.icu) ───────────────────────────
+WCOLS = ["restingHR", "hrv", "avgSleepingHR", "sleepSecs", "sleepScore", "sleepQuality", "spO2", "steps",
+         "systolic", "diastolic", "weight", "bodyFat",
+         "readiness", "soreness", "fatigue", "stress", "mood", "motivation", "respiration", "vo2max"]
+W_OPT = {"readiness": ("Readiness", "", 0), "soreness": ("Dolor muscular", "/4", 0), "fatigue": ("Fatiga percibida", "/4", 0),
+         "stress": ("Estrés", "/4", 0), "mood": ("Ánimo", "/4", 0), "motivation": ("Motivación", "/4", 0),
+         "respiration": ("Respiración", "rpm", 1), "vo2max": ("VO2max", "", 1)}
+# Rangos válidos: fuera de ellos el valor se excluye de medias y líneas base
+W_RANGE = {"sleepSecs": (2 * 3600, 14 * 3600, "sueño fuera de 2–14 h"), "restingHR": (30, 100, "FC reposo fuera de 30–100"),
+           "hrv": (10, 200, "HRV fuera de 10–200 ms"), "weight": (40, 150, "peso fuera de 40–150 kg"),
+           "bodyFat": (3, 50, "grasa fuera de 3–50 %"), "systolic": (70, 220, "sistólica fuera de 70–220"),
+           "diastolic": (40, 130, "diastólica fuera de 40–130")}
+BP_TXT = {"No elevada": GREEN, "Elevada": ORANGE, "Hipertensión": RED}
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def fetch_wellness(athlete: str, key: str, oldest: str, newest: str) -> list[dict]:
+    r = requests.get(f"{API}/athlete/{athlete}/wellness", params={"oldest": oldest, "newest": newest}, auth=("API_KEY", key),
+                     headers={"Accept": "application/json", "User-Agent": "LlibretaD+ (Streamlit)"}, timeout=30)
+    r.raise_for_status()
+    data = r.json()
+    return data if isinstance(data, list) else []
+
+
+def demo_wellness(oldest: dt.date, newest: dt.date) -> list[dict]:
+    """Bienestar sintético (DEMO=1): HRV que baja y FC que sube tras días de carga, tensión 2/semana, peso semanal."""
+    loads = fit["load"] if len(fit) else pd.Series(dtype=float)
+    rows, d, acc = [], oldest, 0.0
+    w_base = 81.5
+    while d <= newest:
+        rnd = random.Random(d.toordinal())
+        acc = acc * 0.6 + float(loads.get(pd.Timestamp(d - dt.timedelta(days=1)), 0.0))
+        r = {"id": d.isoformat()}
+        if rnd.random() > .04:                                   # algún día sin reloj
+            r["hrv"] = round(max(22, 62 - acc * .045 + rnd.gauss(0, 5)))
+            r["restingHR"] = round(min(60, 40 + acc * .02 + rnd.gauss(0, 1.5)))
+            r["avgSleepingHR"] = r["restingHR"] + rnd.randint(2, 6)
+            sl = rnd.uniform(6, 8.2) * 3600 if rnd.random() > .08 else rnd.uniform(4.6, 5.8) * 3600
+            if rnd.random() < .015:
+                sl = rnd.uniform(14.2, 15.5) * 3600               # noche dudosa (siesta sumada)
+            r["sleepSecs"] = round(sl)
+            r["sleepScore"] = round(min(95, max(45, 55 + (sl / 3600 - 5) * 9 + rnd.gauss(0, 5))))
+            r["sleepQuality"] = rnd.choice([2, 2, 3, 3, 1, 4])
+            r["spO2"] = rnd.choice([98, 99, 99, 97])
+            r["steps"] = rnd.randint(2000, 18000)
+        if d.weekday() in (1, 4) and rnd.random() > .2:          # unas 2 tensiones por semana
+            r["systolic"], r["diastolic"] = rnd.randint(100, 120), rnd.randint(60, 75)
+        days_ = (d - oldest).days
+        in_rep = (newest - d).days in range(150, 175)
+        if d.weekday() == 5 and not in_rep:                                     # pesada semanal con tendencia suave
+            r["weight"] = round(w_base - days_ * .004 + rnd.gauss(0, .3), 1)
+            if rnd.random() > .5:
+                r["bodyFat"] = round(24.5 - days_ * .0015 + rnd.gauss(0, .3), 1)
+        if in_rep and d.weekday() in (0, 2, 3):   # racha de peso de perfil repetido
+            r["weight"] = 83.7
+        rows.append(r)
+        d += dt.timedelta(days=1)
+    return rows
+
+
+def load_wellness() -> tuple[pd.DataFrame, Exception | None]:
+    """Wellness desde el 1 de enero del año anterior a la temporada (o 400 días) hasta hoy, una fila por día."""
+    oldest = min(dt.date(year - 1, 1, 1), today - dt.timedelta(days=400))
+    try:
+        rows = demo_wellness(oldest, today) if demo else fetch_wellness(athlete, key, oldest.isoformat(), today.isoformat())
+    except Exception as e:  # noqa: BLE001
+        return pd.DataFrame(columns=WCOLS), e
+    df = pd.DataFrame(rows)
+    if not len(df) or "id" not in df:
+        return pd.DataFrame(columns=WCOLS), None
+    df.index = pd.to_datetime(df["id"]).dt.normalize()
+    df = df[~df.index.duplicated(keep="last")].sort_index()
+    for c in WCOLS:
+        df[c] = pd.to_numeric(df[c], errors="coerce") if c in df else np.nan
+    return df[WCOLS], None
+
+
+def bp_category(s, d) -> str | None:
+    if s is None or d is None or pd.isna(s) or pd.isna(d):
+        return None
+    return "Hipertensión" if s >= 140 or d >= 90 else "Elevada" if s >= 120 or d >= 70 else "No elevada"
+
+
+def summary_health() -> dict:
+    """Datos limpios, valores de hoy/7/30 días, líneas base, zonas, tensión, peso y lectura (pestaña y vista móvil)."""
+    raw_, err = load_wellness()
+    H = dict(err=err, ok=bool(len(raw_) and raw_.notna().any().any()))
+    if not H["ok"]:
+        return H
+    cl = raw_.copy()
+    excl = []                                                       # (fecha, campo, valor, motivo)
+    for c, (lo, hi, why) in W_RANGE.items():
+        bad = cl[c].notna() & ((cl[c] < lo) | (cl[c] > hi))
+        excl += [(i, c, v, why) for i, v in cl.loc[bad, c].items()]
+        cl.loc[bad, c] = np.nan
+    # Pesos repetidos: en una racha de pesadas seguidas con el mismo valor exacto, solo cuentan la primera y las que tienen grasa
+    w_ = cl["weight"].dropna()
+    rep_mask = pd.Series(False, index=cl.index)
+    prev_v = None
+    for i, v in w_.items():
+        if prev_v is not None and abs(v - prev_v) < 1e-9 and pd.isna(cl.at[i, "bodyFat"]):
+            rep_mask.at[i] = True
+        prev_v = v
+    excl += [(i, "weight", cl.at[i, "weight"], "peso repetido (peso de perfil de otra app)") for i in rep_mask[rep_mask].index]
+    w_rep = cl["weight"].where(rep_mask)                             # para pintarlos en gris
+    cl.loc[rep_mask, "weight"] = np.nan
+    # Serie diaria completa (sin interpolar)
+    days_ = pd.date_range(cl.index.min(), pd.Timestamp(today), freq="D")
+    D_ = cl.reindex(days_)
+    H.update(raw=raw_, df=D_, excl=excl, w_rep=w_rep.reindex(days_), n_rep=int(rep_mask.sum()))
+    T0 = pd.Timestamp(today)
+    last = lambda s_: (s_.dropna().index[-1], float(s_.dropna().iloc[-1])) if s_.notna().any() else (None, None)  # noqa: E731
+    win = lambda s_, n: s_.loc[T0 - pd.Timedelta(days=n - 1):T0]  # noqa: E731
+    # HRV: línea base de 60 días sobre ln(rMSSD) ± 1 DE; media móvil de 7 días
+    lnh = np.log(D_["hrv"])
+    base = lnh.rolling(60, min_periods=14).mean()
+    sd = lnh.rolling(60, min_periods=14).std()
+    h7 = np.exp(lnh.rolling(7, min_periods=3).mean())
+    H.update(hrv7=h7, hrv_lo=np.exp(base - sd), hrv_hi=np.exp(base + sd), hrv_base=np.exp(base))
+    hd, hv = last(D_["hrv"])
+    H["hrv_last"] = (hd, hv)
+    h7v = h7.dropna().iloc[-1] if h7.notna().any() else None
+    H["hrv7_v"] = h7v
+    if h7v is None or pd.isna(base.iloc[-1]):
+        H["hrv_zone"], H["hrv_zc"] = ("Línea base en construcción", MUTED)
+    else:
+        lo_, hi_ = H["hrv_lo"].iloc[-1], H["hrv_hi"].iloc[-1]
+        H["hrv_zone"], H["hrv_zc"] = (("Por debajo", ORANGE) if h7v < lo_ else ("Por encima", GLACIER) if h7v > hi_
+                                      else ("Dentro de tu normalidad", GREEN))
+    # FC en reposo
+    r7 = D_["restingHR"].rolling(7, min_periods=3).mean()
+    rb = D_["restingHR"].rolling(60, min_periods=14).mean()
+    H.update(rhr7=r7, rhr_base=rb, rhr_last=last(D_["restingHR"]))
+    H["rhr7_v"] = r7.dropna().iloc[-1] if r7.notna().any() else None
+    H["rhr_delta"] = (H["rhr7_v"] - rb.iloc[-1]) if H["rhr7_v"] is not None and pd.notna(rb.iloc[-1]) else None
+    H["rhr_alert"] = H["rhr_delta"] is not None and H["rhr_delta"] >= 5
+    # Sueño
+    H["sleep_last"] = last(D_["sleepSecs"])
+    H["score_last"] = last(D_["sleepScore"])
+    H["sleep7"] = win(D_["sleepSecs"], 7).mean()
+    H["score7"] = win(D_["sleepScore"], 7).mean()
+    H["short30"] = int((win(D_["sleepSecs"], 30) < 6 * 3600).sum())
+    H["sleep_dubious"] = {i for i, c, _v, _w in excl if c == "sleepSecs"}
+    # Otras medias de 7 días
+    for c in ("avgSleepingHR", "spO2", "steps"):
+        H[c + "7"] = win(D_[c], 7).mean()
+    # Tensión: mediciones válidas, última, media de 30 días y categoría
+    bp = D_[["systolic", "diastolic"]].dropna()
+    H["bp"] = bp
+    H["bp_last"] = (bp.index[-1], float(bp["systolic"].iloc[-1]), float(bp["diastolic"].iloc[-1])) if len(bp) else None
+    b30 = bp.loc[T0 - pd.Timedelta(days=29):T0]
+    H["bp30"] = (float(b30["systolic"].mean()), float(b30["diastolic"].mean()), len(b30)) if len(b30) else None
+    H["bp_cat"] = bp_category(*H["bp30"][:2]) if H["bp30"] else None
+    # Peso y grasa: última pesada válida y Δ frente a la pesada válida más cercana a 30 / 90 días antes
+    wv, fv = D_["weight"].dropna(), D_["bodyFat"].dropna()
+
+    def delta_at(s_, n):
+        if len(s_) < 2:
+            return None
+        ld = s_.index[-1]
+        prev = s_.loc[:ld - pd.Timedelta(days=1)]
+        if not len(prev):
+            return None
+        tgt = ld - pd.Timedelta(days=n)
+        j = int(np.argmin(np.abs((prev.index - tgt).days)))
+        return float(s_.iloc[-1] - prev.iloc[j]), prev.index[j]
+
+    H.update(w=wv, w5=wv.rolling(5, min_periods=1).mean(), bf=fv,
+             w_last=(wv.index[-1], float(wv.iloc[-1])) if len(wv) else None,
+             bf_last=(fv.index[-1], float(fv.iloc[-1])) if len(fv) else None,
+             w_d30=delta_at(wv, 30), w_d90=delta_at(wv, 90), bf_d90=delta_at(fv, 90))
+    # Opcionales con datos
+    H["opt"] = {c: last(D_[c]) for c in W_OPT if D_[c].notna().any()}
+    # Lectura automática
+    SF_ = summary_fatigue()
+    tsb_ = float(SF_["cur"]["tsb"]) if SF_ else None
+    parts = []
+    z = H["hrv_zone"]
+    if z == "Línea base en construcción":
+        parts.append("Línea base de HRV en construcción: hacen falta al menos 14 días con datos.")
+    else:
+        hrv_low, rhr_high = z == "Por debajo", H["rhr_alert"]
+        rtxt = f"FC en reposo {'+' if H['rhr_delta'] >= 0 else '−'}{fnum(abs(H['rhr_delta']))} ppm" if H["rhr_delta"] is not None else ""
+        bal = f" con balance {('+' if tsb_ > 0 else '') + fnum(tsb_)}" if tsb_ is not None and tsb_ < -10 else ""
+        if hrv_low and rhr_high:
+            parts.append(f"HRV por debajo de tu normalidad y {rtxt}{bal}: señales de fatiga acumulada; conviene priorizar el descanso.")
+        elif hrv_low:
+            parts.append(f"HRV por debajo de tu normalidad{bal}: vigila la recuperación los próximos días.")
+        elif rhr_high:
+            parts.append(f"{rtxt} sobre tu línea base{bal}: vigila la recuperación los próximos días.")
+        elif z == "Por encima":
+            parts.append("HRV por encima de tu normalidad: buena recuperación.")
+        else:
+            parts.append("HRV y FC en reposo dentro de tu normalidad: tu cuerpo está asimilando bien la carga.")
+    if pd.notna(H["sleep7"]) and H["sleep7"] < 7 * 3600:
+        parts.append(f"Esta semana duermes {_hm(H['sleep7'])} h de media, por debajo de 7 h.")
+    if H["w_d90"]:
+        t_ = f"Peso {'+' if H['w_d90'][0] >= 0 else '−'}{fnum(abs(H['w_d90'][0]), 1)} kg en 90 días"
+        if H["bf_d90"]:
+            t_ += f" y grasa {'+' if H['bf_d90'][0] >= 0 else '−'}{fnum(abs(H['bf_d90'][0]), 1)} puntos"
+        parts.append(t_ + ".")
+    if H["bp30"]:
+        s_, d_, n_ = H["bp30"]
+        parts.append(f"Tensión media de 30 días {fnum(s_)}/{fnum(d_)}, {H['bp_cat'].lower()}, con {n_} medici{'ones' if n_ != 1 else 'ón'}.")
+        if H["bp_cat"] == "Hipertensión":
+            parts.append("Si se mantiene en varias mediciones, coméntalo con tu médico.")
+    H["text"] = " ".join(parts)
+    H["text_c"] = (ORANGE if (z == "Por debajo" or H["rhr_alert"]) else H["hrv_zc"])
+    H["alert"] = H["rhr_alert"] or H["bp_cat"] == "Hipertensión"
+    return H
+
+
+def _sd(d_) -> str:
+    return "—" if d_ is None else f"{d_:%d/%m/%y}"
+
+
+def _sleep_c(sc) -> str:
+    return MUTED if sc is None or pd.isna(sc) else GREEN if sc >= 80 else ORANGE if sc >= 60 else RED
+
+
+def _sgn(v, d=1) -> str:
+    return "—" if v is None else f"{'+' if v >= 0 else '−'}{fnum(abs(v), d)}"
+
+
+def health_cards(H, which=("hrv", "rhr", "sleep", "bp", "w", "bf", "other")):
+    it = []
+    if "hrv" in which:
+        hd, hv = H["hrv_last"]
+        it.append(("HRV", H["hrv_zc"], fnum(hv) if hv else "—", "ms",
+                   [f"7 días: {fnum(H['hrv7_v']) if H['hrv7_v'] else '—'} ms", f'<span class="pill" style="--c:{H["hrv_zc"]}">{H["hrv_zone"]}</span>']
+                   + ([f"del {_sd(hd)}"] if hd is not None and hd.date() != today else [])))
+    if "rhr" in which:
+        rd, rv = H["rhr_last"]
+        it.append(("FC en reposo", RED if H["rhr_alert"] else INK, fnum(rv) if rv else "—", "ppm",
+                   [f"7 días: {fnum(H['rhr7_v'], 1) if H['rhr7_v'] else '—'} ppm",
+                    f"{_sgn(H['rhr_delta'])} ppm vs línea base" if H["rhr_delta"] is not None else "línea base en construcción"]))
+    if "sleep" in which:
+        sd_, sv = H["sleep_last"]
+        it.append(("Sueño", _sleep_c(H["score_last"][1]), _hm(sv) if sv else "—", "h",
+                   [f"score {fnum(H['score_last'][1]) if H['score_last'][1] else '—'} · 7 días {_hm(H['sleep7']) if pd.notna(H['sleep7']) else '—'} h"]))
+    if "bp" in which:
+        if H["bp_last"]:
+            bd, s_, d_ = H["bp_last"]
+            l2 = (f"30 días: {fnum(H['bp30'][0])}/{fnum(H['bp30'][1])} · {H['bp30'][2]} med."
+                  if H["bp30"] else "sin mediciones en 30 días")
+            it.append(("Tensión", BP_TXT.get(H["bp_cat"], MUTED), f"{fnum(s_)}/{fnum(d_)}", "mmHg",
+                       [f"del {_sd(bd)}", l2] + ([f'<span class="pill" style="--c:{BP_TXT[H["bp_cat"]]}">{H["bp_cat"]}</span>'] if H["bp_cat"] else [])))
+        else:
+            it.append(("Tensión", MUTED, "—", "", ["sin mediciones"]))
+    if "w" in which:
+        if H["w_last"]:
+            it.append(("Peso", INK, fnum(H["w_last"][1], 1), "kg",
+                       [f"del {_sd(H['w_last'][0])}", f"{_sgn(H['w_d30'][0] if H['w_d30'] else None)} kg a 30 d · "
+                        f"{_sgn(H['w_d90'][0] if H['w_d90'] else None)} kg a 90 d"]))
+        else:
+            it.append(("Peso", MUTED, "—", "", ["sin pesadas"]))
+    if "bf" in which:
+        if H["bf_last"]:
+            it.append(("Grasa corporal", ORANGE, fnum(H["bf_last"][1], 1), "%",
+                       [f"del {_sd(H['bf_last'][0])}", f"{_sgn(H['bf_d90'][0] if H['bf_d90'] else None)} puntos a 90 d"]))
+        else:
+            it.append(("Grasa corporal", MUTED, "—", "", ["sin datos"]))
+    if "other" in which:
+        it.append(("FC durmiendo", VIOLET, fnum(H["avgSleepingHR7"]) if pd.notna(H["avgSleepingHR7"]) else "—", "ppm", ["media de 7 días"]))
+        it.append(("SpO2", GLACIER, fnum(H["spO27"]) if pd.notna(H["spO27"]) else "—", "%", ["media de 7 días"]))
+        it.append(("Pasos", TEAL, fnum(H["steps7"]) if pd.notna(H["steps7"]) else "—", "", ["media de 7 días"]))
+        for c, (d_, v_) in H["opt"].items():
+            lab, u, dec = W_OPT[c]
+            it.append((lab, MUTED, fnum(v_, dec), u, [f"del {_sd(d_)}"]))
+    return it
+
+
+NOTE_MED = "Indicadores orientativos a partir de los datos del reloj y del tensiómetro; no sustituyen una valoración médica."
+OMRON_HINT = "llegan desde Omron vía Apple Salud y el Atajo de iOS"
+
+
+def hrv_fig(H, a, h=300, mini=False):
+    D_ = H["df"].loc[a:]
+    f = go.Figure()
+    lo, hi = H["hrv_lo"].loc[a:], H["hrv_hi"].loc[a:]
+    f.add_scatter(x=lo.index, y=hi, mode="lines", line=dict(width=0), showlegend=False, hoverinfo="skip")
+    f.add_scatter(x=lo.index, y=lo, mode="lines", line=dict(width=0), fill="tonexty", fillcolor=rgba(GREEN, .14),
+                  name="Rango normal", hoverinfo="skip")
+    if not mini:
+        f.add_scatter(x=D_.index, y=D_["hrv"], mode="markers", marker=dict(size=5, color=MUTED), name="HRV diaria",
+                      hovertemplate="%{x|%d/%m}: %{y:.0f} ms<extra></extra>")
+    h7 = H["hrv7"].loc[a:]
+    f.add_scatter(x=h7.index, y=h7, mode="lines", line=dict(color=GLACIER, width=2.4), name="HRV 7 días",
+                  hovertemplate="%{x|%d/%m}: %{y:.0f} ms<extra>7 días</extra>")
+    f.update_yaxes(ticksuffix=" ms")
+    return f
+
+
+def rhr_fig(H, a, mini=False):
+    D_ = H["df"].loc[a:]
+    f = go.Figure()
+    if not mini:
+        f.add_scatter(x=D_.index, y=D_["restingHR"], mode="markers", marker=dict(size=5, color=MUTED), name="FC reposo",
+                      hovertemplate="%{x|%d/%m}: %{y:.0f} ppm<extra></extra>")
+    f.add_scatter(x=D_.index, y=H["rhr7"].loc[a:], mode="lines", line=dict(color=RED, width=2.2), name="7 días",
+                  hovertemplate="%{x|%d/%m}: %{y:.1f} ppm<extra>7 días</extra>")
+    f.add_scatter(x=D_.index, y=H["rhr_base"].loc[a:], mode="lines", line=dict(color=MUTED, width=1.4, dash="dash"),
+                  name="Línea base (60 d)", hovertemplate="%{x|%d/%m}: %{y:.1f} ppm<extra>línea base</extra>")
+    f.update_yaxes(ticksuffix=" ppm")
+    return f
+
+
+def bp_fig(H, a, mini=False):
+    bp = H["bp"].loc[a:]
+    f = go.Figure()
+    f.add_hrect(y0=140, y1=200, fillcolor=RED, opacity=.07, line_width=0)
+    f.add_hrect(y0=120, y1=140, fillcolor=ORANGE, opacity=.07, line_width=0)
+    for y_, c_ in ((90, RED), (70, ORANGE)):
+        f.add_hline(y=y_, line=dict(color=c_, width=1, dash="dot"), opacity=.6)
+    if len(bp):
+        xs, ys = [], []
+        for i, r_ in bp.iterrows():
+            xs += [i, i, None]
+            ys += [r_["diastolic"], r_["systolic"], None]
+        f.add_scatter(x=xs, y=ys, mode="lines", line=dict(color=MUTED, width=3), showlegend=False, hoverinfo="skip")
+        f.add_scatter(x=bp.index, y=bp["systolic"], mode="markers", marker=dict(size=8 if not mini else 6, color=RED), name="Sistólica",
+                      hovertemplate="%{x|%d/%m/%y}: %{y:.0f}<extra>sistólica</extra>")
+        f.add_scatter(x=bp.index, y=bp["diastolic"], mode="markers", marker=dict(size=8 if not mini else 6, color=GLACIER), name="Diastólica",
+                      hovertemplate="%{x|%d/%m/%y}: %{y:.0f}<extra>diastólica</extra>")
+        if not mini:
+            m30 = H["bp"][["systolic", "diastolic"]].rolling("30D").mean().loc[a:]
+            for c_, col_ in (("systolic", RED), ("diastolic", GLACIER)):
+                f.add_scatter(x=m30.index, y=m30[c_], mode="lines", line=dict(color=col_, width=1.4, dash="dash"),
+                              name=f"Media 30 d ({'sis.' if c_ == 'systolic' else 'dia.'})", hoverinfo="skip")
+    lo_ = min(55.0, float(bp["diastolic"].min()) - 5) if len(bp) else 55
+    hi_ = max(150.0, float(bp["systolic"].max()) + 5) if len(bp) else 150
+    f.update_yaxes(range=[lo_, hi_], ticksuffix="")
+    return f
+
+
+def weight_fig(H, a, mini=False):
+    f = go.Figure()
+    w, w5 = H["w"].loc[a:], H["w5"].loc[a:]
+    f.add_scatter(x=w.index, y=w, mode="markers", marker=dict(size=7, color=INK), name="Peso",
+                  hovertemplate="%{x|%d/%m/%y}: %{y:.1f} kg<extra></extra>")
+    f.add_scatter(x=w5.index, y=w5, mode="lines", line=dict(color=INK, width=2), name="Media 5 pesadas", hoverinfo="skip")
+    if not mini:
+        rep = H["w_rep"].loc[a:].dropna()
+        if len(rep):
+            f.add_scatter(x=rep.index, y=rep, mode="markers", marker=dict(size=6, color=PREV, opacity=.5),
+                          name="Repetido (excluido)", hovertemplate="%{x|%d/%m/%y}: %{y:.1f} kg<extra>excluido</extra>")
+        bf = H["bf"].loc[a:]
+        if len(bf):
+            f.add_scatter(x=bf.index, y=bf, mode="lines+markers", line=dict(color=ORANGE, width=1.6), marker=dict(size=6),
+                          name="Grasa %", yaxis="y2", hovertemplate="%{x|%d/%m/%y}: %{y:.1f} %<extra>grasa</extra>")
+            f.update_layout(yaxis2=dict(overlaying="y", side="right", showgrid=False, ticksuffix=" %", tickformat=".1f", tickfont=dict(color=ORANGE)))
+    f.update_layout(yaxis=dict(ticksuffix=" kg", tickformat=".1f"))
+    return f
+
+
+def mini_layout(f, h=130):
+    f.update_layout(height=h, margin=dict(l=4, r=4, t=4, b=4), showlegend=False, paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)", font=dict(size=10, color=MUTED))
+    f.update_xaxes(showgrid=False, nticks=3, tickformat="%d/%m", tickfont=dict(color=MUTED, size=10), automargin=True, showticklabels=True)
+    f.update_yaxes(showgrid=True, gridcolor=GRID, nticks=3, tickfont=dict(color=MUTED, size=10), automargin=True, showticklabels=True,
+                   zeroline=False)
+    return f
+
+
+def health_tab():
+    st.subheader("Salud")
+    st.markdown('<span class="note">Bienestar diario de intervals.icu: HRV, FC en reposo, sueño, SpO2 y pasos del reloj; tensión, '
+                'peso y grasa corporal de Omron (vía Apple Salud y el Atajo de iOS).</span>', unsafe_allow_html=True)
+    H = summary_health()
+    if H["err"] is not None:
+        st.warning(f"No se pudieron leer los datos de salud de intervals.icu: {H['err']}")
+        return
+    if not H["ok"]:
+        st.info("Sin datos de salud en intervals.icu.")
+        return
+    cards(health_cards(H, ("hrv", "rhr", "sleep", "bp")))
+    cards(health_cards(H, ("w", "bf", "other")))
+    st.markdown(f'<div class="reading" style="--c:{H["text_c"]}">{H["text"]}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="note">{NOTE_MED}</div>', unsafe_allow_html=True)
+    if H["excl"]:
+        cnt = {}
+        for _i, _c, _v, why in H["excl"]:
+            cnt[why] = cnt.get(why, 0) + 1
+        st.markdown('<div class="note">Excluidos de medias y líneas base: '
+                    + " · ".join(f"{n} × {w}" for w, n in sorted(cnt.items(), key=lambda x: -x[1])) + ".</div>", unsafe_allow_html=True)
+
+    # Gráficos diarios
+    PERS = {"30 días": 30, "90 días": 90, "1 año": 365, f"Temporada {year}": None}
+    per = st.segmented_control("Periodo salud", list(PERS), default="90 días", key="sal_per", label_visibility="collapsed") or "90 días"
+    a = pd.Timestamp(dt.date(year, 1, 1)) if PERS[per] is None else pd.Timestamp(today) - pd.Timedelta(days=PERS[per] - 1)
+    c1, c2 = st.columns(2)
+    with c1:
+        st.subheader("HRV (rMSSD)")
+        st.plotly_chart(plot_layout(hrv_fig(H, a), 280), width="stretch", theme=None)
+    with c2:
+        st.subheader("FC en reposo")
+        st.plotly_chart(plot_layout(rhr_fig(H, a), 280), width="stretch", theme=None)
+    st.subheader("Sueño")
+    D_ = H["df"].loc[a:]
+    sl = D_["sleepSecs"] / 3600
+    f_s = go.Figure()
+    f_s.add_bar(x=D_.index, y=sl, marker_color=[_sleep_c(v) for v in D_["sleepScore"]],
+                customdata=np.stack([D_["sleepScore"].fillna(-1), D_["avgSleepingHR"].fillna(-1)], axis=-1),
+                hovertemplate="%{x|%d/%m}: %{y:.1f} h · score %{customdata[0]:.0f}<extra></extra>", showlegend=False)
+    dub = [i for i in H["sleep_dubious"] if i >= a]
+    if dub:
+        f_s.add_scatter(x=dub, y=[min(15.0, float(H["raw"].at[i, "sleepSecs"]) / 3600) for i in dub], mode="markers",
+                        marker=dict(symbol="x", size=9, color=MUTED), name="Dudosa (excluida)",
+                        hovertemplate="%{x|%d/%m}: %{y:.1f} h (dudosa)<extra></extra>")
+    f_s.add_hline(y=7, line=dict(color=MUTED, width=1, dash="dash"))
+    f_s.update_yaxes(ticksuffix=" h")
+    st.plotly_chart(plot_layout(f_s, 240, legend=bool(dub)), width="stretch", theme=None)
+    st.markdown(f'<span class="note">Color por sleepScore: <span style="color:{GREEN}">≥ 80</span> · <span style="color:{ORANGE}">60–79</span> · '
+                f'<span style="color:{RED}">&lt; 60</span>. Línea en 7 h.</span>', unsafe_allow_html=True)
+
+    # Tensión y peso (mediciones esporádicas: periodo propio, 1 año por defecto)
+    PERS2 = {"90 días": 90, "1 año": 365, "Todo": None}
+    per2 = st.segmented_control("Periodo mediciones", list(PERS2), default="1 año", key="sal_per2", label_visibility="collapsed") or "1 año"
+    a2 = H["df"].index.min() if PERS2[per2] is None else pd.Timestamp(today) - pd.Timedelta(days=PERS2[per2] - 1)
+    c3, c4 = st.columns(2)
+    with c3:
+        st.subheader("Tensión arterial")
+        if not len(H["bp"]):
+            st.info(f"Sin mediciones de tensión ({OMRON_HINT}).")
+        else:
+            st.plotly_chart(plot_layout(bp_fig(H, a2), 300), width="stretch", theme=None)
+            st.markdown(f'<span class="note">Bandas: <span style="color:{ORANGE}">sistólica 120–139</span> · <span style="color:{RED}">≥ 140</span>; '
+                        'líneas de puntos en diastólica 70 y 90.</span>', unsafe_allow_html=True)
+    with c4:
+        st.subheader("Peso y grasa corporal")
+        if not len(H["w"]) and not len(H["bf"]):
+            st.info(f"Sin pesadas ({OMRON_HINT}).")
+        else:
+            st.plotly_chart(plot_layout(weight_fig(H, a2), 300), width="stretch", theme=None)
+            if H["n_rep"]:
+                st.markdown(f'<span class="note">{H["n_rep"]} pesos repetidos excluidos (en gris).</span>', unsafe_allow_html=True)
+
+    # Salud y carga
+    st.subheader("Salud y carga")
+    if len(fit):
+        fl = fit.loc[a:]
+        f_c = go.Figure()
+        f_c.add_bar(x=fl.index, y=fl["load"], name="Carga diaria", marker_color=PREV, opacity=.6,
+                    hovertemplate="%{x|%d/%m}: carga %{y:.0f}<extra></extra>")
+        f_c.add_scatter(x=fl.index, y=fl["tsb"], mode="lines", line=dict(color=INK, width=1.6), name="Balance (TSB)",
+                        hovertemplate="%{x|%d/%m}: %{y:.0f}<extra>balance</extra>")
+        h7 = H["hrv7"].loc[a:]
+        f_c.add_scatter(x=h7.index, y=h7, mode="lines", line=dict(color=GLACIER, width=2.2), name="HRV 7 días (ms)", yaxis="y2",
+                        hovertemplate="%{x|%d/%m}: %{y:.0f} ms<extra>HRV 7 d</extra>")
+        f_c.update_layout(yaxis2=dict(overlaying="y", side="right", showgrid=False, ticksuffix=" ms", tickformat=".0f", tickfont=dict(color=GLACIER)))
+        st.plotly_chart(plot_layout(f_c, 280), width="stretch", theme=None)
+        st.markdown('<span class="note">Cuando la carga sube y el balance cae, la HRV suele bajar unos días; si vuelve a tu rango, '
+                    'estás asimilando el bloque.</span>', unsafe_allow_html=True)
+
+    # Peso y volumen mensual
+    if len(H["w"]) and len(all_df):
+        st.subheader("Peso y volumen mensual")
+        wm = H["w"].groupby(H["w"].index.to_period("M")).mean()
+        vol = all_df.groupby(all_df["ts"].dt.to_period("M"))[["out_km", "out_dp"]].sum()
+        mm = sorted(set(wm.index) | set(vol.index))
+        mm = [m for m in mm if m >= pd.Period(a2, "M")] if PERS2[per2] else mm
+        if mm:
+            xl = [f"{MES[m.month - 1]} {str(m.year)[2:]}" for m in mm]
+            f_v = go.Figure()
+            f_v.add_bar(x=xl, y=[float(vol["out_dp"].get(m, 0)) for m in mm], name="D+ (m)", marker_color=rgba(GOLD, .7),
+                        customdata=[float(vol["out_km"].get(m, 0)) for m in mm],
+                        hovertemplate="%{x}: %{y:,.0f} m D+ · %{customdata:.0f} km<extra></extra>")
+            f_v.add_scatter(x=xl, y=[float(wm.get(m, np.nan)) for m in mm], mode="lines+markers", connectgaps=True,
+                            line=dict(color=INK, width=2), name="Peso medio (kg)", yaxis="y2",
+                            hovertemplate="%{x}: %{y:.1f} kg<extra></extra>")
+            f_v.update_layout(yaxis2=dict(overlaying="y", side="right", showgrid=False, ticksuffix=" kg", tickformat=".1f"))
+            st.plotly_chart(plot_layout(f_v, 260), width="stretch", theme=None)
+
+    # Tabla semanal (12 semanas, la más reciente arriba)
+    st.subheader("Semana a semana")
+    rows_t = []
+    for k in range(12, 0, -1):
+        ws = week_starts[k]
+        we = ws + dt.timedelta(days=6)
+        sl_ = H["df"].loc[pd.Timestamp(ws):pd.Timestamp(we)]
+        bp_ = sl_[["systolic", "diastolic"]].dropna()
+        rows_t.append({"Semana": f"{ws:%d/%m}",
+                       "HRV": sl_["hrv"].mean(), "FC reposo": sl_["restingHR"].mean(),
+                       "Sueño": sl_["sleepSecs"].mean(), "Score": sl_["sleepScore"].mean(), "Pasos": sl_["steps"].mean(),
+                       "Tensión": (f"{fnum(bp_['systolic'].mean())}/{fnum(bp_['diastolic'].mean())} ({len(bp_)})" if len(bp_) else ""),
+                       "Peso": sl_["weight"].mean(), "Grasa": sl_["bodyFat"].mean(), "Carga": W[k]["load"]})
+    TB = pd.DataFrame(rows_t)
+    nf_ = lambda d: (lambda v: "" if pd.isna(v) else fnum(v, d))  # noqa: E731
+    html_table(TB, left={"Semana"}, row_classes=["cur"] + [""] * (len(TB) - 1), group_start={"Tensión", "Carga"},
+               fmt={"HRV": nf_(0), "FC reposo": nf_(1), "Sueño": lambda v: "" if pd.isna(v) else _hm(v), "Score": nf_(0),
+                    "Pasos": nf_(0), "Peso": nf_(1), "Grasa": nf_(1), "Carga": nf_(0)})
+    st.markdown('<span class="note">Medias de la semana (lunes a domingo); en cursiva, la semana en curso. Tensión: media (nº de mediciones).</span>',
+                unsafe_allow_html=True)
+
+    # Comparación interanual (últimos 30 días)
+    T0 = pd.Timestamp(today)
+    cur_ = H["df"].loc[T0 - pd.Timedelta(days=29):T0]
+    try:
+        p0 = pd.Timestamp(today.replace(year=today.year - 1))
+    except ValueError:
+        p0 = pd.Timestamp(dt.date(today.year - 1, 2, 28))
+    prv_ = H["df"].loc[p0 - pd.Timedelta(days=29):p0]
+    if len(prv_) and prv_[["hrv", "restingHR", "sleepSecs", "weight"]].notna().any().any():
+        st.subheader("Últimos 30 días frente al año pasado")
+        it = []
+        for c, lab, col, u, dec, inv in (("hrv", "HRV", GLACIER, "ms", 0, False), ("restingHR", "FC reposo", RED, "ppm", 1, True),
+                                         ("sleepSecs", "Sueño", VIOLET, "h", 1, False), ("weight", "Peso", INK, "kg", 1, True)):
+            v, pv = cur_[c].mean(), prv_[c].mean()
+            val = (_hm(v) if c == "sleepSecs" else fnum(v, dec)) if pd.notna(v) else "—"
+            pvt = (_hm(pv) if c == "sleepSecs" else fnum(pv, dec)) if pd.notna(pv) else "—"
+            it.append((lab, col, val, "" if c == "sleepSecs" else u, [f"{today.year - 1}: {pvt}"]
+                       + ([delta_html(v, pv, str(today.year - 1), invert=inv)] if pd.notna(v) and pd.notna(pv) else [])))
+        cards(it)
+
+    with st.expander("Cómo leer estos indicadores"):
+        st.markdown(
+            "- **HRV (rMSSD)**: variabilidad entre latidos medida por el reloj por la noche. Varía mucho entre personas, por eso se "
+            "compara con **tu propia línea base**: media de 60 días de ln(rMSSD) ± 1 desviación estándar. La media de 7 días por "
+            "debajo de ese rango suele indicar fatiga, estrés o enfermedad incipiente.\n"
+            "- **FC en reposo**: 5 ppm o más por encima de tu media de 60 días durante varios días es otra señal de recuperación "
+            "incompleta.\n"
+            "- **sleepQuality** (si la apuntas en intervals.icu) va al revés: 1 = muy bien, 4 = mal. **sleepScore** es la nota del "
+            "reloj, de 0 a 100.\n"
+            "- **Tensión**: categorías orientativas de la guía europea de 2024: no elevada < 120/70, elevada 120–139 / 70–89, "
+            "hipertensión ≥ 140/90. Se valora la media de 30 días, no una medición suelta. Mídela en reposo, sentado y a la misma "
+            "hora.\n"
+            "- **Pesos repetidos**: otra app escribe en Apple Salud un peso fijo de perfil; las rachas del mismo peso exacto sin "
+            "grasa corporal se descartan y solo cuentan las pesadas reales.\n"
+            "- Se excluyen valores imposibles o dudosos (p. ej. noches de más de 14 h, que suelen sumar siestas).")
+
+
 def mobile_view():
     st.markdown(f"""<style>
 .block-container {{ max-width: 560px !important; padding: 1.2rem 16px 3rem !important; }}
@@ -1556,6 +2087,89 @@ def mobile_view():
                 ("Agudo:crónico", SF["ac"], fnum(SF["acwr"], 2) if SF["acwr"] else "—", "", [pill_(SF["az"], SF["ac"])]),
             ])
             st.markdown(f'<div class="reading" style="--c:{SF["tc"]}">{SF["text"]}</div>', unsafe_allow_html=True)
+
+    # 4b · Salud: bloques Hoy / Recuperación / Sueño / Tensión / Peso
+    H = summary_health()
+    if H["err"] is not None or not H["ok"]:
+        lab_s = "**Salud** · sin datos"
+    else:
+        lab_s = (f"**Salud** · HRV {fnum(H['hrv7_v']) if H['hrv7_v'] else '—'} ms · :{ZONE_MD.get(H['hrv_zc'], 'gray')}[{H['hrv_zone']}]"
+                 + (" · :orange[⚠ aviso]" if H["alert"] else ""))
+    with st.expander(lab_s, key="mob_x_salud"):
+        if H["err"] is not None:
+            st.warning(f"No se pudieron leer los datos de salud de intervals.icu: {H['err']}")
+        elif not H["ok"]:
+            st.info("Sin datos de salud en intervals.icu.")
+        else:
+            blk = st.segmented_control("Bloque salud", ["Hoy", "Recuperación", "Sueño", "Tensión", "Peso"], default="Hoy",
+                                       key="mob_sal_vista", label_visibility="collapsed") or "Hoy"
+            if blk == "Hoy":
+                cards(health_cards(H, ("hrv", "rhr", "sleep", "bp")))
+                st.markdown(f'<div class="reading" style="--c:{H["text_c"]}">{H["text"]}</div>', unsafe_allow_html=True)
+            elif blk == "Recuperación":
+                PM = {"30 días": 30, "90 días": 90, "1 año": 365}
+                pm_ = st.segmented_control("Periodo recuperación", list(PM), default="30 días", key="mob_sal_per",
+                                           label_visibility="collapsed") or "30 días"
+                a_ = pd.Timestamp(today) - pd.Timedelta(days=PM[pm_] - 1)
+                h7_, lo_ = H["hrv7"].loc[a_:], H["hrv_lo"].loc[a_:]
+                n_low = int((h7_ < lo_).sum())
+                rb_ = H["rhr_base"].iloc[-1]
+                rm_ = H["df"]["restingHR"].loc[a_:].mean()
+                cards([("Días bajo tu rango", ORANGE if n_low else GREEN, fnum(n_low), "", [f"HRV 7 d en {pm_}"]),
+                       ("FC reposo media", INK, fnum(rm_, 1) if pd.notna(rm_) else "—", "ppm",
+                        [f"{_sgn(rm_ - rb_)} vs línea base" if pd.notna(rm_) and pd.notna(rb_) else "línea base en construcción"])])
+                st.markdown('<div class="note">HRV de 7 días con tu rango normal</div>', unsafe_allow_html=True)
+                st.plotly_chart(mini_layout(hrv_fig(H, a_, mini=True), 140), width="stretch", theme=None, config={"staticPlot": True})
+                st.markdown('<div class="note">FC en reposo de 7 días y línea base</div>', unsafe_allow_html=True)
+                st.plotly_chart(mini_layout(rhr_fig(H, a_, mini=True), 140), width="stretch", theme=None, config={"staticPlot": True})
+            elif blk == "Sueño":
+                cards([("Sueño 7 días", VIOLET, _hm(H["sleep7"]) if pd.notna(H["sleep7"]) else "—", "h",
+                        [f"score medio {fnum(H['score7']) if pd.notna(H['score7']) else '—'}"]),
+                       ("Noches < 6 h", ORANGE if H["short30"] else GREEN, fnum(H["short30"]), "", ["últimos 30 días"])])
+                nights = H["raw"]["sleepSecs"].dropna().iloc[-7:][::-1]
+                rows_n = []
+                for i, v in nights.items():
+                    sc = H["raw"].at[i, "sleepScore"]
+                    dub_ = i in H["sleep_dubious"]
+                    sub = " · ".join(x for x in [
+                        f"score {fnum(sc)}" if pd.notna(sc) else "",
+                        f"FC {fnum(H['raw'].at[i, 'avgSleepingHR'])}" if pd.notna(H["raw"].at[i, "avgSleepingHR"]) else "",
+                        f"SpO2 {fnum(H['raw'].at[i, 'spO2'])} %" if pd.notna(H["raw"].at[i, "spO2"]) else "",
+                        f'<span style="color:{ORANGE}">dudosa</span>' if dub_ else ""] if x)
+                    rows_n.append((f'{DIAS[i.weekday()].lower()} {i:%d/%m} · <b>{int(v // 3600)} h {int(v % 3600 // 60)} min</b>',
+                                   sub + _bar(min(100.0, v / 3600 / 9 * 100), _sleep_c(sc))))
+                st.markdown(_rows(rows_n), unsafe_allow_html=True)
+            elif blk == "Tensión":
+                if not len(H["bp"]):
+                    st.info(f"Sin mediciones de tensión: {OMRON_HINT}.")
+                else:
+                    cards(health_cards(H, ("bp",)) + [(
+                        "Media 30 días", BP_TXT.get(H["bp_cat"], MUTED),
+                        f"{fnum(H['bp30'][0])}/{fnum(H['bp30'][1])}" if H["bp30"] else "—", "mmHg",
+                        [f"{H['bp30'][2]} mediciones · {H['bp_cat'].lower()}" if H["bp30"] else "sin mediciones en 30 días"])])
+                    bp_ = H["bp"].iloc[::-1]
+                    all_b = st.toggle(f"Mostrar las {len(bp_)}", value=False, key="mob_sal_bpall") if len(bp_) > 10 else True
+                    st.markdown(_rows([(f'{i:%d/%m/%y} · <b>{fnum(r_["systolic"])}/{fnum(r_["diastolic"])}</b>',
+                                        f'<span style="color:{BP_TXT[bp_category(r_["systolic"], r_["diastolic"])]}">'
+                                        f'{bp_category(r_["systolic"], r_["diastolic"]).lower()}</span>')
+                                       for i, r_ in (bp_ if all_b else bp_.head(10)).iterrows()]), unsafe_allow_html=True)
+                    st.plotly_chart(mini_layout(bp_fig(H, pd.Timestamp(today) - pd.Timedelta(days=364), mini=True), 140),
+                                    width="stretch", theme=None, config={"staticPlot": True})
+            else:  # Peso
+                if not len(H["w"]) and not len(H["bf"]):
+                    st.info(f"Sin pesadas: {OMRON_HINT}.")
+                else:
+                    cards(health_cards(H, ("w", "bf")))
+                    st.plotly_chart(mini_layout(weight_fig(H, pd.Timestamp(today) - pd.Timedelta(days=364), mini=True), 140),
+                                    width="stretch", theme=None, config={"staticPlot": True})
+                    wl = H["w"].iloc[::-1].head(5)
+                    st.markdown(_rows([(f'{i:%d/%m/%y} · <b>{fnum(v, 1)} kg</b>',
+                                        f'grasa {fnum(H["df"].at[i, "bodyFat"], 1)} %' if pd.notna(H["df"].at[i, "bodyFat"]) else "sin grasa")
+                                       for i, v in wl.items()]), unsafe_allow_html=True)
+                    if H["n_rep"]:
+                        st.markdown(f'<div class="note">{H["n_rep"]} pesos repetidos descartados (peso de perfil de otra app).</div>',
+                                    unsafe_allow_html=True)
+            st.markdown('<div class="note">Orientativo; no sustituye una valoración médica.</div>', unsafe_allow_html=True)
 
     # Histórico completo y material (Entrenamientos largos «Todo», Comparar y Material)
     shoes, gear_err = load_gear()
@@ -1851,9 +2465,9 @@ if MOBILE:
     st.stop()
 
 
-tab_temp, tab_cw, tab_lw, tab_fat, tab_sets, tab_long, tab_cmp, tab_cinta, tab_mat = st.tabs(
-    ["Temporada", "Semana en curso", "Última semana", "Esfuerzo y fatiga", "Hoja por Sets", "Entrenamientos largos", "Comparar",
-     "Cinta", "Material"])
+tab_temp, tab_cw, tab_lw, tab_fat, tab_sal, tab_sets, tab_long, tab_cmp, tab_cinta, tab_mat = st.tabs(
+    ["Temporada", "Semana en curso", "Última semana", "Esfuerzo y fatiga", "Salud", "Hoja por Sets", "Entrenamientos largos",
+     "Comparar", "Cinta", "Material"])
 
 with tab_temp:
     # Hero
@@ -2354,6 +2968,10 @@ with tab_fat:
             )
     else:
         st.info("Sin actividades todavía.")
+
+
+with tab_sal:
+    health_tab()
 
 
 with tab_sets:
