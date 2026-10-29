@@ -244,11 +244,12 @@ def cards(items):
 
 def html_table(df: pd.DataFrame, fmt: dict | None = None, groups: list | None = None, group_start: set | None = None,
                heat: dict | None = None, total_last: bool = False, left: set | None = None, max_height: int | None = None,
-               row_classes: list | None = None):
+               row_classes: list | None = None, sub: dict | None = None):
     """Tabla HTML legible: filas alternas, cabecera fija, primera columna fija, grupos de columnas y celdas con intensidad.
 
     fmt: {col: callable(v)->str}; groups: [(titulo, n_columnas, clase)] para una fila de cabecera agrupada;
     group_start: columnas que abren grupo (borde izquierdo); heat: {col: (max, color_rgb)}; left: columnas alineadas a la izquierda.
+    sub: nombres a mostrar para la parte tras «|» del nombre de columna (p. ej. {"A": "Actual"}).
     """
     fmt, group_start, heat, left = fmt or {}, group_start or set(), heat or {}, left or set()
     cols = list(df.columns)
@@ -257,7 +258,7 @@ def html_table(df: pd.DataFrame, fmt: dict | None = None, groups: list | None = 
         h.append("<tr class='grp'>" + "".join(
             f'<th colspan="{n}" class="{c}">{t}</th>' for t, n, c in groups) + "</tr>")
     h.append("<tr>" + "".join(
-        f'<th class="{"g " if c in group_start else ""}{"l" if c in left else ""}">{c.split("|")[-1]}</th>' for c in cols) + "</tr></thead><tbody>")
+        f'<th class="{"g " if c in group_start else ""}{"l" if c in left else ""}">{(sub or {}).get(c.split("|")[-1], c.split("|")[-1]) if "|" in c else c}</th>' for c in cols) + "</tr></thead><tbody>")
     n = len(df)
     for i, (_, row) in enumerate(df.iterrows()):
         cls = "tot" if total_last and i == n - 1 else (row_classes[i] if row_classes else "")
@@ -932,7 +933,7 @@ MAP3D_HTML = r"""<!doctype html><html><head><meta charset="utf-8"><meta name="vi
   <button id="pause">⏸</button><input type="range" id="rng" min="0" step="1"><span id="tt"></span>
  </div>
  <div class="ctl">
-  <label>Cámara <select id="cam"><option value="fix">Vista fija</option><option value="A">Seguir a A</option><option value="B">Seguir a B</option></select></label>
+  <label>Cámara <select id="cam"><option value="fix">Vista fija</option><option value="A">Seguir a la actual</option><option value="B">Seguir a la comparada</option></select></label>
   <label>Relieve <select id="exa"><option value="1">1×</option><option value="1.5" selected>1,5×</option><option value="2">2×</option></select></label>
  </div>
  <canvas id="prof" style="height:150px"></canvas>
@@ -954,10 +955,10 @@ function lineFeat(coords){ const c = coords.filter(p => p && p[0] != null && p[1
   if (c.length === 1) c.push([c[0][0] + 1e-6, c[0][1]]); if (!c.length) c.push([0, 0], [1e-6, 0]);
   return {type:'Feature', properties:{}, geometry:{type:'LineString', coordinates:c}}; }
 function label(t, f){
-  if (t >= D.endA && t >= D.endB) return D.endB < D.endA ? `B ${mmss(D.endA-D.endB)} más rápida` : `A ${mmss(D.endB-D.endA)} más rápida`;
+  if (t >= D.endA && t >= D.endB) return D.endB < D.endA ? `Comparada ${mmss(D.endA-D.endB)} más rápida` : `Actual ${mmss(D.endB-D.endA)} más rápida`;
   const g = at(D.gap, f), dd = at(D.dd, f);
   if (Math.abs(g) < 3 && Math.abs(dd) < 10) return 'Empatadas';
-  return g > 0 ? `B ${mmss(g)} por delante` : `A ${mmss(g)} por delante`;
+  return g > 0 ? `Comparada ${mmss(g)} por delante` : `Actual ${mmss(g)} por delante`;
 }
 
 // ── mapa ──
@@ -988,8 +989,8 @@ try {
     map.addSource('se', {type:'geojson', data:{type:'FeatureCollection', features:D.se.map(c => ({type:'Feature', properties:{}, geometry:{type:'Point', coordinates:c}}))}});
     map.addLayer({id:'se', type:'circle', source:'se', paint:{'circle-radius':5, 'circle-color':'#1c2420', 'circle-stroke-color':K.halo, 'circle-stroke-width':3}});
     const dot = (txt, bg, fg) => { const e=document.createElement('div'); e.className='dot'; e.style.background=bg; e.style.color=fg; e.textContent=txt; return e; };
-    mkA = new maplibregl.Marker({element:dot('A', K.A, K.onA)}).setLngLat(D.trackA[0]).addTo(map);
-    mkB = new maplibregl.Marker({element:dot('B', K.B, K.onB)}).setLngLat(D.trackB[0]).addTo(map);
+    mkA = new maplibregl.Marker({element:dot('', K.A, K.onA)}).setLngLat(D.trackA[0]).addTo(map);
+    mkB = new maplibregl.Marker({element:dot('', K.B, K.onB)}).setLngLat(D.trackB[0]).addTo(map);
     ready = true; render(tSim, true);
   });
 } catch (e) { fail('No se puede mostrar el mapa 3D: ' + e.message + '.<br>Vuelve a la vista 2D.'); }
@@ -1010,9 +1011,9 @@ function drawProfile(posA, posB, f){
   for (let k=0;k<=pX[pX.length-1];k+=5) x.fillText(k+' km', sx(k), h-4);
   const dotp = (p, col, txt) => { const yy=sy(interp(p,pX,pY)); x.beginPath(); x.arc(sx(p), yy, 6, 0, 7); x.fillStyle=col; x.fill(); x.lineWidth=1.5; x.strokeStyle=C.bg; x.stroke();
     x.fillStyle=col; x.font='bold 11px sans-serif'; x.fillText(txt, sx(p), yy-10); };
-  dotp(posB, C.B, 'B'); dotp(posA, C.A, 'A');
+  dotp(posB, C.B, ''); dotp(posA, C.A, '');
   x.textAlign='left'; x.font='11px "IBM Plex Sans",sans-serif'; x.fillStyle=C.ink;
-  x.fillText(`A ${fmt(interp(posA,pX,pY))} m · D+ ${fmt(at(D.dpA,f))} m    |    B ${fmt(interp(posB,pX,pY))} m · D+ ${fmt(at(D.dpB,f))} m`, L, 14);
+  x.fillText(`Actual ${fmt(interp(posA,pX,pY))} m · D+ ${fmt(at(D.dpA,f))} m    |    Comparada ${fmt(interp(posB,pX,pY))} m · D+ ${fmt(at(D.dpB,f))} m`, L, 14);
 }
 function drawDp(t, f){
   const [x,w,h] = canvas('dp'), L=56, R=8, Tp=8, B=18;
@@ -2593,13 +2594,16 @@ with tab_cmp:
             tip_c = st.pills("Tipo", list(CMP_SPORTS), selection_mode="multi", default=["Trail"], key="cmp_tipo") or list(CMP_SPORTS)
         years_c = sorted(all_cmp["ts"].dt.year.unique().tolist(), reverse=True)
         with f2_:
-            yr_c = st.selectbox("Año de A", ["Todos"] + years_c, key="cmp_year")
+            yr_c = st.selectbox("Año de la carrera actual", ["Todos"] + years_c, key="cmp_year")
         sp_sel = sum((CMP_SPORTS[t_] for t_ in tip_c), [])
         pool = all_cmp[all_cmp["sport"].isin(sp_sel)]
         pool_a = pool if yr_c == "Todos" else pool[pool["ts"].dt.year == yr_c]
         info_c = all_cmp.set_index("id")
         lab_c = lambda i: (f"{info_c.loc[i, 'ts']:%d/%m/%y} · {str(info_c.loc[i, 'name'])[:34]} · "  # noqa: E731
                            f"{fnum(info_c.loc[i, 'km'], 1)} km · {fnum(info_c.loc[i, 'dp'])} m")
+        # Igual que lab_c, con el tiempo en movimiento detrás de la distancia (selector de la carrera a comparar)
+        lab_t = lambda i: (f"{info_c.loc[i, 'ts']:%d/%m/%y} · {str(info_c.loc[i, 'name'])[:34]} · "  # noqa: E731
+                           f"{fnum(info_c.loc[i, 'km'], 1)} km · {hms(info_c.loc[i, 'secs'])} · {fnum(info_c.loc[i, 'dp'])} m")
         if not len(pool_a):
             st.info("No hay actividades con esos filtros.")
             st.stop()
@@ -2611,17 +2615,17 @@ with tab_cmp:
             a_, b_ = st.session_state.get("cmp_a"), st.session_state.get("cmp_b")
             if a_ and b_:
                 st.session_state["cmp_a"], st.session_state["cmp_b"] = b_, a_
-                st.session_state["cmp_b_for"] = b_           # mantener la B intercambiada
+                st.session_state["cmp_b_for"] = b_           # mantener la carrera a comparar intercambiada
                 st.session_state["cmp_year"] = "Todos"
 
         s1_, s2_ = st.columns([4, 1.3], vertical_alignment="bottom")
         with s1_:
-            act_a = st.selectbox("Actividad A", opts_a, format_func=lab_c, key="cmp_a")
+            act_a = st.selectbox("Carrera actual", opts_a, format_func=lab_c, key="cmp_a")
         with s2_:
             st.button("⇅ Intercambiar", on_click=_swap, width="stretch", key="cmp_swap")
         ra = info_c.loc[act_a]
 
-        # Rutas parecidas a A (distancia ±5 %, D+ ±7 %), comprobadas con GPS
+        # Rutas parecidas a la carrera actual (distancia ±5 %, D+ ±7 %), comprobadas con GPS
         sim_pool = all_cmp[(all_cmp["id"] != act_a) & (all_cmp["km"].between(ra["km"] * .95, ra["km"] * 1.05))
                            & (all_cmp["dp"].between(ra["dp"] * .93, ra["dp"] * 1.07))].copy()
 
@@ -2655,7 +2659,7 @@ with tab_cmp:
                 sim_pool["_o"] = sim_pool["recorrido"].map({"misma ruta": 0, "parecida": 1, "sin GPS": 2, "sin comprobar": 3, "distinta": 4})
                 sim_pool = sim_pool.sort_values(["_o", "ts"], ascending=[True, False])
         if len(sim_pool):
-            st.markdown('<div class="note" style="margin:6px 0 2px">Rutas parecidas a A (distancia ±5 %, D+ ±7 %; recorrido comprobado con GPS)</div>',
+            st.markdown('<div class="note" style="margin:6px 0 2px">Rutas parecidas a la carrera actual (distancia ±5 %, D+ ±7 %; recorrido comprobado con GPS)</div>',
                         unsafe_allow_html=True)
             badge = {"misma ruta": GREEN, "parecida": ORANGE, "distinta": RED, "sin GPS": MUTED, "sin comprobar": MUTED}
             html_table(pd.DataFrame({"Fecha": sim_pool["ts"].dt.strftime("%d/%m/%y").values, "Actividad": sim_pool["name"].values,
@@ -2665,7 +2669,7 @@ with tab_cmp:
                             "Actividad": lambda v: (str(v)[:40] + "…") if len(str(v)) > 41 else str(v),
                             "Recorrido": lambda v: f'<span class="chip" style="--c:{badge[v]};--o:{on(badge[v])}">{v}</span>'})
         else:
-            st.markdown('<div class="note">No hay otras actividades con distancia ±5 % y D+ ±7 % que A.</div>', unsafe_allow_html=True)
+            st.markdown('<div class="note">No hay otras actividades con distancia ±5 % y D+ ±7 % que la carrera actual.</div>', unsafe_allow_html=True)
         opts_b = list(sim_pool["id"]) + [i for i in pool["id"] if i != act_a and i not in set(sim_pool["id"])]
         if not opts_b:
             st.info("No hay otra actividad con la que comparar.")
@@ -2676,15 +2680,15 @@ with tab_cmp:
                 st.session_state["cmp_b"] = opts_b[0]
         st.session_state["cmp_b_for"] = act_a
         sim_ids = set(sim_pool["id"])
-        act_b = st.selectbox("Actividad B", opts_b, key="cmp_b",
-                             format_func=lambda i: ("≈ " if i in sim_ids else "") + lab_c(i))
+        act_b = st.selectbox("Carrera a comparar", opts_b, key="cmp_b",
+                             format_func=lambda i: ("≈ " if i in sim_ids else "") + lab_t(i))
         rb = info_c.loc[act_b]
         with st.spinner("Leyendo los datos por segundo…"):
             df_b, src_b = load_df(act_b)
 
         # ── Resumen ──
-        st.markdown(f'<div class="note" style="margin-top:8px"><span style="color:{GOLD}">●</span> A · {lab_c(act_a)}<br>'
-                    f'<span style="color:{GLACIER}">●</span> B · {lab_c(act_b)}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="note" style="margin-top:8px"><span style="color:{GOLD}">●</span> Carrera actual · {lab_c(act_a)}<br>'
+                    f'<span style="color:{GLACIER}">●</span> Carrera a comparar · {lab_c(act_b)}</div>', unsafe_allow_html=True)
         stop_a, stop_b = ra["elapsed"] - ra["secs"], rb["elapsed"] - rb["secs"]
 
         def dnum(va, vb, d=0, u="", inv=False):
@@ -2716,15 +2720,16 @@ with tab_cmp:
             ("FC media", f"{fnum(ra['hr_avg'])} ppm" if pd.notna(ra["hr_avg"]) else "—",
              f"{fnum(rb['hr_avg'])} ppm" if pd.notna(rb["hr_avg"]) else "—", dnum(ra["hr_avg"], rb["hr_avg"], 0, " ppm", inv=True)),
             ("Carga", fnum(ra["load"]), fnum(rb["load"]), dnum(ra["load"], rb["load"], 0, "", inv=True)),
-        ], columns=["Métrica", "A", "B", "Diferencia B − A"])
+        ], columns=["Métrica", "Actual", "Comparada", "Diferencia"])
         html_table(summ, left={"Métrica"})
+        st.markdown('<span class="note">Diferencia = carrera a comparar − carrera actual.</span>', unsafe_allow_html=True)
 
         notes_ = []        # «A tener en cuenta»
         if not len(df_a) or not len(df_b):
-            falta = " y ".join(x for x, d_ in (("A", df_a), ("B", df_b)) if not len(d_))
+            falta = " ni de ".join(x for x, d_ in (("la carrera actual", df_a), ("la carrera a comparar", df_b)) if not len(d_))
             st.warning(f"No hay datos por segundo de {falta} (ni en intervals.icu ni en el fichero original): solo se muestra el resumen.")
         else:
-            for lab_, d_, r_, src_ in (("A", df_a, ra, src_a), ("B", df_b, rb, src_b)):
+            for lab_, d_, r_, src_ in (("la carrera actual", df_a, ra, src_a), ("la carrera a comparar", df_b, rb, src_b)):
                 mv = stream_stats(d_)["mov"]
                 if r_["secs"] and abs(mv - r_["secs"]) / r_["secs"] > 0.02:
                     notes_.append(f"En {lab_}, el tiempo en movimiento calculado por segundo ({hms(mv)}) difiere más de un 2 % "
@@ -2733,6 +2738,7 @@ with tab_cmp:
                     notes_.append(f"Los datos por segundo de {lab_} salen del fichero original del reloj (intervals.icu no los devolvió).")
 
             # ── Bandas de pendiente ──
+            SUB_AB = {"A": "Actual", "B": "Comparada"}            # cabeceras «Km|A» → «Actual»
             st.subheader("Por pendiente")
             ba, bb = grade_bands(df_a), grade_bands(df_b)
             vv = lambda r_: r_["vam"] if pd.notna(r_["vam"]) else r_["vdesc"]  # noqa: E731
@@ -2745,17 +2751,17 @@ with tab_cmp:
             bt = bt[["Pendiente", "Km|A", "Km|B", "Tiempo|A", "Tiempo|B", "Ritmo|A", "Ritmo|B", "VAM / bajada|A", "VAM / bajada|B", "Δ m/h", "FC|A", "FC|B"]]
             nf = lambda d, u="": (lambda v: "—" if pd.isna(v) else f"{fnum(v, d)}{u}")  # noqa: E731
             dcol = lambda v: "—" if pd.isna(v) else f'<span style="color:{GREEN if v > 0 else RED if v < 0 else MUTED}">{"+" if v > 0 else "−" if v < 0 else ""}{fnum(abs(v))}</span>'  # noqa: E731
-            html_table(bt, left={"Pendiente"}, group_start={"Km|A", "Tiempo|A", "Ritmo|A", "VAM / bajada|A", "FC|A"},
+            html_table(bt, left={"Pendiente"}, sub=SUB_AB, group_start={"Km|A", "Tiempo|A", "Ritmo|A", "VAM / bajada|A", "FC|A"},
                        groups=[("", 1, ""), ("Km", 2, "g"), ("Tiempo mov.", 2, "g"), ("Ritmo min/km", 2, "g"),
                                ("VAM / bajada m/h", 3, "g"), ("FC media", 2, "g")],
                        fmt={"Km|A": nf(1), "Km|B": nf(1), "Tiempo|A": hms, "Tiempo|B": hms, "Ritmo|A": mmss, "Ritmo|B": mmss,
                             "VAM / bajada|A": nf(0), "VAM / bajada|B": nf(0), "Δ m/h": dcol, "FC|A": nf(0), "FC|B": nf(0)})
             st.markdown('<span class="note">En subidas, VAM (metros subidos por hora); en bajadas, metros bajados por hora. '
-                        'Δ en verde: B sube o baja más rápido que A.</span>', unsafe_allow_html=True)
+                        'Δ en verde: la carrera a comparar sube o baja más rápido que la actual.</span>', unsafe_allow_html=True)
             g1_, g2_ = st.columns(2)
             with g1_:
                 f_v = go.Figure()
-                for lab_, b_, c_ in (("A", ba, GOLD), ("B", bb, GLACIER)):
+                for lab_, b_, c_ in (("Actual", ba, GOLD), ("Comparada", bb, GLACIER)):
                     f_v.add_bar(x=b_["band"], y=[vv(r_) for _, r_ in b_.iterrows()], name=lab_, marker_color=c_,
                                 hovertemplate="%{x} · %{y:.0f} m/h<extra>" + lab_ + "</extra>")
                 f_v.update_layout(barmode="group")
@@ -2764,7 +2770,7 @@ with tab_cmp:
                 st.plotly_chart(plot_layout(f_v, 280), width="stretch", theme=None)
             with g2_:
                 f_h = go.Figure()
-                for lab_, b_, c_ in (("A", ba, GOLD), ("B", bb, GLACIER)):
+                for lab_, b_, c_ in (("Actual", ba, GOLD), ("Comparada", bb, GLACIER)):
                     f_h.add_bar(x=b_["band"], y=b_["hr"], name=lab_, marker_color=c_, hovertemplate="%{x} · %{y:.0f} ppm<extra>" + lab_ + "</extra>")
                 f_h.update_layout(barmode="group")
                 lo_ = np.nanmin([ba["hr"].min(), bb["hr"].min()]) if ba["hr"].notna().any() or bb["hr"].notna().any() else 100
@@ -2810,22 +2816,22 @@ with tab_cmp:
                     tbl = pd.DataFrame({
                         "Nº": SG["n"], "Tramo": np.where(SG["up"], "▲ Subida", "▼ Bajada"),
                         "Altitud": [f"{fnum(r_.a0)} → {fnum(r_.a1)} m" for r_ in SG.itertuples()],
-                        "Km": SG["km"], "Pend.": SG["grade"], "Tiempo|A": SG["ta"], "Tiempo|B": SG["tb"], "Dif. B−A": SG["diff"],
+                        "Km": SG["km"], "Pend.": SG["grade"], "Tiempo|A": SG["ta"], "Tiempo|B": SG["tb"], "Diferencia": SG["diff"],
                         "VAM / bajada|A": SG["ra"], "VAM / bajada|B": SG["rb"], "FC|A": SG["hra"], "FC|B": SG["hrb"]})
                     tot_row = pd.DataFrame([{"Nº": "", "Tramo": "Total", "Altitud": "", "Km": SG["km"].sum(), "Pend.": np.nan,
-                                             "Tiempo|A": SG["ta"].sum(), "Tiempo|B": SG["tb"].sum(), "Dif. B−A": SG["diff"].sum(),
+                                             "Tiempo|A": SG["ta"].sum(), "Tiempo|B": SG["tb"].sum(), "Diferencia": SG["diff"].sum(),
                                              "VAM / bajada|A": np.nan, "VAM / bajada|B": np.nan, "FC|A": np.nan, "FC|B": np.nan}])
                     tbl = pd.concat([tbl, tot_row], ignore_index=True)
                     up_c = lambda v: (f'<span style="color:{GOLD}">{v}</span>' if str(v).startswith("▲") else  # noqa: E731
                                       f'<span style="color:{GLACIER}">{v}</span>' if str(v).startswith("▼") else v)
                     dtf = lambda v: "—" if pd.isna(v) else f'<span style="color:{GREEN if v < 0 else RED if v > 0 else MUTED}">{sgn_time(v)}</span>'  # noqa: E731
-                    html_table(tbl, left={"Tramo", "Altitud"}, total_last=True, group_start={"Tiempo|A", "VAM / bajada|A", "FC|A"},
+                    html_table(tbl, left={"Tramo", "Altitud"}, sub=SUB_AB, total_last=True, group_start={"Tiempo|A", "VAM / bajada|A", "FC|A"},
                                groups=[("", 5, ""), ("Tiempo en movimiento", 3, "g"), ("VAM / bajada m/h", 2, "g"), ("FC media", 2, "g")],
                                fmt={"Km": nf(1), "Pend.": lambda v: "" if pd.isna(v) else f"{fnum(v)} %", "Tramo": up_c,
-                                    "Tiempo|A": hms, "Tiempo|B": hms, "Dif. B−A": dtf,
+                                    "Tiempo|A": hms, "Tiempo|B": hms, "Diferencia": dtf,
                                     "VAM / bajada|A": nf(0), "VAM / bajada|B": nf(0), "FC|A": nf(0), "FC|B": nf(0)})
-                    st.markdown('<span class="note">Diferencia en verde: B fue más rápida en ese tramo. Los tramos se detectan en A '
-                                'y se buscan en B por GPS (o por distancia y altitud si no hay GPS).</span>', unsafe_allow_html=True)
+                    st.markdown('<span class="note">Diferencia = carrera a comparar − carrera actual; en verde, la carrera a comparar fue más rápida en ese tramo. '
+                                'Los tramos se detectan en la carrera actual y se buscan en la otra por GPS (o por distancia y altitud si no hay GPS).</span>', unsafe_allow_html=True)
 
                     # Perfil de A con tramos
                     f_p = go.Figure()
@@ -2834,11 +2840,11 @@ with tab_cmp:
                     for r_ in SG.itertuples():
                         f_p.add_vrect(x0=r_.d0 / 1000, x1=r_.d1 / 1000, fillcolor=GOLD if r_.up else GLACIER, opacity=.10, line_width=0,
                                       annotation_text=str(r_.n), annotation_position="top", annotation_font=dict(color=INK, size=12))
-                    f_p.add_scatter(x=xa, y=df_a["alt_s"], mode="lines", line=dict(color=GOLD, width=2), name="A",
-                                    fill="tozeroy", fillcolor=rgba(GOLD, .12), hovertemplate="%{x:.1f} km · %{y:.0f} m<extra>A</extra>")
+                    f_p.add_scatter(x=xa, y=df_a["alt_s"], mode="lines", line=dict(color=GOLD, width=2), name="Actual",
+                                    fill="tozeroy", fillcolor=rgba(GOLD, .12), hovertemplate="%{x:.1f} km · %{y:.0f} m<extra>Actual</extra>")
                     f_p.update_yaxes(range=[base_, float(df_a["alt_s"].max()) + 60], ticksuffix=" m")
                     f_p.update_xaxes(ticksuffix=" km")
-                    st.markdown('<span class="note">Perfil de A con los tramos numerados</span>', unsafe_allow_html=True)
+                    st.markdown('<span class="note">Perfil de la carrera actual con los tramos numerados</span>', unsafe_allow_html=True)
                     st.plotly_chart(plot_layout(f_p, 260, legend=False), width="stretch", theme=None)
 
                     # Diferencia acumulada
@@ -2854,12 +2860,12 @@ with tab_cmp:
                     f_c.add_hline(y=0, line=dict(color=MUTED, width=1))
                     f_c.update_yaxes(ticksuffix=" min")
                     f_c.update_xaxes(ticksuffix=" km")
-                    st.markdown('<span class="note">Diferencia de tiempo B − A: por debajo de 0, B va por delante</span>', unsafe_allow_html=True)
+                    st.markdown('<span class="note">Diferencia de tiempo (carrera a comparar − actual): por debajo de 0, la carrera a comparar va por delante</span>', unsafe_allow_html=True)
                     st.plotly_chart(plot_layout(f_c, 260), width="stretch", theme=None)
 
             # FC frente a distancia
             f_hr = go.Figure()
-            for lab_, d_, c_ in (("A", df_a, GOLD), ("B", df_b, GLACIER)):
+            for lab_, d_, c_ in (("Actual", df_a, GOLD), ("Comparada", df_b, GLACIER)):
                 if d_["hr"].notna().any():
                     f_hr.add_scatter(x=d_["dist"] / 1000, y=d_["hr"].rolling(30, min_periods=5, center=True).mean(), mode="lines",
                                      line=dict(color=c_, width=1.6), name=lab_, hovertemplate="%{x:.1f} km · %{y:.0f} ppm<extra>" + lab_ + "</extra>")
@@ -2869,7 +2875,7 @@ with tab_cmp:
             st.plotly_chart(plot_layout(f_hr, 260), width="stretch", theme=None)
 
             # ── Carrera virtual ──
-            st.subheader("Carrera virtual A vs B")
+            st.subheader("Carrera virtual: actual vs. a comparar")
             race_ok = (sim_ab["label"] != "distinta") if sim_ab else same_guess
             if not race_ok:
                 st.info("Las dos actividades no siguen el mismo recorrido: la carrera virtual solo tiene sentido en la misma ruta.")
@@ -2883,9 +2889,9 @@ with tab_cmp:
                                                   default="Tiempo por distancia", key="race_y", label_visibility="collapsed") or "Tiempo por distancia"
                 R = race_cached(act_a, act_b, mov_clock, bool(sim_ab), df_a, df_b)
                 if not sim_ab:
-                    st.caption("Sin GPS en alguna de las dos: B se sitúa sobre la ruta de A por distancia (aproximado).")
+                    st.caption("Sin GPS en alguna de las dos: la carrera a comparar se sitúa sobre la ruta de la actual por distancia (aproximado).")
                 elif R["off"].mean() > .05:
-                    st.caption(f"B se sale del recorrido de A en un {fnum(R['off'].mean() * 100)} % de la ruta: ahí la diferencia es aproximada.")
+                    st.caption(f"La carrera a comparar se sale del recorrido de la actual en un {fnum(R['off'].mean() * 100)} % de la ruta: ahí la diferencia es aproximada.")
                 Tn = len(R["T"])
                 tmax = int(R["T"][-1])
                 skey = f"race_t_{act_a}_{act_b}_{int(mov_clock)}"
@@ -2908,18 +2914,18 @@ with tab_cmp:
                 def who(gt, dd):
                     if abs(gt) < 3 and abs(dd) < 10:
                         return "Empatadas", MUTED
-                    return ((f"B {mmss(abs(gt))} por delante", GLACIER) if gt > 0 else (f"A {mmss(abs(gt))} por delante", GOLD))
+                    return ((f"Comparada {mmss(abs(gt))} por delante", GLACIER) if gt > 0 else (f"Actual {mmss(abs(gt))} por delante", GOLD))
 
                 txt_, col_ = who(gt_, dd_)
                 lineA = (f"🏁 meta en {hms(R['endA'])}" if fin_a else f"{fnum(R['altTA'][k_t])} m · {fnum(R['hrA'][k_t])} ppm")
                 lineB = (f"🏁 meta en {hms(R['endB'])}" if fin_b else f"{fnum(R['altTB'][k_t])} m · {fnum(R['hrB'][k_t])} ppm")
                 if fin_a and fin_b:
-                    txt_, col_ = ((f"B {mmss(R['endA'] - R['endB'])} más rápida", GLACIER) if R["endB"] < R["endA"]
-                                  else (f"A {mmss(R['endB'] - R['endA'])} más rápida", GOLD))
+                    txt_, col_ = ((f"Comparada {mmss(R['endA'] - R['endB'])} más rápida", GLACIER) if R["endB"] < R["endA"]
+                                  else (f"Actual {mmss(R['endB'] - R['endA'])} más rápida", GOLD))
                 cards([
                     ("Tiempo de carrera", INK, hms(R["T"][k_t]), "", ["con paradas descontadas" if mov_clock else "tiempo real, con paradas"]),
-                    ("Distancia A", GOLD, fnum(R["ownA"][k_t] / 1000, 2), "km", [lineA]),
-                    ("Distancia B", GLACIER, fnum(R["ownB"][k_t] / 1000, 2), "km", [lineB]),
+                    ("Distancia actual", GOLD, fnum(R["ownA"][k_t] / 1000, 2), "km", [lineA]),
+                    ("Distancia comparada", GLACIER, fnum(R["ownB"][k_t] / 1000, 2), "km", [lineB]),
                     ("Diferencia", col_, txt_, "", ["resultado final" if fin_a and fin_b else f"{fnum(abs(dd_))} m de distancia en la ruta"]),
                 ])
 
@@ -2928,37 +2934,37 @@ with tab_cmp:
                     xk, y_ = R["dA"] / 1000, R["dT"] / 60
                     f_r = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[.72, .28], vertical_spacing=.04)
                     f_r.add_scatter(x=xk, y=np.minimum(y_, 0), fill="tozeroy", mode="lines", line=dict(color=GREEN, width=0),
-                                    fillcolor=rgba(GREEN, .45), name="B por delante", hoverinfo="skip", row=1, col=1)
+                                    fillcolor=rgba(GREEN, .45), name="Comparada por delante", hoverinfo="skip", row=1, col=1)
                     f_r.add_scatter(x=xk, y=np.maximum(y_, 0), fill="tozeroy", mode="lines", line=dict(color=RED, width=0),
-                                    fillcolor=rgba(RED, .45), name="B por detrás", hoverinfo="skip", row=1, col=1)
+                                    fillcolor=rgba(RED, .45), name="Comparada por detrás", hoverinfo="skip", row=1, col=1)
                     f_r.add_scatter(x=xk, y=y_, mode="lines", line=dict(color=INK, width=1.4), showlegend=False,
                                     customdata=np.stack([R["altA"], R["tA"], R["tB"]], axis=-1),
-                                    hovertemplate="km %{x:.2f} · %{customdata[0]:.0f} m<br>B − A: %{y:+.1f} min<extra></extra>", row=1, col=1)
+                                    hovertemplate="km %{x:.2f} · %{customdata[0]:.0f} m<br>Comparada − actual: %{y:+.1f} min<extra></extra>", row=1, col=1)
                     f_r.add_scatter(x=xk, y=R["altA"], mode="lines", fill="tozeroy", line=dict(color=GOLD, width=1.2),
-                                    fillcolor=rgba(GOLD, .14), showlegend=False, hovertemplate="km %{x:.2f} · %{y:.0f} m<extra>perfil A</extra>",
+                                    fillcolor=rgba(GOLD, .14), showlegend=False, hovertemplate="km %{x:.2f} · %{y:.0f} m<extra>perfil actual</extra>",
                                     row=2, col=1)
                     plot_layout(f_r, 380)
                     f_r.update_yaxes(ticksuffix=" min", zeroline=True, zerolinecolor=MUTED, row=1, col=1)
                     f_r.update_yaxes(range=[float(np.nanmin(R["altA"])) - 30, float(np.nanmax(R["altA"])) + 40], ticksuffix=" m", row=2, col=1)
                     f_r.update_xaxes(ticksuffix=" km", row=2, col=1)
                     f_r.add_vline(x=min(R["posA"][k_t], R["posB"][k_t]) / 1000, line=dict(color=INK, width=1, dash="dot"))
-                    st.markdown('<span class="note">Diferencia de tiempo B − A al pasar por cada punto de la ruta (por debajo de 0, B va por '
-                                'delante) y, debajo, el perfil de A. La línea de puntos es el instante elegido.</span>', unsafe_allow_html=True)
+                    st.markdown('<span class="note">Diferencia de tiempo (carrera a comparar − actual) al pasar por cada punto de la ruta (por debajo de 0, '
+                                'va por delante la carrera a comparar) y, debajo, el perfil de la carrera actual. La línea de puntos es el instante elegido.</span>', unsafe_allow_html=True)
                 else:
                     both = R["T"] <= min(R["endA"], R["endB"]) + 1
                     xk, y_ = R["T"][both] / 3600, (R["posB"] - R["posA"])[both]
                     f_r = go.Figure()
                     f_r.add_scatter(x=xk, y=np.maximum(y_, 0), fill="tozeroy", mode="lines", line=dict(color=GREEN, width=0),
-                                    fillcolor=rgba(GREEN, .45), name="B por delante", hoverinfo="skip")
+                                    fillcolor=rgba(GREEN, .45), name="Comparada por delante", hoverinfo="skip")
                     f_r.add_scatter(x=xk, y=np.minimum(y_, 0), fill="tozeroy", mode="lines", line=dict(color=RED, width=0),
-                                    fillcolor=rgba(RED, .45), name="B por detrás", hoverinfo="skip")
+                                    fillcolor=rgba(RED, .45), name="Comparada por detrás", hoverinfo="skip")
                     f_r.add_scatter(x=xk, y=y_, mode="lines", line=dict(color=INK, width=1.4), showlegend=False,
-                                    hovertemplate="%{x:.2f} h · B − A: %{y:+.0f} m<extra></extra>")
+                                    hovertemplate="%{x:.2f} h · Comparada − actual: %{y:+.0f} m<extra></extra>")
                     plot_layout(f_r, 320)
                     f_r.update_yaxes(ticksuffix=" m", zeroline=True, zerolinecolor=MUTED)
                     f_r.update_xaxes(ticksuffix=" h")
                     f_r.add_vline(x=R["T"][k_t] / 3600, line=dict(color=INK, width=1, dash="dot"))
-                    st.markdown('<span class="note">Distancia que B saca a A en cada momento de la carrera (por encima de 0, B va por delante).</span>',
+                    st.markdown('<span class="note">Distancia que la carrera a comparar saca a la actual en cada momento (por encima de 0, va por delante la carrera a comparar).</span>',
                                 unsafe_allow_html=True)
                 st.plotly_chart(f_r, width="stretch", theme=None)
 
@@ -2989,7 +2995,7 @@ with tab_cmp:
                     lng_all = np.concatenate([sa_["lng"].to_numpy(), sb_["lng"].to_numpy()])
                     c_lat, c_lng = float(np.mean(lat_all)), float(np.mean(lng_all))
                     tiles = base_tiles(fondo, c_lat, c_lng)
-                    lab_a, lab_b = f"A · {ra['ts']:%d/%m/%y}", f"B · {rb['ts']:%d/%m/%y}"
+                    lab_a, lab_b = f"Actual · {ra['ts']:%d/%m/%y}", f"Comparada · {rb['ts']:%d/%m/%y}"
                     st_lat = [round(float(sa_["lat"].iloc[0]), 5), round(float(sa_["lat"].iloc[-1]), 5)]
                     st_lng = [round(float(sa_["lng"].iloc[0]), 5), round(float(sa_["lng"].iloc[-1]), 5)]
                     # perfil de la ruta (km de A) y posición de cada una sobre él
@@ -3001,13 +3007,13 @@ with tab_cmp:
                         g_dd, g_gt = race_gap(R, k)
                         t_, _c = who(g_gt, g_dd)
                         if R["T"][k] >= R["endA"] and R["T"][k] >= R["endB"]:
-                            t_ = (f"B {mmss(R['endA'] - R['endB'])} más rápida" if R["endB"] < R["endA"]
-                                  else f"A {mmss(R['endB'] - R['endA'])} más rápida")
+                            t_ = (f"Comparada {mmss(R['endA'] - R['endB'])} más rápida" if R["endB"] < R["endA"]
+                                  else f"Actual {mmss(R['endB'] - R['endA'])} más rápida")
                         return f"{hms(R['T'][k])} · {t_}"
 
                     def elev_label(k):
-                        return (f"A {fnum(alt_on(R['posA'][k]))} m · D+ {fnum(R['dpA'][k])} m   |   "
-                                f"B {fnum(alt_on(R['posB'][k]))} m · D+ {fnum(R['dpB'][k])} m")
+                        return (f"Actual {fnum(alt_on(R['posA'][k]))} m · D+ {fnum(R['dpA'][k])} m   |   "
+                                f"Comparada {fnum(alt_on(R['posB'][k]))} m · D+ {fnum(R['dpB'][k])} m")
 
                     if vista_m == "2D":
                         stepf = max(1, math.ceil(Tn / 200))
@@ -3073,13 +3079,11 @@ with tab_cmp:
                         dot_ = lambda d_, size, color, **kw: go.Scattermap(lat=d_.lat, lon=d_.lon, hoverinfo="skip", showlegend=False,  # noqa: E731
                                                                            marker=dict(size=size, color=color), **kw)
                         f_m.add_trace(dot_(d0[4], 27, "#ffffff", mode="markers"), row=1, col=1)                     # 10 borde A
-                        f_m.add_trace(dot_(d0[5], 22, TS["A"], mode="markers+text", text=["A"],
-                                           textfont=dict(color=on(TS["A"]), size=12)), row=1, col=1)               # 11
+                        f_m.add_trace(dot_(d0[5], 22, TS["A"], mode="markers"), row=1, col=1)               # 11
                         f_m.add_trace(dot_(d0[6], 27, "#ffffff", mode="markers"), row=1, col=1)                     # 12 borde B
-                        f_m.add_trace(dot_(d0[7], 22, TS["B"], mode="markers+text", text=["B"],
-                                           textfont=dict(color=on(TS["B"]), size=12)), row=1, col=1)               # 13
+                        f_m.add_trace(dot_(d0[7], 22, TS["B"], mode="markers"), row=1, col=1)               # 13
                         f_m.add_trace(go.Scatter(x=xk_m, y=yk_m, mode="lines", line=dict(color=INK, width=1.3), showlegend=False,
-                                                 hovertemplate="km %{x:.2f} · %{y:+.1f} min<extra>B − A</extra>"), row=2, col=1)     # 14
+                                                 hovertemplate="km %{x:.2f} · %{y:+.1f} min<extra>Comparada − actual</extra>"), row=2, col=1)     # 14
                         f_m.add_trace(go.Scatter(x=d0[8].x, y=d0[8].y, mode="markers", marker=dict(size=11, color=INK, line=dict(color=BG, width=2)),
                                                  showlegend=False, hoverinfo="skip"), row=2, col=1)                                 # 15
                         f_m.add_trace(go.Scatter(x=rd(prof_x, 3), y=rd(prof_y, 0), mode="lines", line=dict(color=MUTED, width=1.4),
@@ -3088,16 +3092,16 @@ with tab_cmp:
                                                  fillcolor=rgba(GOLD, .28), showlegend=False, hoverinfo="skip"), row=3, col=1)       # 17
                         f_m.add_trace(go.Scatter(x=d0[10].x, y=d0[10].y, mode="lines", fill="tozeroy", line=dict(color=GLACIER, width=2),
                                                  fillcolor=rgba(GLACIER, .22), showlegend=False, hoverinfo="skip"), row=3, col=1)    # 18
-                        f_m.add_trace(go.Scatter(x=d0[11].x, y=d0[11].y, mode="markers+text", text=["A"], textposition="top center",
+                        f_m.add_trace(go.Scatter(x=d0[11].x, y=d0[11].y, mode="markers",
                                                  marker=dict(size=13, color=GOLD, line=dict(color=BG, width=1.5)), textfont=dict(color=GOLD),
                                                  showlegend=False, hoverinfo="skip"), row=3, col=1)                                 # 19
-                        f_m.add_trace(go.Scatter(x=d0[12].x, y=d0[12].y, mode="markers+text", text=["B"], textposition="top center",
+                        f_m.add_trace(go.Scatter(x=d0[12].x, y=d0[12].y, mode="markers",
                                                  marker=dict(size=13, color=GLACIER, line=dict(color=BG, width=1.5)), textfont=dict(color=GLACIER),
                                                  showlegend=False, hoverinfo="skip"), row=3, col=1)                                 # 20
                         f_m.add_trace(go.Scatter(x=rd(R["T"][dp_i] / 3600, 4), y=rd(R["dpA"][dp_i], 0), mode="lines", line=dict(color=GOLD, width=1.8),
-                                                 showlegend=False, hovertemplate="%{x:.2f} h · %{y:.0f} m<extra>D+ A</extra>"), row=4, col=1)  # 21
+                                                 showlegend=False, hovertemplate="%{x:.2f} h · %{y:.0f} m<extra>D+ actual</extra>"), row=4, col=1)  # 21
                         f_m.add_trace(go.Scatter(x=rd(R["T"][dp_i] / 3600, 4), y=rd(R["dpB"][dp_i], 0), mode="lines", line=dict(color=GLACIER, width=1.8),
-                                                 showlegend=False, hovertemplate="%{x:.2f} h · %{y:.0f} m<extra>D+ B</extra>"), row=4, col=1)  # 22
+                                                 showlegend=False, hovertemplate="%{x:.2f} h · %{y:.0f} m<extra>D+ comparada</extra>"), row=4, col=1)  # 22
                         f_m.add_trace(go.Scatter(x=d0[13].x, y=d0[13].y, mode="markers", marker=dict(size=10, color=GOLD, line=dict(color=BG, width=1.5)),
                                                  showlegend=False, hoverinfo="skip"), row=4, col=1)                                 # 23
                         f_m.add_trace(go.Scatter(x=d0[14].x, y=d0[14].y, mode="markers", marker=dict(size=10, color=GLACIER, line=dict(color=BG, width=1.5)),
@@ -3146,7 +3150,7 @@ with tab_cmp:
                         f_m.update_yaxes(ticksuffix=" m", row=4, col=1)
                         f_m.update_xaxes(ticksuffix=" h", row=4, col=1)
                         st.markdown('<span class="note">Pulsa ▶ (×30, ×60 o ×120 la velocidad real) o arrastra la barra. Debajo del mapa: diferencia '
-                                    'B − A a lo largo de la ruta, perfil con la posición de cada una y D+ acumulado frente al tiempo. '
+                                    'carrera a comparar − actual a lo largo de la ruta, perfil con la posición de cada una y D+ acumulado frente al tiempo. '
                                     '<b>Si el mapa no carga o ▶ no avanza</b> (red que bloquea los mapas), prueba otro fondo o la vista 3D.</span>',
                                     unsafe_allow_html=True)
                         st.plotly_chart(f_m, width="stretch", theme=None, config={"scrollZoom": True})
@@ -3191,13 +3195,13 @@ with tab_cmp:
                 dd_all = (R["posB"] - R["posA"])[both_k]
                 if len(dd_all):
                     pb_, pa_ = float((dd_all > 5).mean() * 100), float((dd_all < -5).mean() * 100)
-                    lec.append(f"B fue por delante el {fnum(pb_)} % del tiempo y A el {fnum(pa_)} %"
+                    lec.append(f"La carrera a comparar fue por delante el {fnum(pb_)} % del tiempo y la actual el {fnum(pa_)} %"
                                + (f" (el resto, prácticamente juntas)." if pb_ + pa_ < 97 else "."))
                 iB, iA = int(np.argmin(R["dT"])), int(np.argmax(R["dT"]))
                 if R["dT"][iB] < -5:
-                    lec.append(f"Máxima ventaja de B: {mmss(-R['dT'][iB])} min en el km {fnum(R['dA'][iB] / 1000, 1)} ({fnum(R['altA'][iB])} m).")
+                    lec.append(f"Máxima ventaja de la carrera a comparar: {mmss(-R['dT'][iB])} min en el km {fnum(R['dA'][iB] / 1000, 1)} ({fnum(R['altA'][iB])} m).")
                 if R["dT"][iA] > 5:
-                    lec.append(f"Máxima ventaja de A: {mmss(R['dT'][iA])} min en el km {fnum(R['dA'][iA] / 1000, 1)} ({fnum(R['altA'][iA])} m).")
+                    lec.append(f"Máxima ventaja de la carrera actual: {mmss(R['dT'][iA])} min en el km {fnum(R['dA'][iA] / 1000, 1)} ({fnum(R['altA'][iA])} m).")
                 sg_ = np.sign(R["dT"])
                 sg_[np.abs(R["dT"]) < 10] = 0                       # ±10 s: empate (evita falsos adelantamientos)
                 nz = np.flatnonzero(sg_)
@@ -3207,14 +3211,14 @@ with tab_cmp:
                         lec.append(f"{len(chg)} adelantamiento{'s' if len(chg) != 1 else ''}: en el km "
                                    + ", ".join(fnum(R["dA"][i] / 1000, 1) for i in chg[:6]) + ".")
                     else:
-                        lec.append("No hubo adelantamientos: " + ("B" if sg_[nz[-1]] < 0 else "A") + " fue por delante desde el principio.")
+                        lec.append("No hubo adelantamientos: " + ("la carrera a comparar" if sg_[nz[-1]] < 0 else "la carrera actual") + " fue por delante desde el principio.")
                 segs_r = find_segments(df_a, amp)
                 if segs_r:
                     ch_ = [(float(np.interp(d1, R["dA"], R["dT"]) - np.interp(d0, R["dA"], R["dT"])), d0, d1) for d0, d1 in segs_r]
                     big_r = max(ch_, key=lambda x: abs(x[0]))
                     a0_, a1_ = np.interp([big_r[1], big_r[2]], R["dA"], R["altA"])
                     lec.append(f"Donde más se abrió la diferencia: {'subida' if a1_ > a0_ else 'bajada'} del km {fnum(big_r[1] / 1000, 1)} al "
-                               f"{fnum(big_r[2] / 1000, 1)} ({fnum(a0_)} → {fnum(a1_)} m), {'B gana' if big_r[0] < 0 else 'A gana'} "
+                               f"{fnum(big_r[2] / 1000, 1)} ({fnum(a0_)} → {fnum(a1_)} m), {'gana la carrera a comparar' if big_r[0] < 0 else 'gana la actual'} "
                                f"{mmss(abs(big_r[0]))} min.")
                 st.markdown("\n".join(f"- {x}" for x in lec))
 
@@ -3223,7 +3227,7 @@ with tab_cmp:
             if ra["secs"] and rb["secs"]:
                 dmv = rb["secs"] - ra["secs"]
                 pct = dmv / ra["secs"] * 100
-                txt = (f"En movimiento, B fue {mmss(abs(dmv))} min {'más rápida' if dmv < 0 else 'más lenta'} que A ({fnum(abs(pct), 1)} %)"
+                txt = (f"En movimiento, la carrera a comparar fue {mmss(abs(dmv))} min {'más rápida' if dmv < 0 else 'más lenta'} que la actual ({fnum(abs(pct), 1)} %)"
                        if abs(dmv) >= 30 else "En movimiento, las dos tardaron prácticamente lo mismo")
                 if pd.notna(ra["hr_avg"]) and pd.notna(rb["hr_avg"]):
                     dh = rb["hr_avg"] - ra["hr_avg"]
@@ -3231,35 +3235,35 @@ with tab_cmp:
                     va_, vb_ = ra["km"] / ra["secs"], rb["km"] / rb["secs"]
                     eff = ((vb_ / rb["hr_avg"]) / (va_ / ra["hr_avg"]) - 1) * 100
                     if abs(eff) >= 1:
-                        txt += f". Velocidad por pulsación {fnum(abs(eff), 1)} % {'mejor' if eff > 0 else 'peor'} en B"
+                        txt += f". Velocidad por pulsación {fnum(abs(eff), 1)} % {'mejor' if eff > 0 else 'peor'} en la carrera a comparar"
                 ver.append(txt + ".")
             if seg_rows:
                 big = SG.loc[SG["diff"].abs().idxmax()]
                 ver.append(f"La mayor diferencia está en el tramo {int(big['n'])} ({'subida' if big['up'] else 'bajada'} "
-                           f"{fnum(big['a0'])} → {fnum(big['a1'])} m): B {mmss(abs(big['diff']))} min "
+                           f"{fnum(big['a0'])} → {fnum(big['a1'])} m): la carrera a comparar fue {mmss(abs(big['diff']))} min "
                            f"{'más rápida' if big['diff'] < 0 else 'más lenta'}.")
                 su, ba_ = SG.loc[SG["up"], "diff"].sum(), SG.loc[~SG["up"], "diff"].sum()
-                ver.append(f"En las subidas B {'gana' if su < 0 else 'pierde'} {mmss(abs(su))} min y en las bajadas "
+                ver.append(f"En las subidas la carrera a comparar {'gana' if su < 0 else 'pierde'} {mmss(abs(su))} min y en las bajadas "
                            f"{'gana' if ba_ < 0 else 'pierde'} {mmss(abs(ba_))} min.")
             else:
                 up_b = bt[bt["Pendiente"].isin(["10/20 %", "20/30 %"]) & (bt["Km|A"] >= .3) & (bt["Km|B"] >= .3)]
                 if len(up_b) and up_b["Δ m/h"].notna().any():
                     r_ = up_b.loc[up_b["Δ m/h"].abs().idxmax()]
-                    ver.append(f"En las rampas del {r_['Pendiente']}, B sube a {fnum(r_['VAM / bajada|B'])} m/h frente a "
-                               f"{fnum(r_['VAM / bajada|A'])} m/h de A.")
+                    ver.append(f"En las rampas del {r_['Pendiente']}, la carrera a comparar sube a {fnum(r_['VAM / bajada|B'])} m/h frente a "
+                               f"{fnum(r_['VAM / bajada|A'])} m/h de la actual.")
             if abs(stop_b - stop_a) >= 60:
-                ver.append(f"Tiempo parado: {mmss(stop_a)} min en A y {mmss(stop_b)} min en B.")
+                ver.append(f"Tiempo parado: {mmss(stop_a)} min en la carrera actual y {mmss(stop_b)} min en la carrera a comparar.")
             st.subheader("Qué se ve")
             st.markdown("\n".join(f"- {x}" for x in ver[:5]) or "- Sin diferencias destacables.")
 
             if (ra.get("device") or "") != (rb.get("device") or "") and ra.get("device") and rb.get("device"):
-                notes_.insert(0, f"Cambia el reloj ({str(ra['device']).replace('SUUNTO ', '')} en A, {str(rb['device']).replace('SUUNTO ', '')} en B): "
+                notes_.insert(0, f"Cambia el reloj ({str(ra['device']).replace('SUUNTO ', '')} en la carrera actual, {str(rb['device']).replace('SUUNTO ', '')} en la carrera a comparar): "
                                  "la FC de muñeca y el GPS pueden variar algo entre relojes, y la cadencia no es comparable.")
-            for lab_, r_ in (("A", ra), ("B", rb)):
+            for lab_, r_ in (("la carrera actual", ra), ("la carrera a comparar", rb)):
                 if r_["dp"] > 0 and r_["dm"] > 0 and abs(r_["dp"] - r_["dm"]) / max(r_["dp"], r_["dm"]) > .07:
                     notes_.append(f"En {lab_} el D+ ({fnum(r_['dp'])} m) y el D− ({fnum(r_['dm'])} m) difieren más de un 7 %: "
                                   "puede ser una variante de la ruta o un error de altitud.")
-            for lab_, d_ in (("A", df_a), ("B", df_b)):
+            for lab_, d_ in (("la carrera actual", df_a), ("la carrera a comparar", df_b)):
                 hr_ = d_["hr"]
                 if hr_.notna().sum() > 300:
                     jumps = int((hr_.diff(5).abs() > 30).sum())
@@ -3269,6 +3273,6 @@ with tab_cmp:
                     if jumps > 5 or run_ >= 60:
                         notes_.append(f"La FC de {lab_} tiene saltos bruscos o tramos a FC máxima bajando: puede ser un error del sensor.")
             if do_seg and not sim_ab:
-                notes_.append("Sin GPS, los tramos de B se sitúan por distancia y altitud: tómalo como aproximado.")
+                notes_.append("Sin GPS, los tramos de la carrera a comparar se sitúan por distancia y altitud: tómalo como aproximado.")
             st.subheader("A tener en cuenta")
             st.markdown("\n".join(f"- {x}" for x in notes_) if notes_ else "- Nada especial: datos completos y mismo reloj.")
