@@ -2601,7 +2601,7 @@ with tab_cmp:
         info_c = all_cmp.set_index("id")
         lab_c = lambda i: (f"{info_c.loc[i, 'ts']:%d/%m/%y} · {str(info_c.loc[i, 'name'])[:34]} · "  # noqa: E731
                            f"{fnum(info_c.loc[i, 'km'], 1)} km · {fnum(info_c.loc[i, 'dp'])} m")
-        # Igual que lab_c, con el tiempo en movimiento detrás de la distancia (selector de la carrera a comparar)
+        # Igual que lab_c, con el tiempo en movimiento detrás de la distancia (selectores de las dos carreras)
         lab_t = lambda i: (f"{info_c.loc[i, 'ts']:%d/%m/%y} · {str(info_c.loc[i, 'name'])[:34]} · "  # noqa: E731
                            f"{fnum(info_c.loc[i, 'km'], 1)} km · {hms(info_c.loc[i, 'secs'])} · {fnum(info_c.loc[i, 'dp'])} m")
         if not len(pool_a):
@@ -2620,7 +2620,7 @@ with tab_cmp:
 
         s1_, s2_ = st.columns([4, 1.3], vertical_alignment="bottom")
         with s1_:
-            act_a = st.selectbox("Carrera actual", opts_a, format_func=lab_c, key="cmp_a")
+            act_a = st.selectbox("Carrera actual", opts_a, format_func=lab_t, key="cmp_a")
         with s2_:
             st.button("⇅ Intercambiar", on_click=_swap, width="stretch", key="cmp_swap")
         ra = info_c.loc[act_a]
