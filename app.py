@@ -1494,7 +1494,7 @@ def mobile_view():
     p_dp, lab_p = prev_to_date("out_dp")
     p_km, _ = prev_to_date("out_km")
     no_prev = not len(df_p)
-    with st.expander(f"**Temporada {year}** · {fnum(T['dp'])} m D+"):
+    with st.expander(f"**Temporada {year}** · {fnum(T['dp'])} m D+", key="mob_x_temp"):
         cards([("D+", GOLD, fnum(T["dp"]), "m", [f"sin datos de {year - 1}" if no_prev else delta_html(T["dp"], p_dp, lab_p)]),
                ("Km", INK, fnum(T["km"], 1), "km", [f"sin datos de {year - 1}" if no_prev else delta_html(T["km"], p_km, lab_p)])])
         if len(df_y) or len(df_p):
@@ -1517,7 +1517,7 @@ def mobile_view():
     CW, GOAL, PROJ = summary_week()
     pct_dp = CW["dp"] / GOAL["dp"] * 100 if GOAL["dp"] > 0 else None
     with st.expander(f"**Semana en curso** · {fnum(CW['dp'])} m D+" + (f" · {fnum(pct_dp)} % del objetivo" if pct_dp is not None else ""),
-                     expanded=True):
+                     expanded=True, key="mob_x_cw"):
         it_ = []
         for k, lab, col, unit, dec in [m for m in TRK if m[0] in ("dp", "km", "h")]:
             g_ = GOAL[k]
@@ -1531,7 +1531,7 @@ def mobile_view():
                     'en la barra lateral.</div>', unsafe_allow_html=True)
 
     # 3 · Última semana
-    with st.expander(f"**Última semana** · {fnum(LW['dp'])} m D+ · {fnum(LW['km'], 1)} km"):
+    with st.expander(f"**Última semana** · {fnum(LW['dp'])} m D+ · {fnum(LW['km'], 1)} km", key="mob_x_lw"):
         cards([(lab, col, fnum(LW[k], d), u, [delta_html(LW[k], PW[k], "sem. anterior"), delta_html(LW[k], AVG[k], "media 8 sem")])
                for k, lab, col, u, d in [m for m in WKM if m[0] in ("dp", "km", "load", "kmE")]])
         st.markdown(f'<div class="note">{last_mon:%d/%m} – {last_mon + dt.timedelta(days=6):%d/%m}</div>', unsafe_allow_html=True)
@@ -1544,7 +1544,7 @@ def mobile_view():
         lab4 = f"**Esfuerzo y fatiga** · Balance {tsb_txt} · :{ZONE_MD.get(SF['tc'], 'gray')}[{SF['tz']}]"
     else:
         lab4 = "**Esfuerzo y fatiga** · sin datos"
-    with st.expander(lab4, expanded=True):
+    with st.expander(lab4, expanded=True, key="mob_x_fat"):
         if not SF:
             st.info("Sin actividades todavía.")
         else:
@@ -1557,96 +1557,257 @@ def mobile_view():
             ])
             st.markdown(f'<div class="reading" style="--c:{SF["tc"]}">{SF["text"]}</div>', unsafe_allow_html=True)
 
-    # 5 · Hoja por Sets (mes y Set de la fecha de referencia)
-    ref = today if year == now_y else dt.date(year, 12, 31)
-    m0 = ref.replace(day=1)
-    pm_end = m0 - dt.timedelta(days=1)
-    pm0 = pm_end.replace(day=1)
-    dsum = lambda a_, b_: float(all_df.loc[(all_df["date"] >= a_) & (all_df["date"] <= b_), "out_dp"].sum()) if len(all_df) else 0.0  # noqa: E731
-    mtd, pm_same = dsum(m0, ref), dsum(pm0, min(pm_end, pm0 + dt.timedelta(days=ref.day - 1)))
-    pm_full = dsum(pm0, pm_end)
-    m_last = ((m0 + dt.timedelta(days=32)).replace(day=1) - dt.timedelta(days=1)).day
-    si = min((ref.day - 1) // 7, 4) + 1
-    s_from, s_to = 7 * (si - 1) + 1, (7 * si if si < 5 else 31)
-    set_dp = dsum(m0 + dt.timedelta(days=s_from - 1), ref)
-    set_prev = dsum(pm0 + dt.timedelta(days=s_from - 1), min(pm_end, pm0 + dt.timedelta(days=s_to - 1)))
-    with st.expander(f"**Hoja por Sets** · {MES[ref.month - 1]}: {fnum(mtd)} m D+"):
-        cards([
-            (f"D+ {MES[ref.month - 1].lower()}", GOLD, fnum(mtd), "m",
-             [delta_html(mtd, pm_same, f"{MES[pm0.month - 1].lower()} a esta altura"), f"{MES[pm0.month - 1]} completo: {fnum(pm_full)} m"]),
-            (f"Set {si} · {s_from}–{min(s_to, m_last)}",
-             ORANGE, fnum(set_dp), "m", [f"mismo Set de {MES[pm0.month - 1].lower()}: {fnum(set_prev)} m"]),
-        ])
-        st.markdown('<div class="note">Set = bloque de 7 días del mes (1–7, 8–14, 15–21, 22–28, 29–31).</div>', unsafe_allow_html=True)
-
-    # 6 · Entrenamientos largos (filtro por defecto de la pestaña: ≥ 500 m D+ en la temporada)
-    lr_ = df_y[df_y["sport"].isin(OUT) & (df_y["dp"] >= 500)].sort_values("ts", ascending=False) if len(df_y) else df_y
-    with st.expander(f"**Entrenamientos largos** · {len(lr_)} en {year}"):
-        if not len(lr_):
-            st.info(f"Sin carreras de 500 m D+ o más en {year}.")
-        else:
-            st.markdown(_rows([(f'{r_["ts"]:%d/%m/%y} · {_html.escape(str(r_["name"]))}',
-                                f'{fnum(r_["km"], 1)} km · {fnum(r_["dp"])} m D+ · {_hm(r_["elapsed"])} h')
-                               for _, r_ in lr_.head(3).iterrows()]), unsafe_allow_html=True)
-            st.markdown('<div class="note">Los 3 últimos con 500 m D+ o más (tiempo total).</div>', unsafe_allow_html=True)
-
-    # Histórico completo y material (para Comparar y Material)
+    # Histórico completo y material (Entrenamientos largos «Todo», Comparar y Material)
     shoes, gear_err = load_gear()
     hist = load_hist(shoes)
 
-    # 7 · Comparar: última actividad de trail frente a la ruta más parecida
-    cmp_lab, cmp_body = "**Comparar** · sin trail", None
-    trail = hist[hist["sport"] == "TrailRun"].sort_values("ts", ascending=False) if len(hist) else hist
-    if len(trail):
-        ra = trail.iloc[0]
-        pool_ = hist[hist["sport"].isin(["TrailRun", "Run", "Hike", "Walk"]) & (hist["id"] != ra["id"])
-                     & hist["km"].between(ra["km"] * .95, ra["km"] * 1.05) & hist["dp"].between(ra["dp"] * .93, ra["dp"] * 1.07)]
-        rb, sim_ = None, None
-        if len(pool_):
-            pool_ = pool_.assign(_k=(pool_["km"] / ra["km"] - 1).abs() + (pool_["dp"] / max(1, ra["dp"]) - 1).abs())
-            rb = pool_.nsmallest(1, "_k").iloc[0]
-            with st.spinner("Comprobando el recorrido con el GPS…"):
-                da_, _ = act_df(ra["id"], ra["km"], ra["dp"], ra["secs"])
-                db_, _ = act_df(rb["id"], rb["km"], rb["dp"], rb["secs"])
-            sim_ = route_similarity(da_, db_) if len(da_) and len(db_) else None
-            if sim_ and sim_["label"] == "distinta":
-                rb = None
-        if rb is None:
-            cmp_lab = f"**Comparar** · {ra['ts']:%d/%m}: sin rutas parecidas"
+    # 5 · Hoja por Sets: métrica y mes elegibles, los 5 Sets del mes y los últimos meses
+    ref = today if year == now_y else dt.date(year, 12, 31)
+    SET_MET = {"D+": ("out_dp", 0, "m", GOLD), "Km": ("out_km", 1, "km", INK), "Km cinta": ("cinta_km", 1, "km", GLACIER),
+               "min Gim": ("gim_min", 0, "min", GREEN)}
+
+    def msum(col_, a_, b_):
+        return float(all_df.loc[(all_df["date"] >= a_) & (all_df["date"] <= b_), col_].sum()) if len(all_df) else 0.0
+
+    def month_end(d_):
+        return (d_.replace(day=1) + dt.timedelta(days=32)).replace(day=1) - dt.timedelta(days=1)
+
+    with st.expander(f"**Hoja por Sets** · {MES[ref.month - 1]}: {fnum(msum('out_dp', ref.replace(day=1), ref))} m D+", key="mob_x_sets"):
+        met_ = st.pills("Métrica", list(SET_MET), default="D+", key="mob_set_met", label_visibility="collapsed") or "D+"
+        col_, dec_, unit_, c_met = SET_MET[met_]
+        if st.session_state.get("mob_set_mes", ref.month) not in range(1, ref.month + 1):   # p. ej. al cambiar de temporada
+            st.session_state["mob_set_mes"] = ref.month
+        if "mob_set_mes" not in st.session_state:
+            st.session_state["mob_set_mes"] = ref.month
+        mes_ = st.select_slider("Mes", options=list(range(1, ref.month + 1)), format_func=lambda m: MES[m - 1], key="mob_set_mes")
+        m0 = dt.date(year, mes_, 1)
+        m_end = min(month_end(m0), ref)                      # mes en curso: hasta hoy
+        cur_m = m_end < month_end(m0)
+        pm0 = (m0 - dt.timedelta(days=1)).replace(day=1)
+        tot_m = msum(col_, m0, m_end)
+        pm_cmp = msum(col_, pm0, min(month_end(pm0), pm0 + dt.timedelta(days=m_end.day - 1))) if cur_m else msum(col_, pm0, month_end(pm0))
+        # Sets del mes
+        sets_ = []
+        for si in range(1, 6):
+            a_ = m0 + dt.timedelta(days=7 * (si - 1))
+            if a_.month != m0.month:
+                continue
+            b_ = min(m0 + dt.timedelta(days=7 * si - 1) if si < 5 else month_end(m0), month_end(m0))
+            pa_ = pm0 + dt.timedelta(days=7 * (si - 1))
+            pv_ = msum(col_, pa_, min(pm0 + dt.timedelta(days=7 * si - 1) if si < 5 else month_end(pm0), month_end(pm0))) \
+                if pa_.month == pm0.month else 0.0
+            state_ = "futuro" if a_ > ref else ("en curso" if a_ <= ref <= b_ else "")
+            sets_.append((si, a_, b_, msum(col_, a_, min(b_, ref)) if state_ != "futuro" else None, pv_, state_))
+        best_ = max((s for s in sets_ if s[3] is not None), key=lambda s: s[3], default=None)
+        cards([
+            (f"{met_} {MES[mes_ - 1].lower()}", c_met, fnum(tot_m, dec_), unit_,
+             [delta_html(tot_m, pm_cmp, f"{MES[pm0.month - 1].lower()}{' a esta altura' if cur_m else ''}"),
+              "mes en curso" if cur_m else "mes completo"]),
+            ("Mejor Set", c_met, fnum(best_[3], dec_) if best_ else "—", unit_,
+             [f"Set {best_[0]} · {best_[1].day}–{best_[2].day}" if best_ else "sin datos",
+              f"media por Set: {fnum(tot_m / max(1, len([s for s in sets_ if s[3] is not None])), dec_)}"]),
+        ])
+        mx_ = max([s[3] for s in sets_ if s[3] is not None] + [s[4] for s in sets_] + [1.0])
+        rows_s = []
+        for si, a_, b_, v_, pv_, state_ in sets_:
+            tit = f'<b>Set {si}</b> · {a_.day}–{b_.day} {MES[mes_ - 1].lower()}' + (f' · <span style="color:{GOLD}">en curso</span>' if state_ == "en curso" else "")
+            if v_ is None:
+                sub = "pendiente"
+            else:
+                sub = (f'<b style="color:{INK}">{fnum(v_, dec_)} {unit_}</b> · {MES[pm0.month - 1].lower()}: {fnum(pv_, dec_)} {unit_}'
+                       + _bar(v_ / mx_ * 100, c_met))
+            rows_s.append((tit, sub))
+        st.markdown(_rows(rows_s), unsafe_allow_html=True)
+        # Últimos 6 meses (hasta el mes elegido), con el incremento frente al mes anterior como en la Hoja por Sets
+        st.markdown(f'<div class="eyebrow" style="margin-top:6px">Últimos meses · {met_}</div>', unsafe_allow_html=True)
+        rows_m, d_ = [], m0
+        months_ = []
+        for _ in range(6):
+            months_.append(d_)
+            d_ = (d_ - dt.timedelta(days=1)).replace(day=1)
+        mvals = {mm_: msum(col_, mm_, min(month_end(mm_), ref)) for mm_ in months_}
+        mmax = max([1.0] + list(mvals.values()))
+        for mm_ in months_:
+            v_ = msum(col_, mm_, min(month_end(mm_), ref))
+            p0_ = (mm_ - dt.timedelta(days=1)).replace(day=1)
+            pv_ = msum(col_, p0_, month_end(p0_))
+            inc_ = (v_ - pv_) / v_ * 100 if v_ > 0 else None
+            inc_txt = ("" if inc_ is None else
+                       f' · <span class="{"up" if inc_ > 0 else "down"}">{"▲" if inc_ > 0 else "▼"} {fnum(abs(inc_))} %</span> vs mes anterior')
+            rows_m.append((f'{MES[mm_.month - 1]} {str(mm_.year)[2:]}' + (" · en curso" if month_end(mm_) > ref else ""),
+                           f'<b style="color:{INK}">{fnum(v_, dec_)} {unit_}</b>{inc_txt}' + _bar(v_ / mmax * 100, c_met)))
+        st.markdown(_rows(rows_m), unsafe_allow_html=True)
+        st.markdown('<div class="note">Set = bloque de 7 días del mes (1–7, 8–14, 15–21, 22–28, 29–31). Incremento = '
+                    '(mes − mes anterior) / mes, como en la Hoja por Sets.</div>', unsafe_allow_html=True)
+
+    # 6 · Entrenamientos largos: filtros, lista y detalle del elegido
+    n500 = int((df_y["sport"].isin(OUT) & (df_y["dp"] >= 500)).sum()) if len(df_y) else 0
+    with st.expander(f"**Entrenamientos largos** · {n500} en {year}", key="mob_x_long"):
+        LP = ["90 días", "6 meses", f"Temporada {year}", "Todo"]
+        per_ = st.segmented_control("Periodo", LP, default=f"Temporada {year}", key="mob_lg_per",
+                                    label_visibility="collapsed") or f"Temporada {year}"
+        fl1, fl2 = st.columns(2)
+        with fl1:
+            dpmin = st.select_slider("D+ mínimo", options=[0, 250, 500, 750, 1000, 1500, 2000], value=500,
+                                     format_func=lambda v: f"{fnum(v)} m", key="mob_lg_dp")
+        with fl2:
+            tip_l = st.pills("Tipo", ["Trail", "Asfalto"], selection_mode="multi", default=["Trail", "Asfalto"], key="mob_lg_tipo") or []
+        ord_ = st.segmented_control("Ordenar por", ["Fecha", "D+", "Distancia", "Tiempo"], default="Fecha", key="mob_lg_ord") or "Fecha"
+        base_ = hist if per_ == "Todo" else all_df
+        if per_ == "90 días":
+            f_from, f_to = today - dt.timedelta(days=89), today
+        elif per_ == "6 meses":
+            f_from, f_to = today - dt.timedelta(days=182), today
+        elif per_ == "Todo":
+            f_from, f_to = (hist["date"].min() if len(hist) else today), today
         else:
-            dmv = float(rb["secs"] - ra["secs"])          # > 0: la última fue más rápida
-            fast = dmv > 0
-            cmp_lab = (f"**Comparar** · {ra['ts']:%d/%m}: " + (f":{'green' if fast else 'red'}[{_mmss(dmv)} "
-                       f"{'más rápida' if fast else 'más lenta'}]" if abs(dmv) >= 30 else "mismo tiempo"))
-            cmp_body = (ra, rb, dmv, sim_)
-    with st.expander(cmp_lab):
-        if not len(trail):
-            st.info("Sin actividades de trail.")
-        elif cmp_body is None:
-            st.info("Sin rutas parecidas a la última actividad.")
-            st.markdown(f'<div class="note">Última: {ra["ts"]:%d/%m/%y} · {_html.escape(str(ra["name"]))} · {fnum(ra["km"], 1)} km · '
-                        f'{fnum(ra["dp"])} m D+. Se buscan rutas con distancia ±5 % y D+ ±7 %, comprobadas con el GPS.</div>',
-                        unsafe_allow_html=True)
+            f_from, f_to = dt.date(year, 1, 1), min(dt.date(year, 12, 31), today)
+        sp_ = [{"Trail": "TrailRun", "Asfalto": "Run"}[t_] for t_ in tip_l]
+        lg_ = base_[base_["sport"].isin(sp_) & (base_["dp"] >= dpmin) & (base_["date"] >= f_from) & (base_["date"] <= f_to)] \
+            if len(base_) else base_
+        lg_ = lg_.sort_values({"Fecha": "ts", "D+": "dp", "Distancia": "km", "Tiempo": "elapsed"}[ord_], ascending=False) if len(lg_) else lg_
+        if not len(lg_):
+            st.info("Ningún entrenamiento cumple los filtros.")
         else:
-            ra, rb, dmv, sim_ = cmp_body
+            st.markdown(f'<div class="note">{len(lg_)} entrenamientos · {fnum(lg_["km"].sum(), 1)} km · {fnum(lg_["dp"].sum())} m D+ · '
+                        f'{_hm(lg_["elapsed"].sum())} h · {f_from:%d/%m/%y} – {f_to:%d/%m/%y}</div>', unsafe_allow_html=True)
+            all_l = st.toggle(f"Mostrar los {len(lg_)}", value=False, key="mob_lg_all") if len(lg_) > 10 else True
+            st.markdown(_rows([(f'{r_["ts"]:%d/%m/%y} · {_html.escape(str(r_["name"]))}',
+                                f'{fnum(r_["km"], 1)} km · {fnum(r_["dp"])} m D+ · {_hm(r_["elapsed"])} h'
+                                + (" · trail" if r_["sport"] == "TrailRun" else " · asfalto"))
+                               for _, r_ in (lg_ if all_l else lg_.head(10)).iterrows()]), unsafe_allow_html=True)
+            ids_l = list(lg_["id"])
+            if st.session_state.get("mob_lg_sel") not in ids_l:
+                st.session_state["mob_lg_sel"] = ids_l[0]
+            info_l = lg_.set_index("id")
+            sel_l = st.selectbox("Ver detalle", ids_l, key="mob_lg_sel",
+                                 format_func=lambda i: f"{info_l.loc[i, 'ts']:%d/%m/%y} · {str(info_l.loc[i, 'name'])[:30]} · "
+                                                       f"{fnum(info_l.loc[i, 'km'], 1)} km · {fnum(info_l.loc[i, 'dp'])} m")
+            r_ = info_l.loc[sel_l]
+            pace_ = f"{int(r_['pace'] // 60)}:{int(round(r_['pace'] % 60)) % 60:02d}" if pd.notna(r_["pace"]) and r_["pace"] > 0 else "—"
             cards([
-                (f"Actual · {ra['ts']:%d/%m/%y}", GOLD, _hm(ra["secs"]), "h", [f"{fnum(ra['km'], 1)} km · {fnum(ra['dp'])} m D+"]),
-                (f"Comparada · {rb['ts']:%d/%m/%y}", GLACIER, _hm(rb["secs"]), "h", [f"{fnum(rb['km'], 1)} km · {fnum(rb['dp'])} m D+"]),
+                ("Distancia", INK, fnum(r_["km"], 1), "km", [f"ritmo {pace_} min/km"]),
+                ("Desnivel", GOLD, fnum(r_["dp"]), "m", [f"D− {fnum(r_['dm'])} m · {fnum(r_['dp'] / r_['km'] if r_['km'] else 0)} m/km"]),
+                ("Tiempo total", TEAL, _hm(r_["elapsed"]), "h", [f"en movimiento {_hm(r_['secs'])} h"]),
+                ("Carga", VIOLET, fnum(r_["load"]), "", [f"FC media {fnum(r_['hr_avg'])} · máx. {fnum(r_['hr_max'])} ppm"
+                                                          if pd.notna(r_["hr_avg"]) else "sin FC"]),
             ])
-            txt_ = (f"En movimiento, la carrera actual fue <b>{_mmss(dmv)} min {'más rápida' if dmv > 0 else 'más lenta'}</b> "
-                    f"que la del {rb['ts']:%d/%m/%y}" if abs(dmv) >= 30 else
-                    f"En movimiento, las dos tardaron prácticamente lo mismo que la del {rb['ts']:%d/%m/%y}")
-            txt_ += (f" (recorrido según GPS: {sim_['label']})." if sim_ else " (sin GPS: comparadas por distancia y D+).")
-            st.markdown(f'<div class="reading" style="--c:{GREEN if dmv > 0 else RED if dmv < 0 else MUTED}">{txt_}</div>',
-                        unsafe_allow_html=True)
-            st.markdown(f'<div class="note">{_html.escape(str(ra["name"]))} · tiempo en movimiento. '
-                        'El detalle por tramos está en la pestaña Comparar de la vista completa.</div>', unsafe_allow_html=True)
+
+            def _to_cmp(aid=sel_l, sp=r_["sport"]):
+                st.session_state["mob_cmp_a"] = aid
+                t_ = {"TrailRun": "Trail", "Run": "Carrera"}.get(sp, "Trail")
+                st.session_state["mob_cmp_tipo"] = sorted(set(st.session_state.get("mob_cmp_tipo") or ["Trail"]) | {t_})
+                st.session_state["mob_x_cmp"] = True
+
+            st.button("Comparar este entrenamiento ↓", key="mob_lg_cmp", on_click=_to_cmp, width="stretch")
+
+    # 7 · Comparar: carrera actual y carrera a comparar elegibles (por defecto, la última de trail y su ruta más parecida)
+    CMPS = {"Trail": ["TrailRun"], "Carrera": ["Run"], "Caminata": ["Hike", "Walk"]}
+    all_c = hist[hist["sport"].isin(sum(CMPS.values(), []))].sort_values("ts", ascending=False) if len(hist) else hist
+    tip_c = [t_ for t_ in (st.session_state.get("mob_cmp_tipo") or ["Trail"]) if t_ in CMPS] or ["Trail"]
+    pool_c = all_c[all_c["sport"].isin(sum((CMPS[t_] for t_ in tip_c), []))] if len(all_c) else all_c
+    info_c = all_c.set_index("id") if len(all_c) else None
+    lab_m = lambda i: (f"{info_c.loc[i, 'ts']:%d/%m/%y} · {str(info_c.loc[i, 'name'])[:26]} · {fnum(info_c.loc[i, 'km'], 1)} km · "  # noqa: E731
+                       f"{_hm(info_c.loc[i, 'secs'])} · {fnum(info_c.loc[i, 'dp'])} m")
+    ra = rb = sim_ = None
+    opts_a = list(pool_c["id"]) if len(pool_c) else []
+    sim_ids, opts_b = set(), []
+    if opts_a:
+        if st.session_state.get("mob_cmp_a") not in opts_a:
+            st.session_state["mob_cmp_a"] = opts_a[0]
+        ra = info_c.loc[st.session_state["mob_cmp_a"]]
+        a_id = st.session_state["mob_cmp_a"]
+        sim_c = all_c[(all_c["id"] != a_id) & all_c["km"].between(ra["km"] * .95, ra["km"] * 1.05)
+                      & all_c["dp"].between(ra["dp"] * .93, ra["dp"] * 1.07)]
+        if len(sim_c):
+            sim_c = sim_c.assign(_k=(sim_c["km"] / ra["km"] - 1).abs() + (sim_c["dp"] / max(1, ra["dp"]) - 1).abs()).sort_values("_k")
+        sim_ids = set(sim_c["id"]) if len(sim_c) else set()
+        opts_b = list(sim_c["id"]) if len(sim_c) else []
+        opts_b += [i for i in pool_c["id"] if i != a_id and i not in sim_ids]
+        if opts_b and (st.session_state.get("mob_cmp_b") not in opts_b or st.session_state.get("mob_cmp_b_for") != a_id):
+            st.session_state["mob_cmp_b"] = opts_b[0]
+        st.session_state["mob_cmp_b_for"] = a_id
+        if opts_b:
+            rb = info_c.loc[st.session_state["mob_cmp_b"]]
+            with st.spinner("Comprobando el recorrido con el GPS…"):
+                da_, _ = act_df(a_id, ra["km"], ra["dp"], ra["secs"])
+                db_, _ = act_df(st.session_state["mob_cmp_b"], rb["km"], rb["dp"], rb["secs"])
+            sim_ = route_similarity(da_, db_) if len(da_) and len(db_) else None
+    if ra is None:
+        cmp_lab = "**Comparar** · sin actividades"
+    elif rb is None:
+        cmp_lab = f"**Comparar** · {ra['ts']:%d/%m}: sin otra actividad"
+    else:
+        dmv = float(rb["secs"] - ra["secs"])          # > 0: la carrera actual fue más rápida
+        cmp_lab = (f"**Comparar** · {ra['ts']:%d/%m} vs {rb['ts']:%d/%m/%y}: "
+                   + (f":{'green' if dmv > 0 else 'red'}[{_mmss(dmv)} {'más rápida' if dmv > 0 else 'más lenta'}]" if abs(dmv) >= 30
+                      else "mismo tiempo"))
+
+    def _swap_m():
+        a_, b_ = st.session_state.get("mob_cmp_a"), st.session_state.get("mob_cmp_b")
+        if a_ and b_:
+            st.session_state["mob_cmp_a"], st.session_state["mob_cmp_b"], st.session_state["mob_cmp_b_for"] = b_, a_, b_
+            t_ = {"TrailRun": "Trail", "Run": "Carrera", "Hike": "Caminata", "Walk": "Caminata"}.get(info_c.loc[b_, "sport"], "Trail")
+            st.session_state["mob_cmp_tipo"] = sorted(set(st.session_state.get("mob_cmp_tipo") or ["Trail"]) | {t_})
+
+    with st.expander(cmp_lab, key="mob_x_cmp"):
+        if "mob_cmp_tipo" not in st.session_state:
+            st.session_state["mob_cmp_tipo"] = ["Trail"]
+        st.pills("Tipo", list(CMPS), selection_mode="multi", key="mob_cmp_tipo", label_visibility="collapsed")
+        if ra is None:
+            st.info("No hay actividades de ese tipo.")
+        else:
+            st.selectbox("Carrera actual", opts_a, key="mob_cmp_a", format_func=lab_m)
+            if not opts_b:
+                st.info("No hay otra actividad con la que comparar.")
+            else:
+                st.selectbox("Carrera a comparar", opts_b, key="mob_cmp_b", format_func=lambda i: ("≈ " if i in sim_ids else "") + lab_m(i))
+                st.button("⇅ Intercambiar", key="mob_cmp_swap", on_click=_swap_m, width="stretch")
+                st.markdown(f'<div class="note">≈ = ruta parecida (distancia ±5 %, D+ ±7 %), las primeras de la lista. '
+                            f'{len(sim_ids)} parecida{"s" if len(sim_ids) != 1 else ""} a la carrera actual.</div>', unsafe_allow_html=True)
+                if sim_ and sim_["label"] == "distinta":
+                    st.markdown(f'<div class="reading" style="--c:{ORANGE}">Según el GPS, el recorrido es <b>distinto</b>: '
+                                'la diferencia de tiempos es solo orientativa.</div>', unsafe_allow_html=True)
+                cards([
+                    (f"Actual · {ra['ts']:%d/%m/%y}", GOLD, _hm(ra["secs"]), "h", [f"{fnum(ra['km'], 1)} km · {fnum(ra['dp'])} m D+"]),
+                    (f"Comparada · {rb['ts']:%d/%m/%y}", GLACIER, _hm(rb["secs"]), "h", [f"{fnum(rb['km'], 1)} km · {fnum(rb['dp'])} m D+"]),
+                ])
+                txt_ = (f"En movimiento, la carrera actual fue <b>{_mmss(dmv)} min {'más rápida' if dmv > 0 else 'más lenta'}</b> "
+                        f"que la del {rb['ts']:%d/%m/%y}" if abs(dmv) >= 30 else
+                        f"En movimiento, las dos tardaron prácticamente lo mismo")
+                txt_ += (f" (recorrido según GPS: {sim_['label']})." if sim_ else " (sin GPS: comparadas por distancia y D+).")
+                st.markdown(f'<div class="reading" style="--c:{GREEN if dmv > 0 else RED if dmv < 0 else MUTED}">{txt_}</div>',
+                            unsafe_allow_html=True)
+
+                def drow(lab_, va, vb, fmt_, better_low=None):
+                    if pd.isna(va) or pd.isna(vb):
+                        return (f"<b>{lab_}</b>", f"actual {fmt_(va)} · comparada {fmt_(vb)}")
+                    x_ = vb - va                                          # comparada − actual
+                    good = None if better_low is None else (x_ > 0 if better_low else x_ < 0)
+                    c_ = MUTED if good is None or abs(x_) < 1e-9 else (GREEN if good else RED)
+                    return (f"<b>{lab_}</b>", f'actual <b style="color:{INK}">{fmt_(va)}</b> · comparada {fmt_(vb)} · '
+                                              f'<span style="color:{c_}">{"+" if x_ > 0 else "−" if x_ < 0 else "±"}{fmt_(abs(x_))}</span>')
+
+                pace = lambda r__: r__["secs"] / r__["km"] if r__["km"] else np.nan  # noqa: E731
+                f_t = lambda v: "—" if pd.isna(v) else (f"{int(v // 3600)}:{int(v % 3600 // 60):02d}:{int(v % 60):02d}" if v >= 3600  # noqa: E731
+                                                       else f"{int(v // 60)}:{int(round(v % 60)) % 60:02d}")
+                st.markdown(_rows([
+                    drow("Distancia", ra["km"], rb["km"], lambda v: f"{fnum(v, 2)} km"),
+                    drow("D+", ra["dp"], rb["dp"], lambda v: f"{fnum(v)} m"),
+                    drow("Tiempo en movimiento", ra["secs"], rb["secs"], f_t, better_low=True),
+                    drow("Tiempo total", ra["elapsed"], rb["elapsed"], f_t, better_low=True),
+                    drow("Ritmo (min/km)", pace(ra), pace(rb), f_t, better_low=True),
+                    drow("FC media", ra["hr_avg"], rb["hr_avg"], lambda v: "—" if pd.isna(v) else f"{fnum(v)} ppm", better_low=True),
+                    drow("Carga", ra["load"], rb["load"], lambda v: fnum(v)),
+                ]), unsafe_allow_html=True)
+                st.markdown('<div class="note">Diferencia = comparada − actual; en verde, la carrera actual fue mejor. '
+                            'El análisis por tramos está en la pestaña Comparar de la vista completa.</div>', unsafe_allow_html=True)
 
     # 8 · Cinta
     tm_ = df_y[df_y["sport"].isin(CINTA)] if len(df_y) else df_y
     pend_ = int(tm_["incline"].isna().sum()) if len(tm_) else 0
     with st.expander(f"**Cinta** · {len(tm_)} sesiones · {fnum(tm_['dp'].sum() if len(tm_) else 0)} m D+"
-                     + (f" · :orange[{pend_} sin pendiente]" if pend_ else "")):
+                     + (f" · :orange[{pend_} sin pendiente]" if pend_ else ""), key="mob_x_cinta"):
         if not len(tm_):
             st.info(f"Sin sesiones de cinta en {year}.")
         else:
@@ -1660,7 +1821,7 @@ def mobile_view():
     SB = shoe_table(shoes, hist)
     act_ = SB[~SB["ret"]] if len(SB) else SB
     al_ = act_[act_["pct"].notna() & (act_["pct"] >= 80)] if len(act_) else act_
-    with st.expander(f"**Material** · {len(act_)} zapatillas activas" + (f" · :red[⚠ {len(al_)} aviso{'s' if len(al_) != 1 else ''}]" if len(al_) else "")):
+    with st.expander(f"**Material** · {len(act_)} zapatillas activas" + (f" · :red[⚠ {len(al_)} aviso{'s' if len(al_) != 1 else ''}]" if len(al_) else ""), key="mob_x_mat"):
         if gear_err:
             st.error(f"No se pudo leer el material de intervals.icu: {gear_err}")
         if not len(act_):
