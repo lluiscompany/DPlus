@@ -8,6 +8,7 @@ import json
 import math
 import os
 import random
+import re
 
 import numpy as np
 import pandas as pd
@@ -319,6 +320,12 @@ def map_activity(a: dict) -> dict:
 
 
 @st.cache_data(ttl=600, show_spinner=False)
+def data_loaded_at(athlete: str, years: tuple, demo: bool) -> dt.datetime:
+    """Hora de la última descarga: caduca y se borra a la vez que la caché de fetch_year."""
+    return dt.datetime.now(dt.timezone.utc)
+
+
+@st.cache_data(ttl=600, show_spinner=False)
 def fetch_year(athlete: str, key: str, year: int) -> list[dict]:
     r = requests.get(
         f"{API}/athlete/{athlete}/activities",
@@ -371,7 +378,9 @@ def to_frame(rows: list[dict], hike: bool, cinta_dp: bool = True, overrides: dic
             "incline", "gear_id", "gear_name", "device"]
     df = pd.DataFrame(rows, columns=cols)
     if df.empty:
-        return df.assign(ts=pd.Series(dtype="datetime64[ns]"), date=pd.Series(dtype=object))
+        num_ = {c: pd.Series(dtype=float) for c in ("out_km", "out_dp", "ukm", "dp_run", "km_run", "dp_hike", "dp_cinta",
+                                                       "cinta_km", "gim_min", "hours")}
+        return df.assign(ts=pd.Series(dtype="datetime64[ns]"), date=pd.Series(dtype=object), **num_)
     df["ts"] = pd.to_datetime(df["start"])
     df = df.drop_duplicates(subset=["start", "sport", "secs"]).sort_values("ts").reset_index(drop=True)
     df["date"] = df["ts"].dt.date
@@ -1123,8 +1132,35 @@ def demo_streams(aid: str, km: float, dp: float, secs: float) -> list:
 today = dt.date.today()
 now_y = today.year
 
+def _ua_is_mobile() -> bool:
+    """Navegador de móvil según el User-Agent de la petición."""
+    try:
+        ua = st.context.headers.get("User-Agent", "") or ""
+    except Exception:  # noqa: BLE001
+        ua = ""
+    return bool(re.search(r"Mobi|Android|iPhone", ua))
+
+
+# Vista móvil: ?vista=movil / ?vista=completa en la URL; si no hay parámetro, según el navegador
+if "mob_view" not in st.session_state:
+    _qv = str(st.query_params.get("vista", "")).strip().lower()
+    st.session_state["mob_view"] = _qv in ("movil", "móvil") if _qv else _ua_is_mobile()
+
+
+def _sync_view():
+    st.query_params["vista"] = "movil" if st.session_state.get("mob_view") else "completa"
+
+
+def _full_view():
+    st.session_state["mob_view"] = False
+    st.query_params["vista"] = "completa"
+
+
 with st.sidebar:
     st.markdown("### ⛰️ Llibreta D+")
+    st.toggle("📱 Vista móvil", key="mob_view", on_change=_sync_view,
+              help="Resumen de todas las pestañas en una sola página para el móvil. Guarda la dirección con ?vista=movil "
+                   "como marcador para abrirla directamente.")
     year = st.selectbox("Temporada", list(range(now_y, 2022, -1)), index=0)
     hike = st.toggle("Sumar caminatas a D+ y Km", value=False)
     cinta_dp = st.toggle("Sumar D+ de cinta (según pendiente)", value=True,
@@ -1152,6 +1188,7 @@ with st.sidebar:
     st.markdown("<div style='height:18px'></div>", unsafe_allow_html=True)
     st.segmented_control("Tema", ["🌙", "☀️"], default="🌙", key="theme_icon", label_visibility="collapsed",
                          help="Tema oscuro / claro")
+MOBILE = bool(st.session_state.get("mob_view"))
 
 # Contraseña opcional para la app
 pwd = str(get_secret("APP_PASSWORD", ""))
@@ -1184,6 +1221,8 @@ with st.spinner("Leyendo actividades de intervals.icu…"):
             errors[y] = e
             raw[y] = []
 
+DATA_TS = data_loaded_at(athlete, tuple(years_needed), demo)
+
 if year in errors:
     st.error(f"No se pudieron cargar las actividades de {year}: {errors[year]}")
     st.stop()
@@ -1200,13 +1239,14 @@ if demo:
 def prev_line(v, d, u=""):
     return f"{year - 1}: {fnum(v, d)} {u}".strip() if len(df_p) else "&nbsp;"
 
-cards([
-    ("D+", GOLD, fnum(T["dp"]), "m", [prev_line(P["dp"], 0, "m")] + ([dp_split_line(T)] if dp_split_line(T) else [])),
-    ("Km", INK, fnum(T["km"], 1), "km", [prev_line(P["km"], 1, "km")]),
-    ("Km Cinta", GLACIER, fnum(T["cinta"], 1), "km", [prev_line(P["cinta"], 1, "km")]),
-    ("min Gim", GREEN, fnum(T["gim"]), "min", [f"{fnum(T['gim'] / 60, 1)} h · {T['n']} sesiones en total"]),
-    ("Ultra Ind", RED, fnum(T["ultra"], 1), "", [prev_line(P["ultra"], 1)]),
-])
+if not MOBILE:
+    cards([
+        ("D+", GOLD, fnum(T["dp"]), "m", [prev_line(P["dp"], 0, "m")] + ([dp_split_line(T)] if dp_split_line(T) else [])),
+        ("Km", INK, fnum(T["km"], 1), "km", [prev_line(P["km"], 1, "km")]),
+        ("Km Cinta", GLACIER, fnum(T["cinta"], 1), "km", [prev_line(P["cinta"], 1, "km")]),
+        ("min Gim", GREEN, fnum(T["gim"]), "min", [f"{fnum(T['gim'] / 60, 1)} h · {T['n']} sesiones en total"]),
+        ("Ultra Ind", RED, fnum(T["ultra"], 1), "", [prev_line(P["ultra"], 1)]),
+    ])
 
 # ─────────────────────────── Última semana ───────────────────────────
 WKM = [("dp", "D+", GOLD, "m", 0), ("km", "Km", INK, "km", 1), ("cinta", "Km Cinta", GLACIER, "km", 1),
@@ -1258,6 +1298,396 @@ def zone_mono(v):
     if v is None:
         return ("Sin datos", MUTED)
     return ("Variada", GREEN) if v < 1.5 else ("Moderada", ORANGE) if v <= 2 else ("Repetitiva", RED)
+
+
+# ─────────────────────────── Material e histórico (pestañas Material, Comparar y vista móvil) ───────────────────────────
+def load_gear() -> tuple[list[dict], Exception | None]:
+    """Zapatillas de intervals.icu (o de la memoria de la sesión en DEMO)."""
+    if demo:
+        if "demo_gear" not in st.session_state:
+            st.session_state["demo_gear"] = [{**g, "reminders": [dict(r) for r in g["reminders"]]} for g in _DEMO_GEAR]
+        gear_raw = st.session_state["demo_gear"]
+    else:
+        try:
+            gear_raw = fetch_gear(athlete, key)
+        except Exception as e:  # noqa: BLE001
+            return [], e
+    return [g for g in gear_raw if (g.get("type") or "") == "Shoes"], None
+
+
+def load_hist(shoes: list[dict]) -> pd.DataFrame:
+    """Histórico completo de actividades (desde la compra más antigua o 2020), con las asignaciones de esta sesión."""
+    buy_years = [d.year for d in (iso_date(g.get("purchased")) for g in shoes) if d]
+    y0 = max(2010, min([2020] + buy_years))
+    hist_rows = []
+    with st.spinner("Leyendo el histórico de actividades…"):
+        for y in range(y0, now_y + 1):
+            if y in raw:
+                hist_rows += raw[y]
+                continue
+            try:
+                hist_rows += demo_year(y) if demo else fetch_year(athlete, key, y)
+            except Exception as e:  # noqa: BLE001
+                st.warning(f"No se pudieron leer las actividades de {y}: {e}")
+    hist = to_frame(hist_rows, True, True, st.session_state.get("incline_overrides"))
+    ov_g = st.session_state.get("gear_overrides", {})
+    if len(hist) and ov_g:   # asignaciones guardadas en esta sesión
+        m_ = hist["id"].isin(list(ov_g))
+        hist.loc[m_, "gear_id"] = hist.loc[m_, "id"].map(ov_g)
+    return hist
+
+
+SHOE_COLORS = [GOLD, GLACIER, ORANGE, GREEN, VIOLET, TEAL, RED, INK, PREV, MUTED]
+
+
+def shoe_table(shoes: list[dict], hist: pd.DataFrame) -> pd.DataFrame:
+    """Tabla base por zapatilla (km de por vida = actividades asignadas + km previos), ordenada y con color estable."""
+    base_rows = []
+    for g in shoes:
+        nt = parse_notes(g.get("notes"))
+        a_ = hist[hist["gear_id"] == g["id"]] if len(hist) else hist
+        rem, lim = km_limit(g)
+        km_all = float(a_["km"].sum()) + nt["km_previos"]
+        base_rows.append(dict(
+            id=g["id"], name=g.get("name") or "", marca=nt["marca"], modelo=nt["modelo"] or (g.get("name") or ""),
+            foto=nt["foto"], libre=nt["libre"], km_prev=nt["km_previos"], km=km_all, dp=float(a_["dp"].sum()),
+            h=float(a_["secs"].sum()) / 3600, n=len(a_), last=a_["date"].max() if len(a_) else None,
+            compra=iso_date(g.get("purchased")), retirada=iso_date(g.get("retired")), lim=lim, rem=rem,
+            pct=(km_all / lim * 100) if lim else None))
+    SB = pd.DataFrame(base_rows)
+    if len(SB):
+        SB["ret"] = SB["retirada"].notna()
+        SB["_last"] = pd.to_datetime(SB["last"])
+        # Color estable por zapatilla (orden de compra y, si no hay fecha, id): no cambia al reordenar la lista
+        SB["_compra"] = pd.to_datetime(SB["compra"])
+        c_ord = SB.sort_values(["_compra", "id"], na_position="last")["id"].tolist()
+        SB["color"] = [SHOE_COLORS[c_ord.index(i) % len(SHOE_COLORS)] for i in SB["id"]]
+        # Orden por defecto: activas y luego retiradas, cada grupo por km de por vida (desc.) y nombre (A→Z)
+        SB["_nm"] = SB["name"].str.casefold()
+        SB = SB.sort_values(["ret", "km", "_nm"], ascending=[True, False, True]).reset_index(drop=True)
+    return SB
+
+
+def act_df(aid: str, km: float, dp: float, secs: float) -> tuple[pd.DataFrame, str]:
+    """Datos por segundo de una actividad: streams de intervals.icu y, si no hay, el fichero original del reloj."""
+    if demo:
+        return streams_to_df(demo_streams(aid, float(km), float(dp), float(secs))), "demo"
+    try:
+        d_ = streams_to_df(fetch_streams(key, aid))
+    except Exception:  # noqa: BLE001
+        d_ = pd.DataFrame()
+    if len(d_):
+        return d_, "streams"
+    try:
+        d_ = streams_to_df(fetch_fit_streams(key, aid))
+    except Exception:  # noqa: BLE001
+        d_ = pd.DataFrame()
+    return d_, "fichero original" if len(d_) else "sin datos"
+
+
+# ─────────────────────────── Resúmenes comunes (pestañas y vista móvil) ───────────────────────────
+TRK = [("dp", "D+", GOLD, "m", 0), ("km", "Km", INK, "km", 1), ("kmE", "Km-esfuerzo", ORANGE, "km", 1),
+       ("h", "Horas", TEAL, "h", 1), ("load", "Carga", VIOLET, "", 0), ("n", "Sesiones", GLACIER, "", 0)]
+
+
+def summary_week() -> tuple[dict, dict, dict]:
+    """Semana en curso (lunes a hoy), objetivo (el fijado o la media de 8 semanas) y proyección al domingo."""
+    CW = W[12]
+    remaining = 6 - today.weekday()
+    GOAL = {k: (TARGETS.get(k) or AVG[k]) for k, *_ in TRK}
+    PROJ = {k: CW[k] + AVG[k] / 7 * remaining for k, *_ in TRK}
+    return CW, GOAL, PROJ
+
+
+def summary_fatigue() -> dict | None:
+    """Forma, fatiga y balance de hoy, con sus zonas y la frase de lectura."""
+    if not len(fit):
+        return None
+    cur, wk = fit.iloc[-1], fit.iloc[-8] if len(fit) > 7 else None
+    acwr = cur["atl"] / cur["ctl"] if cur["ctl"] > 0 else None
+    tz, tc = zone_tsb(cur["tsb"])
+    az, ac = zone_acwr(acwr)
+    t = f"Balance <b>{'+' if cur['tsb'] > 0 else ''}{fnum(cur['tsb'])}</b> ({tz.lower()})"
+    t += (": acumulas mucha más carga de la que tu forma absorbe; conviene uno o varios días suaves." if cur["tsb"] < -30 else
+          ": estás cargando por encima de tu forma, que es lo que hace progresar si luego descansas." if cur["tsb"] < -10 else
+          ": carga equilibrada con tu forma actual." if cur["tsb"] <= 5 else
+          ": vienes de descansar; buen momento para una sesión exigente o una carrera.")
+    if acwr:
+        t += f" Ratio agudo:crónico <b>{fnum(acwr, 2)}</b> ({az.lower()})."
+    if AVG["kmE"] > 0:
+        t += f" La última semana hiciste <b>{fnum(LW['kmE'], 1)} km-esfuerzo</b> frente a una media de {fnum(AVG['kmE'], 1)}."
+    return dict(cur=cur, wk=wk, acwr=acwr, tz=tz, tc=tc, az=az, ac=ac, text=t)
+
+
+def prev_to_date(col: str = "out_dp") -> tuple[float, str]:
+    """Total del año anterior hasta la misma fecha (o completo si la temporada elegida ya terminó)."""
+    if year == now_y and len(df_p):
+        try:
+            cut = pd.Timestamp(today.replace(year=year - 1)) + pd.Timedelta(days=1)
+        except ValueError:                     # 29 de febrero
+            cut = pd.Timestamp(dt.date(year - 1, 3, 1))
+        return float(df_p.loc[df_p["ts"] < cut, col].sum()), f"{year - 1} a misma fecha"
+    return (float(df_p[col].sum()) if len(df_p) else 0.0), str(year - 1)
+
+
+# ─────────────────────────── Vista «Resumen móvil» ───────────────────────────
+ZONE_MD = {GLACIER: "blue", MUTED: "gray", GREEN: "green", ORANGE: "orange", RED: "red"}   # color de zona → color de etiqueta
+
+
+def _hm(s_) -> str:
+    return "—" if s_ is None or pd.isna(s_) else f"{int(s_ // 3600)}:{int(s_ % 3600 // 60):02d}"
+
+
+def _mmss(s_) -> str:
+    s_ = abs(float(s_))
+    return f"{int(s_ // 3600)}:{int(s_ % 3600 // 60):02d}:{int(s_ % 60):02d}" if s_ >= 3600 else f"{int(s_ // 60)}:{int(round(s_ % 60)) % 60:02d}"
+
+
+def _bar(pct, col) -> str:
+    return f'<div class="bar"><span style="width:{max(0.0, min(100.0, float(pct))):.0f}%;--c:{col}"></span></div>'
+
+
+def _rows(items) -> str:
+    """Lista compacta de filas de 2 líneas: (título html, subtítulo html)."""
+    return '<div class="mlist">' + "".join(f'<div class="mrow"><div class="t">{t}</div><div class="s">{s_}</div></div>'
+                                           for t, s_ in items) + "</div>"
+
+
+def mobile_view():
+    st.markdown(f"""<style>
+.block-container {{ max-width: 560px !important; padding: 1.2rem 16px 3rem !important; }}
+[data-testid="stExpander"] summary {{ min-height: 48px; display: flex; align-items: center; background: {SURFACE} !important; }}
+[data-testid="stExpander"] summary:hover {{ background: {HOVER} !important; }}
+[data-testid="stExpander"] summary, [data-testid="stExpander"] summary p {{ color: {INK} !important; }}
+[data-testid="stExpander"] summary p {{ font-size: 15px; }}
+[data-testid="stExpander"] details > div {{ padding-left: 10px; padding-right: 10px; }}
+.cards {{ grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }}
+.cards > .card:last-child:nth-child(odd) {{ grid-column: 1 / -1; }}
+.card {{ padding: 10px 12px; }}
+.card .v {{ font-size: 28px; }}
+.mlist {{ border-top: 1px solid {LINE}; margin: 4px 0 8px; }}
+.mrow {{ padding: 7px 2px; border-bottom: 1px solid {GRID}; min-height: 44px; display: grid; gap: 1px; align-content: center; }}
+.mrow .t {{ font-size: 14px; color: {INK}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+.mrow .s {{ font-size: 12.5px; color: {MUTED}; font-variant-numeric: tabular-nums; }}
+.mrow .bar {{ margin-top: 4px; }}
+.stButton button {{ min-height: 44px; }}
+</style>""", unsafe_allow_html=True)
+
+    # Cabecera: fecha de los datos y actualizar
+    try:
+        from zoneinfo import ZoneInfo
+        tz_ = ZoneInfo(st.context.timezone) if getattr(st.context, "timezone", None) else None
+    except Exception:  # noqa: BLE001
+        tz_ = None
+    ts_ = DATA_TS.astimezone(tz_) if tz_ else DATA_TS.astimezone()
+    st.markdown(f'<div class="eyebrow">Resumen · temporada {year}</div>', unsafe_allow_html=True)
+    h1_, h2_ = st.columns([3, 2], vertical_alignment="center")
+    with h1_:
+        st.markdown(f'<div class="note">Datos de intervals.icu · actualizados el {ts_:%d/%m/%y} a las {ts_:%H:%M}</div>',
+                    unsafe_allow_html=True)
+    with h2_:
+        if st.button("↻ Actualizar datos", key="mob_refresh", width="stretch"):
+            st.cache_data.clear()
+            st.rerun()
+
+    # 1 · Temporada
+    p_dp, lab_p = prev_to_date("out_dp")
+    p_km, _ = prev_to_date("out_km")
+    no_prev = not len(df_p)
+    with st.expander(f"**Temporada {year}** · {fnum(T['dp'])} m D+"):
+        cards([("D+", GOLD, fnum(T["dp"]), "m", [f"sin datos de {year - 1}" if no_prev else delta_html(T["dp"], p_dp, lab_p)]),
+               ("Km", INK, fnum(T["km"], 1), "km", [f"sin datos de {year - 1}" if no_prev else delta_html(T["km"], p_km, lab_p)])])
+        if len(df_y) or len(df_p):
+            f_s = go.Figure()
+            for d_, y_, col_, dash_, w_ in ((df_p, year - 1, PREV, "dash", 1.4), (df_y, year, GOLD, "solid", 2.4)):
+                if len(d_):
+                    end_ = today if y_ == now_y else dt.date(y_, 12, 31)
+                    days_ = pd.date_range(f"{y_}-01-01", end_, freq="D")
+                    c_ = d_.groupby(d_["ts"].dt.normalize())["out_dp"].sum().reindex(days_, fill_value=0).cumsum()
+                    f_s.add_scatter(x=days_.dayofyear, y=c_.values, mode="lines", line=dict(color=col_, width=w_, dash=dash_))
+            f_s.update_layout(height=110, margin=dict(l=0, r=0, t=4, b=0), showlegend=False,
+                              paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+            f_s.update_xaxes(visible=False, range=[1, 366])
+            f_s.update_yaxes(visible=False)
+            st.plotly_chart(f_s, width="stretch", theme=None, config={"staticPlot": True})
+            st.markdown(f'<div class="note">D+ acumulado: <span style="color:{GOLD}">━ {year}</span> · '
+                        f'<span style="color:{PREV}">┅ {year - 1}</span></div>', unsafe_allow_html=True)
+
+    # 2 · Semana en curso
+    CW, GOAL, PROJ = summary_week()
+    pct_dp = CW["dp"] / GOAL["dp"] * 100 if GOAL["dp"] > 0 else None
+    with st.expander(f"**Semana en curso** · {fnum(CW['dp'])} m D+" + (f" · {fnum(pct_dp)} % del objetivo" if pct_dp is not None else ""),
+                     expanded=True):
+        it_ = []
+        for k, lab, col, unit, dec in [m for m in TRK if m[0] in ("dp", "km", "h")]:
+            g_ = GOAL[k]
+            pc = CW[k] / g_ * 100 if g_ > 0 else 0
+            it_.append((lab, col, fnum(CW[k], dec), unit, [
+                _bar(pc, col),
+                f'objetivo {fnum(g_, dec)} · <b style="color:{INK}">{fnum(pc)} %</b>' if g_ > 0 else "sin objetivo",
+                f"proyección domingo: <b style='color:{INK}'>{fnum(PROJ[k], dec)}</b>"]))
+        cards(it_)
+        st.markdown(f'<div class="note">Día {today.weekday() + 1} de 7. El objetivo es tu media de 8 semanas salvo que fijes otro '
+                    'en la barra lateral.</div>', unsafe_allow_html=True)
+
+    # 3 · Última semana
+    with st.expander(f"**Última semana** · {fnum(LW['dp'])} m D+ · {fnum(LW['km'], 1)} km"):
+        cards([(lab, col, fnum(LW[k], d), u, [delta_html(LW[k], PW[k], "sem. anterior"), delta_html(LW[k], AVG[k], "media 8 sem")])
+               for k, lab, col, u, d in [m for m in WKM if m[0] in ("dp", "km", "load", "kmE")]])
+        st.markdown(f'<div class="note">{last_mon:%d/%m} – {last_mon + dt.timedelta(days=6):%d/%m}</div>', unsafe_allow_html=True)
+
+    # 4 · Esfuerzo y fatiga
+    SF = summary_fatigue()
+    if SF:
+        cur_ = SF["cur"]
+        tsb_txt = ("+" if cur_["tsb"] > 0 else "") + fnum(cur_["tsb"])
+        lab4 = f"**Esfuerzo y fatiga** · Balance {tsb_txt} · :{ZONE_MD.get(SF['tc'], 'gray')}[{SF['tz']}]"
+    else:
+        lab4 = "**Esfuerzo y fatiga** · sin datos"
+    with st.expander(lab4, expanded=True):
+        if not SF:
+            st.info("Sin actividades todavía.")
+        else:
+            pill_ = lambda t_, c_: f'<span class="pill" style="--c:{c_}">{t_}</span>'  # noqa: E731
+            cards([
+                ("Forma (CTL)", GLACIER, fnum(cur_["ctl"]), "", ["carga media de 42 días"]),
+                ("Fatiga (ATL)", RED, fnum(cur_["atl"]), "", ["carga media de 7 días"]),
+                ("Balance (TSB)", SF["tc"], tsb_txt, "", [pill_(SF["tz"], SF["tc"])]),
+                ("Agudo:crónico", SF["ac"], fnum(SF["acwr"], 2) if SF["acwr"] else "—", "", [pill_(SF["az"], SF["ac"])]),
+            ])
+            st.markdown(f'<div class="reading" style="--c:{SF["tc"]}">{SF["text"]}</div>', unsafe_allow_html=True)
+
+    # 5 · Hoja por Sets (mes y Set de la fecha de referencia)
+    ref = today if year == now_y else dt.date(year, 12, 31)
+    m0 = ref.replace(day=1)
+    pm_end = m0 - dt.timedelta(days=1)
+    pm0 = pm_end.replace(day=1)
+    dsum = lambda a_, b_: float(all_df.loc[(all_df["date"] >= a_) & (all_df["date"] <= b_), "out_dp"].sum()) if len(all_df) else 0.0  # noqa: E731
+    mtd, pm_same = dsum(m0, ref), dsum(pm0, min(pm_end, pm0 + dt.timedelta(days=ref.day - 1)))
+    pm_full = dsum(pm0, pm_end)
+    m_last = ((m0 + dt.timedelta(days=32)).replace(day=1) - dt.timedelta(days=1)).day
+    si = min((ref.day - 1) // 7, 4) + 1
+    s_from, s_to = 7 * (si - 1) + 1, (7 * si if si < 5 else 31)
+    set_dp = dsum(m0 + dt.timedelta(days=s_from - 1), ref)
+    set_prev = dsum(pm0 + dt.timedelta(days=s_from - 1), min(pm_end, pm0 + dt.timedelta(days=s_to - 1)))
+    with st.expander(f"**Hoja por Sets** · {MES[ref.month - 1]}: {fnum(mtd)} m D+"):
+        cards([
+            (f"D+ {MES[ref.month - 1].lower()}", GOLD, fnum(mtd), "m",
+             [delta_html(mtd, pm_same, f"{MES[pm0.month - 1].lower()} a esta altura"), f"{MES[pm0.month - 1]} completo: {fnum(pm_full)} m"]),
+            (f"Set {si} · {s_from}–{min(s_to, m_last)}",
+             ORANGE, fnum(set_dp), "m", [f"mismo Set de {MES[pm0.month - 1].lower()}: {fnum(set_prev)} m"]),
+        ])
+        st.markdown('<div class="note">Set = bloque de 7 días del mes (1–7, 8–14, 15–21, 22–28, 29–31).</div>', unsafe_allow_html=True)
+
+    # 6 · Entrenamientos largos (filtro por defecto de la pestaña: ≥ 500 m D+ en la temporada)
+    lr_ = df_y[df_y["sport"].isin(OUT) & (df_y["dp"] >= 500)].sort_values("ts", ascending=False) if len(df_y) else df_y
+    with st.expander(f"**Entrenamientos largos** · {len(lr_)} en {year}"):
+        if not len(lr_):
+            st.info(f"Sin carreras de 500 m D+ o más en {year}.")
+        else:
+            st.markdown(_rows([(f'{r_["ts"]:%d/%m/%y} · {_html.escape(str(r_["name"]))}',
+                                f'{fnum(r_["km"], 1)} km · {fnum(r_["dp"])} m D+ · {_hm(r_["elapsed"])} h')
+                               for _, r_ in lr_.head(3).iterrows()]), unsafe_allow_html=True)
+            st.markdown('<div class="note">Los 3 últimos con 500 m D+ o más (tiempo total).</div>', unsafe_allow_html=True)
+
+    # Histórico completo y material (para Comparar y Material)
+    shoes, gear_err = load_gear()
+    hist = load_hist(shoes)
+
+    # 7 · Comparar: última actividad de trail frente a la ruta más parecida
+    cmp_lab, cmp_body = "**Comparar** · sin trail", None
+    trail = hist[hist["sport"] == "TrailRun"].sort_values("ts", ascending=False) if len(hist) else hist
+    if len(trail):
+        ra = trail.iloc[0]
+        pool_ = hist[hist["sport"].isin(["TrailRun", "Run", "Hike", "Walk"]) & (hist["id"] != ra["id"])
+                     & hist["km"].between(ra["km"] * .95, ra["km"] * 1.05) & hist["dp"].between(ra["dp"] * .93, ra["dp"] * 1.07)]
+        rb, sim_ = None, None
+        if len(pool_):
+            pool_ = pool_.assign(_k=(pool_["km"] / ra["km"] - 1).abs() + (pool_["dp"] / max(1, ra["dp"]) - 1).abs())
+            rb = pool_.nsmallest(1, "_k").iloc[0]
+            with st.spinner("Comprobando el recorrido con el GPS…"):
+                da_, _ = act_df(ra["id"], ra["km"], ra["dp"], ra["secs"])
+                db_, _ = act_df(rb["id"], rb["km"], rb["dp"], rb["secs"])
+            sim_ = route_similarity(da_, db_) if len(da_) and len(db_) else None
+            if sim_ and sim_["label"] == "distinta":
+                rb = None
+        if rb is None:
+            cmp_lab = f"**Comparar** · {ra['ts']:%d/%m}: sin rutas parecidas"
+        else:
+            dmv = float(rb["secs"] - ra["secs"])          # > 0: la última fue más rápida
+            fast = dmv > 0
+            cmp_lab = (f"**Comparar** · {ra['ts']:%d/%m}: " + (f":{'green' if fast else 'red'}[{_mmss(dmv)} "
+                       f"{'más rápida' if fast else 'más lenta'}]" if abs(dmv) >= 30 else "mismo tiempo"))
+            cmp_body = (ra, rb, dmv, sim_)
+    with st.expander(cmp_lab):
+        if not len(trail):
+            st.info("Sin actividades de trail.")
+        elif cmp_body is None:
+            st.info("Sin rutas parecidas a la última actividad.")
+            st.markdown(f'<div class="note">Última: {ra["ts"]:%d/%m/%y} · {_html.escape(str(ra["name"]))} · {fnum(ra["km"], 1)} km · '
+                        f'{fnum(ra["dp"])} m D+. Se buscan rutas con distancia ±5 % y D+ ±7 %, comprobadas con el GPS.</div>',
+                        unsafe_allow_html=True)
+        else:
+            ra, rb, dmv, sim_ = cmp_body
+            cards([
+                (f"Actual · {ra['ts']:%d/%m/%y}", GOLD, _hm(ra["secs"]), "h", [f"{fnum(ra['km'], 1)} km · {fnum(ra['dp'])} m D+"]),
+                (f"Comparada · {rb['ts']:%d/%m/%y}", GLACIER, _hm(rb["secs"]), "h", [f"{fnum(rb['km'], 1)} km · {fnum(rb['dp'])} m D+"]),
+            ])
+            txt_ = (f"En movimiento, la carrera actual fue <b>{_mmss(dmv)} min {'más rápida' if dmv > 0 else 'más lenta'}</b> "
+                    f"que la del {rb['ts']:%d/%m/%y}" if abs(dmv) >= 30 else
+                    f"En movimiento, las dos tardaron prácticamente lo mismo que la del {rb['ts']:%d/%m/%y}")
+            txt_ += (f" (recorrido según GPS: {sim_['label']})." if sim_ else " (sin GPS: comparadas por distancia y D+).")
+            st.markdown(f'<div class="reading" style="--c:{GREEN if dmv > 0 else RED if dmv < 0 else MUTED}">{txt_}</div>',
+                        unsafe_allow_html=True)
+            st.markdown(f'<div class="note">{_html.escape(str(ra["name"]))} · tiempo en movimiento. '
+                        'El detalle por tramos está en la pestaña Comparar de la vista completa.</div>', unsafe_allow_html=True)
+
+    # 8 · Cinta
+    tm_ = df_y[df_y["sport"].isin(CINTA)] if len(df_y) else df_y
+    pend_ = int(tm_["incline"].isna().sum()) if len(tm_) else 0
+    with st.expander(f"**Cinta** · {len(tm_)} sesiones · {fnum(tm_['dp'].sum() if len(tm_) else 0)} m D+"
+                     + (f" · :orange[{pend_} sin pendiente]" if pend_ else "")):
+        if not len(tm_):
+            st.info(f"Sin sesiones de cinta en {year}.")
+        else:
+            if pend_:
+                st.markdown(f'<div class="reading" style="--c:{ORANGE}"><b>{pend_} {"sesiones" if pend_ != 1 else "sesión"} sin pendiente</b>: '
+                            'su D+ cuenta como 0. Añádela en la pestaña Cinta de la vista completa.</div>', unsafe_allow_html=True)
+            cards([("Sesiones", GLACIER, fnum(len(tm_)), "", [f"{fnum(tm_['km'].sum(), 1)} km en {year}"]),
+                   ("D+ cinta", GOLD, fnum(tm_["dp"].sum()), "m", ["sumado al D+ total" if cinta_dp else "no se suma (desactivado)"])])
+
+    # 9 · Material
+    SB = shoe_table(shoes, hist)
+    act_ = SB[~SB["ret"]] if len(SB) else SB
+    al_ = act_[act_["pct"].notna() & (act_["pct"] >= 80)] if len(act_) else act_
+    with st.expander(f"**Material** · {len(act_)} zapatillas activas" + (f" · :red[⚠ {len(al_)} aviso{'s' if len(al_) != 1 else ''}]" if len(al_) else "")):
+        if gear_err:
+            st.error(f"No se pudo leer el material de intervals.icu: {gear_err}")
+        if not len(act_):
+            st.info("No hay zapatillas activas.")
+        else:
+            for _, r_ in al_.sort_values("pct", ascending=False).iterrows():
+                c_ = RED if r_["pct"] >= 100 else ORANGE
+                st.markdown(f'<div class="reading" style="--c:{c_}"><b>{_html.escape(r_["name"])}</b> '
+                            f'{"ha superado su límite" if r_["pct"] >= 100 else "está cerca de su límite"}: '
+                            f'{fnum(r_["km"])} de {fnum(r_["lim"])} km ({fnum(r_["pct"])} %).</div>', unsafe_allow_html=True)
+            rows_ = []
+            for _, r_ in act_.iterrows():
+                lim_ok = r_["lim"] is not None and pd.notna(r_["lim"]) and r_["lim"] > 0
+                pc = float(r_["pct"]) if lim_ok else None
+                c_ = (RED if pc >= 100 else ORANGE if pc >= 80 else GREEN) if pc is not None else MUTED
+                rows_.append((f'<span style="color:{r_["color"]}">●</span> {_html.escape(r_["name"])}',
+                              f'<b style="color:{INK}">{fnum(r_["km"])} km</b>'
+                              + (f' · {fnum(pc)} % de {fnum(r_["lim"])} km{_bar(pc, c_)}' if pc is not None else " · sin límite de km")))
+            st.markdown(_rows(rows_), unsafe_allow_html=True)
+
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+    st.button("Ver vista completa", key="mob_full", on_click=_full_view, width="stretch")
+
+
+if MOBILE:
+    mobile_view()
+    st.stop()
 
 
 tab_temp, tab_cw, tab_lw, tab_fat, tab_sets, tab_long, tab_cmp, tab_cinta, tab_mat = st.tabs(
@@ -1337,14 +1767,7 @@ with tab_temp:
             if key_ == "out_dp":
                 # Total del año (respeta los interruptores de caminata/cinta, igual que las tarjetas)
                 tot_y = float(My["out_dp"].sum())
-                if year == now_y and len(df_p):
-                    try:
-                        cut = pd.Timestamp(today.replace(year=year - 1)) + pd.Timedelta(days=1)
-                    except ValueError:                     # 29 de febrero
-                        cut = pd.Timestamp(dt.date(year - 1, 3, 1))
-                    tot_p, lab_p = float(df_p.loc[df_p["ts"] < cut, "out_dp"].sum()), f"{year - 1} a misma fecha"
-                else:
-                    tot_p, lab_p = float(df_p["out_dp"].sum()) if len(df_p) else 0.0, str(year - 1)
+                tot_p, lab_p = prev_to_date("out_dp")
                 diff_txt = ""
                 if tot_p > 0:
                     dlt = (tot_y - tot_p) / tot_p * 100
@@ -1381,11 +1804,9 @@ with tab_temp:
 
 with tab_cw:
     # ─────────────────────────── Semana en curso ───────────────────────────
-    TRK = [("dp", "D+", GOLD, "m", 0), ("km", "Km", INK, "km", 1), ("kmE", "Km-esfuerzo", ORANGE, "km", 1),
-           ("h", "Horas", TEAL, "h", 1), ("load", "Carga", VIOLET, "", 0), ("n", "Sesiones", GLACIER, "", 0)]
     dow = today.weekday()                      # 0 = lunes
     remaining = 6 - dow                        # días que quedan después de hoy
-    CW = W[12]
+    CW, GOAL, PROJ = summary_week()
 
 
     def span_tot(a: dt.date, b: dt.date) -> dict:
@@ -1395,8 +1816,6 @@ with tab_cw:
 
     SAME_LW = span_tot(last_mon, last_mon + dt.timedelta(days=dow))
     SAME_AVG = {k: float(np.mean([span_tot(ws, ws + dt.timedelta(days=dow))[k] for ws in week_starts[3:11]])) for k, *_ in TRK}
-    GOAL = {k: (TARGETS.get(k) or AVG[k]) for k, *_ in TRK}
-    PROJ = {k: CW[k] + AVG[k] / 7 * remaining for k, *_ in TRK}
 
     st.markdown(f'<div class="eyebrow" style="margin-top:18px">{cur_mon.day} {MES[cur_mon.month-1].lower()} – '
                 f'{(cur_mon + dt.timedelta(days=6)).day} {MES[(cur_mon + dt.timedelta(days=6)).month-1].lower()} · '
@@ -1661,9 +2080,9 @@ with tab_fat:
 
 
 
-    if len(fit):
-        cur, wk = fit.iloc[-1], fit.iloc[-8] if len(fit) > 7 else None
-        acwr = cur["atl"] / cur["ctl"] if cur["ctl"] > 0 else None
+    SF = summary_fatigue()
+    if SF:
+        cur, wk, acwr = SF["cur"], SF["wk"], SF["acwr"]
         wl = fit.loc[pd.Timestamp(last_mon):pd.Timestamp(last_mon + dt.timedelta(days=6)), "load"].reindex(
             pd.date_range(last_mon, periods=7), fill_value=0)
         mono = float(wl.mean() / wl.std(ddof=0)) if wl.std(ddof=0) > 0 else None
@@ -1677,8 +2096,7 @@ with tab_fat:
             good = x < 0 if invert else x > 0
             return f'<span class="{"up" if good else "down"}">{"▲" if x > 0 else "▼"} {fnum(abs(x))}</span> vs hace 7 días'
 
-        tz, tc = zone_tsb(cur["tsb"])
-        az, ac = zone_acwr(acwr)
+        tz, tc, az, ac = SF["tz"], SF["tc"], SF["az"], SF["ac"]
         mz, mc = zone_mono(mono)
         pill = lambda t, c: f'<span class="pill" style="--c:{c}">{t}</span>'  # noqa: E731
         cards([
@@ -1689,16 +2107,7 @@ with tab_fat:
             ("Monotonía sem.", mc, fnum(mono, 2) if mono else "—", "", ["Última semana completa", pill(mz, mc)]),
             ("Km-esfuerzo sem.", ORANGE, fnum(LW["kmE"], 1), "km", [delta_html(LW["kmE"], AVG["kmE"], "media 8 sem")]),
         ])
-        t = f"Balance <b>{'+' if cur['tsb'] > 0 else ''}{fnum(cur['tsb'])}</b> ({tz.lower()})"
-        t += (": acumulas mucha más carga de la que tu forma absorbe; conviene uno o varios días suaves." if cur["tsb"] < -30 else
-              ": estás cargando por encima de tu forma, que es lo que hace progresar si luego descansas." if cur["tsb"] < -10 else
-              ": carga equilibrada con tu forma actual." if cur["tsb"] <= 5 else
-              ": vienes de descansar; buen momento para una sesión exigente o una carrera.")
-        if acwr:
-            t += f" Ratio agudo:crónico <b>{fnum(acwr, 2)}</b> ({az.lower()})."
-        if AVG["kmE"] > 0:
-            t += f" La última semana hiciste <b>{fnum(LW['kmE'], 1)} km-esfuerzo</b> frente a una media de {fnum(AVG['kmE'], 1)}."
-        st.markdown(f'<div class="reading" style="--c:{tc}">{t}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="reading" style="--c:{tc}">{SF["text"]}</div>', unsafe_allow_html=True)
 
         RANGES = {"7": "Última semana", "30": "Último mes", "120": "120 días", "year": "Año vs año anterior"}
         rng = st.segmented_control("Periodo", list(RANGES), format_func=lambda k: RANGES[k], default="120",
@@ -2065,66 +2474,12 @@ with tab_mat:
     if st.session_state.get("mat_warn"):
         st.warning(st.session_state.pop("mat_warn"))
 
-    # Maestro de zapatillas (intervals.icu, o memoria de la sesión en DEMO)
-    gear_err = None
-    if demo:
-        if "demo_gear" not in st.session_state:
-            st.session_state["demo_gear"] = [{**g, "reminders": [dict(r) for r in g["reminders"]]} for g in _DEMO_GEAR]
-        gear_raw = st.session_state["demo_gear"]
-    else:
-        try:
-            gear_raw = fetch_gear(athlete, key)
-        except Exception as e:  # noqa: BLE001
-            gear_raw, gear_err = [], e
-    shoes = [g for g in gear_raw if (g.get("type") or "") == "Shoes"]
+    shoes, gear_err = load_gear()
     if gear_err:
         st.error(f"No se pudo leer el material de intervals.icu: {gear_err}")
-
-    # Histórico completo de actividades (desde la compra más antigua o 2020)
-    buy_years = [d.year for d in (iso_date(g.get("purchased")) for g in shoes) if d]
-    y0 = max(2010, min([2020] + buy_years))
-    hist_rows = []
-    with st.spinner("Leyendo el histórico de actividades…"):
-        for y in range(y0, now_y + 1):
-            if y in raw:
-                hist_rows += raw[y]
-                continue
-            try:
-                hist_rows += demo_year(y) if demo else fetch_year(athlete, key, y)
-            except Exception as e:  # noqa: BLE001
-                st.warning(f"No se pudieron leer las actividades de {y}: {e}")
-    hist = to_frame(hist_rows, True, True, st.session_state.get("incline_overrides"))
-    ov_g = st.session_state.get("gear_overrides", {})
-    if len(hist) and ov_g:   # asignaciones guardadas en esta sesión
-        m_ = hist["id"].isin(list(ov_g))
-        hist.loc[m_, "gear_id"] = hist.loc[m_, "id"].map(ov_g)
+    hist = load_hist(shoes)
     shoe_hist = hist[hist["sport"].isin(list(SHOE_SPORTS))] if len(hist) else hist
-
-    # Tabla base por zapatilla (km de por vida = actividades asignadas + km previos)
-    SHOE_COLORS = [GOLD, GLACIER, ORANGE, GREEN, VIOLET, TEAL, RED, INK, PREV, MUTED]
-    base_rows = []
-    for g in shoes:
-        nt = parse_notes(g.get("notes"))
-        a_ = hist[hist["gear_id"] == g["id"]] if len(hist) else hist
-        rem, lim = km_limit(g)
-        km_all = float(a_["km"].sum()) + nt["km_previos"]
-        base_rows.append(dict(
-            id=g["id"], name=g.get("name") or "", marca=nt["marca"], modelo=nt["modelo"] or (g.get("name") or ""),
-            foto=nt["foto"], libre=nt["libre"], km_prev=nt["km_previos"], km=km_all, dp=float(a_["dp"].sum()),
-            h=float(a_["secs"].sum()) / 3600, n=len(a_), last=a_["date"].max() if len(a_) else None,
-            compra=iso_date(g.get("purchased")), retirada=iso_date(g.get("retired")), lim=lim, rem=rem,
-            pct=(km_all / lim * 100) if lim else None))
-    SB = pd.DataFrame(base_rows)
-    if len(SB):
-        SB["ret"] = SB["retirada"].notna()
-        SB["_last"] = pd.to_datetime(SB["last"])
-        # Color estable por zapatilla (orden de compra y, si no hay fecha, id): no cambia al reordenar la lista
-        SB["_compra"] = pd.to_datetime(SB["compra"])
-        c_ord = SB.sort_values(["_compra", "id"], na_position="last")["id"].tolist()
-        SB["color"] = [SHOE_COLORS[c_ord.index(i) % len(SHOE_COLORS)] for i in SB["id"]]
-        # Orden por defecto: activas y luego retiradas, cada grupo por km de por vida (desc.) y nombre (A→Z)
-        SB["_nm"] = SB["name"].str.casefold()
-        SB = SB.sort_values(["ret", "km", "_nm"], ascending=[True, False, True]).reset_index(drop=True)
+    SB = shoe_table(shoes, hist)
     shoe_name = dict(zip(SB["id"], SB["name"])) if len(SB) else {}
     shoe_color = dict(zip(SB["id"], SB["color"])) if len(SB) else {}
 
@@ -2631,19 +2986,7 @@ with tab_cmp:
 
         def load_df(aid):
             r_ = info_c.loc[aid]
-            if demo:
-                return streams_to_df(demo_streams(aid, float(r_["km"]), float(r_["dp"]), float(r_["secs"]))), "demo"
-            try:
-                d_ = streams_to_df(fetch_streams(key, aid))
-            except Exception:  # noqa: BLE001
-                d_ = pd.DataFrame()
-            if len(d_):
-                return d_, "streams"
-            try:
-                d_ = streams_to_df(fetch_fit_streams(key, aid))
-            except Exception:  # noqa: BLE001
-                d_ = pd.DataFrame()
-            return d_, "fichero original" if len(d_) else "sin datos"
+            return act_df(aid, r_["km"], r_["dp"], r_["secs"])
 
         with st.spinner("Leyendo los datos por segundo…"):
             df_a, src_a = load_df(act_a)
