@@ -2465,9 +2465,9 @@ if MOBILE:
     st.stop()
 
 
-tab_temp, tab_cw, tab_lw, tab_fat, tab_sal, tab_sets, tab_long, tab_cmp, tab_cinta, tab_mat = st.tabs(
-    ["Temporada", "Semana en curso", "Última semana", "Esfuerzo y fatiga", "Salud", "Hoja por Sets", "Entrenamientos largos",
-     "Comparar", "Cinta", "Material"])
+tab_temp, tab_cw, tab_lw, tab_sets, tab_long, tab_cmp, tab_fat, tab_sal, tab_cinta, tab_mat = st.tabs(
+    ["Temporada", "Semana en curso", "Última semana", "Hoja por Sets", "Entrenamientos largos", "Comparar",
+     "Esfuerzo y fatiga", "Salud", "Cinta", "Material"])
 
 with tab_temp:
     # Hero
