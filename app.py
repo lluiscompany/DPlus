@@ -1984,6 +1984,333 @@ def health_tab():
             "- Se excluyen valores imposibles o dudosos (p. ej. noches de más de 14 h, que suelen sumar siestas).")
 
 
+# ─────────────────────────── Plan de entrenamiento (calendario de intervals.icu) ───────────────────────────
+# Plan 2027 tal como se definió en el chat «Plan de entrenamiento trail 2027» y se cargó en el calendario de
+# intervals.icu (objetivos semanales TARGET, notas «Fase · …» y carreras). Se usa como respaldo si no se puede leer
+# el calendario o si no tiene objetivos semanales.
+PLAN_LOCAL = dict(
+    start="2026-11-02",
+    races=[dict(name="Ultra Montseny 35K", date="2027-04-10", cat="RACE_B"),
+           dict(name="Cavalls del Vent 84K", date="2027-06-19", cat="RACE_A")],
+    # [fase, carga, horas, D+, tipo]  tipo: "" = carga, r = descarga, t = taper, R = carrera
+    plan=[
+        ["Descarga", 150, 3.5, 700, "r"],
+        ["Base 1", 290, 6, 1500, ""], ["Base 1", 300, 6, 1700, ""], ["Base 1", 180, 4, 1000, "r"],
+        ["Base 1", 305, 6.5, 1700, ""], ["Base 1", 315, 6.5, 1900, ""], ["Base 1", 320, 6.5, 2000, ""],
+        ["Navidad", 200, 4, 1000, "r"],
+        ["Base 2", 335, 7, 2000, ""], ["Base 2", 345, 7, 2200, ""], ["Base 2", 350, 7, 2300, ""], ["Base 2", 215, 4.5, 1200, "r"],
+        ["Base 2", 360, 7.5, 2300, ""], ["Base 2", 370, 7.5, 2400, ""], ["Base 2", 375, 7.5, 2500, ""], ["Descarga", 230, 5, 1200, "r"],
+        ["Específico", 390, 8, 2500, ""], ["Específico", 400, 8, 2700, ""], ["Específico", 405, 8, 2900, ""], ["Específico", 245, 5, 1400, "r"],
+        ["Específico", 420, 8.5, 3000, ""], ["Taper", 300, 6, 1800, "t"],
+        ["Ultra Montseny", 120, 2.5, 600, "R"],
+        ["Recuperación", 180, 3.5, 600, "r"],
+        ["Pico ultra", 445, 9, 3500, ""], ["Pico ultra", 455, 9.5, 3800, ""], ["Pico ultra", 470, 9.5, 4200, ""], ["Pico ultra", 280, 5.5, 1800, "r"],
+        ["Pico ultra", 475, 10, 4000, ""], ["Pico ultra", 485, 10, 4500, ""], ["Pico ultra", 490, 10, 4300, ""],
+        ["Taper", 330, 6.5, 2000, "t"],
+        ["Cavalls del Vent", 150, 3, 600, "R"],
+    ],
+    phases=[
+        dict(t="Base 1", frm=0, to=7, s=["Semana 1 de descarga por fatiga (VFC baja, FC reposo alta)", "Casi todo en zona 2, 4–5 sesiones",
+                                         "Fuerza 2×/sem: sentadilla, step-ups, excéntricos", "Larga hasta 18–20 km / 1.200 m+"]),
+        dict(t="Base 2", frm=8, to=15, s=["Larga 22–25 km / ~1.500 m+", "1 sesión de subidas Z4 (5×5 min)",
+                                          "Fuerza 2×/sem, añadir pliometría suave", "Descarga cada 4ª semana"]),
+        dict(t="Específico Montseny", frm=16, to=22, s=["Larga hasta 28 km / 2.000 m+ (4–5 h)", "Subidas tempo 20–30 min o 5×5 min Z4",
+                                                        "2–3 fines de semana encadenados", "Taper 10–12 días · carrera 10 abr"]),
+        dict(t="Pico ultra", frm=23, to=30, s=["Encadenados 30 km + 20 km", "50 km / 3.000 m+ hacia el 8 may",
+                                               "Reconocer tramos de Cavalls, bastones, noche", "Nutrición 60–90 g CH/h y salidas con calor"]),
+        dict(t="Taper Cavalls", frm=31, to=32, s=["−30 % y luego −50 % de volumen", "Mantener toques cortos de intensidad",
+                                                  "Dormir, hidratar, revisar material", "Carrera 19 jun"]),
+    ],
+)
+PH_COLS = [GLACIER, TEAL, ORANGE, GOLD, VIOLET]
+RACE_COL = {"RACE_A": RED, "RACE_B": ORANGE, "RACE_C": GLACIER}
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def fetch_events(athlete: str, key: str, oldest: str, newest: str) -> list[dict]:
+    r = requests.get(f"{API}/athlete/{athlete}/events", params={"oldest": oldest, "newest": newest}, auth=("API_KEY", key),
+                     headers={"Accept": "application/json", "User-Agent": "LlibretaD+ (Streamlit)"}, timeout=30)
+    r.raise_for_status()
+    data = r.json()
+    return data if isinstance(data, list) else []
+
+
+def _d(s) -> dt.date | None:
+    try:
+        return dt.date.fromisoformat(str(s)[:10])
+    except (ValueError, TypeError):
+        return None
+
+
+def plan_from_events(evs: list[dict]) -> dict | None:
+    """Plan a partir del calendario: objetivos TARGET por semana (lunes), carreras RACE_A/B/C y notas «Fase · …»."""
+    T = [e for e in evs if e.get("category") == "TARGET" and _d(e.get("start_date_local"))
+         and (e.get("load_target") or e.get("time_target") or e.get("time_target_seconds"))]
+    if not T:
+        return None
+    byw = {}
+    for e in sorted(T, key=lambda e: e["start_date_local"]):
+        d0 = _d(e["start_date_local"])
+        mon = d0 - dt.timedelta(days=d0.weekday())
+        w = byw.setdefault(mon, dict(load=0.0, h=0.0, dp=0.0, name="", desc=""))
+        w["load"] += float(e.get("load_target") or 0)
+        w["h"] += float(e.get("time_target") or e.get("time_target_seconds") or 0) / 3600
+        m = re.search(r"(\d[\d.]*)\s*m\s*D\+", e.get("name") or "") or re.search(r"(\d[\d.]*)\s*m\s*D\+", e.get("description") or "")
+        if m:
+            w["dp"] += float(m.group(1).replace(".", ""))
+        if not w["name"]:
+            w["name"], w["desc"] = e.get("name") or "", e.get("description") or ""
+    weeks = sorted(byw.items())
+    first, last_end = weeks[0][0], weeks[-1][0] + dt.timedelta(days=6)
+    races = sorted([dict(name=e.get("name") or "Carrera", date=str(e["start_date_local"])[:10], cat=e["category"])
+                    for e in evs if e.get("category") in RACE_COL and _d(e.get("start_date_local"))
+                    and first <= _d(e["start_date_local"]) <= last_end], key=lambda r: r["date"])
+    plan = []
+    for mon, w in weeks:
+        parts = [x.strip() for x in w["name"].split("·") if x.strip()]
+        ph = parts[1] if len(parts) >= 3 else (parts[1] if len(parts) == 2 and "D+" not in parts[1] else (parts[0] if parts else "Semana"))
+        rec = bool(re.search(r"\(descarga\)", ph, re.I))
+        ph = re.sub(r"\s*\(descarga\)\s*", "", ph, flags=re.I).strip()
+        is_race = any(mon <= _d(r["date"]) <= mon + dt.timedelta(days=6) for r in races)
+        k = ("R" if is_race else "r" if (rec or re.search(r"descarga|recuperaci|navidad", ph, re.I))
+             else "t" if re.search(r"taper", ph, re.I) else "")
+        plan.append([ph, round(w["load"]), round(w["h"] * 10) / 10, round(w["dp"]), k, mon.isoformat()])
+
+    def w_idx(d_):
+        for i, p in enumerate(plan):
+            a = _d(p[5])
+            if a <= d_ <= a + dt.timedelta(days=6):
+                return i
+        return -1
+
+    notes = sorted([e for e in evs if e.get("category") == "NOTE" and re.match(r"^fase\s*[·:\-]", e.get("name") or "", re.I)
+                    and _d(e.get("start_date_local"))], key=lambda e: e["start_date_local"])
+    phases = []
+    for e in notes:
+        a = _d(e["start_date_local"])
+        b = (_d(e.get("end_date_local")) or a + dt.timedelta(days=1)) - dt.timedelta(days=1)
+        if a > last_end or b < first:
+            continue
+        frm, to = w_idx(max(a, first)), w_idx(min(b, last_end))
+        lines = [re.sub(r"^[-•*]\s+", "", x.strip()) for x in str(e.get("description") or "").splitlines() if re.match(r"^\s*[-•*]\s+", x)]
+        phases.append(dict(t=re.sub(r"^fase\s*[·:\-]\s*", "", e.get("name") or "", flags=re.I).strip(),
+                           frm=frm if frm >= 0 else 0, to=to if to >= 0 else len(plan) - 1,
+                           s=lines or [str(e.get("description") or "").splitlines()[0] if e.get("description") else ""]))
+    return dict(start=first.isoformat(), races=races, plan=plan, phases=phases)
+
+
+def load_plan() -> tuple[dict, str, Exception | None]:
+    """Plan leído del calendario de intervals.icu; si no se puede o no hay objetivos, el plan guardado en la app."""
+    if demo:
+        return PLAN_LOCAL, "local", None
+    try:
+        evs = fetch_events(athlete, key, (today - dt.timedelta(days=150)).isoformat(), (today + dt.timedelta(days=365)).isoformat())
+    except Exception as e:  # noqa: BLE001
+        return PLAN_LOCAL, "local", e
+    P = plan_from_events(evs)
+    return (P, "icu", None) if P else (PLAN_LOCAL, "local-empty", None)
+
+
+def plan_weeks(P: dict) -> list[dict]:
+    s0 = _d(P["start"])
+    out = []
+    for i, p in enumerate(P["plan"]):
+        frm = _d(p[5]) if len(p) > 5 and p[5] else s0 + dt.timedelta(days=7 * i)
+        out.append(dict(i=i, frm=frm, to=frm + dt.timedelta(days=6), ph=p[0], load=float(p[1]), h=float(p[2]), dp=float(p[3]), k=p[4]))
+    return out
+
+
+def plan_phases(P: dict, W: list[dict]) -> list[dict]:
+    """Fases con fechas y color (la última, en rojo, como en la Llibreta)."""
+    out = []
+    n = len(P["phases"])
+    for j, f in enumerate(P["phases"]):
+        if not W:
+            break
+        a, b = W[max(0, min(f["frm"], len(W) - 1))]["frm"], W[max(0, min(f["to"], len(W) - 1))]["to"]
+        out.append(dict(**f, a=a, b=b, c=RED if (j == n - 1 and n > 1) else PH_COLS[j % len(PH_COLS)]))
+    return out
+
+
+def plan_actual(W: list[dict]) -> list[dict]:
+    """Carga (todas las actividades), horas en movimiento, D+ y km (Run/TrailRun, y Hike si se suma) de cada semana."""
+    A = []
+    for w in W:
+        d_ = all_df[(all_df["date"] >= w["frm"]) & (all_df["date"] <= w["to"])] if len(all_df) else all_df
+        A.append(dict(load=float(d_["load"].sum()) if len(d_) else 0.0, h=float(d_["hours"].sum()) if len(d_) else 0.0,
+                      dp=float(d_["out_dp"].sum()) if len(d_) else 0.0, km=float(d_["out_km"].sum()) if len(d_) else 0.0, n=len(d_)))
+    return A
+
+
+def summary_plan() -> dict:
+    P, src, err = load_plan()
+    W = plan_weeks(P)
+    S = dict(P=P, src=src, err=err, W=W, ok=bool(W))
+    if not W:
+        return S
+    A = plan_actual(W)
+    ci = next((i for i, w in enumerate(W) if w["frm"] <= today <= w["to"]), -1)
+    before, after = today < W[0]["frm"], today > W[-1]["to"]
+    races = [dict(**r, d=_d(r["date"]), c=RACE_COL.get(r.get("cat"), RED)) for r in P["races"]]
+    last_yr = races[-1]["date"][:4] if races else str(W[-1]["frm"].year)
+    done = [w for w in W if w["to"] < today]
+    sumT = sum(w["load"] for w in done)
+    sumA = sum(A[w["i"]]["load"] for w in done)
+    S.update(A=A, ci=ci, before=before, after=after, races=races, phases=plan_phases(P, W), done=done,
+             compl=(sumA / sumT * 100) if sumT > 0 else None,
+             title=f"Plan {last_yr}" + (" · " + " → ".join(r["name"] for r in races) if races else ""),
+             src_txt=("Plan leído del calendario de intervals.icu" if src == "icu" else
+                      f"Plan guardado en la app · no se pudo leer el calendario ({err})" if err is not None else
+                      "Plan guardado en la app · el calendario de intervals.icu no tiene objetivos semanales" if src == "local-empty" else
+                      "Plan guardado en la app (DEMO)" if demo else "Plan guardado en la app"))
+    # Lectura de la semana
+    if ci >= 0:
+        cw, ca = W[ci], A[ci]
+        elapsed = min(7, (today - cw["frm"]).days + 1)
+        exp_ = cw["load"] * elapsed / 7
+        r_ = ca["load"] / (cw["load"] or 1)
+        t = (f"<b>{_html.escape(cw['ph'])}</b>" + {"r": " (semana de descarga)", "t": " (taper)", "R": " (semana de carrera)"}.get(cw["k"], "")
+             + f": llevas <b>{fnum(ca['load'])}</b> de {fnum(cw['load'])} de carga y <b>{fnum(ca['dp'])} m</b> de {fnum(cw['dp'])} m de D+.")
+        if cw["k"] in ("r", "t", "R"):
+            t += (" Ya has superado el objetivo: el resto de la semana, solo suave o descanso." if ca["load"] > cw["load"] * 1.1
+                  else " Prioriza recuperar: es lo que fija la forma ganada.")
+        elif ca["load"] > exp_ * 1.25 and elapsed > 2:
+            t += " Vas por delante del ritmo previsto; no hace falta compensar más adelante."
+        elif r_ >= .85:
+            t += " Semana encaminada."
+        else:
+            t += f" Para cumplirla te faltan unos {fnum(max(0.0, cw['load'] - ca['load']))} puntos de carga."
+        S["text"], S["text_c"] = t, (GLACIER if cw["k"] == "r" else RED if cw["k"] == "R" else GOLD)
+        S["week_txt"] = f"Semana {ci + 1} de {len(W)} · {cw['frm']:%d/%m} – {cw['to']:%d/%m} · {cw['ph']}"
+    else:
+        S["text"], S["text_c"] = (f"El plan empieza el lunes {W[0]['frm']:%d/%m/%y}." if before else "Plan terminado. ¡Enhorabuena!"), MUTED
+        S["week_txt"] = f"Empieza el {W[0]['frm']:%d/%m/%y}" if before else "Temporada terminada"
+    return S
+
+
+def plan_cards(S, which=("races", "week", "compl")) -> list:
+    W, A, ci = S["W"], S["A"], S["ci"]
+    cw, ca = (W[ci], A[ci]) if ci >= 0 else (None, None)
+    it = []
+    if "races" in which:
+        for r in S["races"]:
+            dd = (r["d"] - today).days
+            it.append((r["name"], r["c"], fnum(dd) if dd >= 0 else "✓", "días" if dd >= 0 else "",
+                       [f"{fnum(dd // 7)} semanas · {r['d']:%d/%m/%y}" if dd >= 0 else "Completada"]))
+    if "week" in which:
+        nxt = W[0] if S["before"] else None
+        if cw:
+            pct = ca["load"] / cw["load"] * 100 if cw["load"] else 0
+            it.append(("Carga semana", GOLD, fnum(ca["load"]), f"/ {fnum(cw['load'])}",
+                       [_bar(pct, GOLD), f"{fnum(pct)} % del objetivo"]))
+            it.append(("D+ semana", VIOLET, fnum(ca["dp"]), f"/ {fnum(cw['dp'])} m",
+                       [_bar(ca["dp"] / cw["dp"] * 100 if cw["dp"] else 0, VIOLET), f"{fnum(ca['h'], 1)} h de {fnum(cw['h'], 1)} h"]))
+        elif nxt:
+            it.append(("Primera semana", GOLD, fnum(nxt["load"]), "carga",
+                       [f"{nxt['ph']} · {fnum(nxt['h'], 1)} h · {fnum(nxt['dp'])} m D+", f"desde el {nxt['frm']:%d/%m}"]))
+    if "compl" in which:
+        it.append(("Cumplimiento", GREEN, fnum(S["compl"]) if S["compl"] is not None else "—", "%" if S["compl"] is not None else "",
+                   [f"carga real vs plan · {len(S['done'])} sem. cerradas" if S["done"] else "sin semanas cerradas aún"]))
+    return it
+
+
+def plan_phase_html(S, only_current=False) -> str:
+    ci = S["ci"]
+    ph = [p for p in S["phases"] if not only_current or (p["frm"] <= ci <= p["to"]) or (S["before"] and p["frm"] == 0)]
+    h = ['<div class="phases">']
+    for p in ph:
+        now = p["frm"] <= ci <= p["to"]
+        h.append(f'<div class="phase{" now" if now else ""}" style="--c:{p["c"]}"><span class="dt">{p["a"]:%d/%m} – {p["b"]:%d/%m}'
+                 f'{" · ahora" if now else ""}</span><h4>{_html.escape(p["t"])}</h4><ul>'
+                 + "".join(f"<li>{_html.escape(x)}</li>" for x in p["s"]) + "</ul></div>")
+    h.append("</div>")
+    return "".join(h)
+
+
+PLAN_CSS = f"""<style>
+.phases {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; margin: 8px 0 14px; }}
+.phase {{ background: {SURFACE}; border: 1px solid {LINE}; border-top: 3px solid var(--c); border-radius: 6px; padding: 10px 12px; }}
+.phase.now {{ box-shadow: 0 0 0 1px var(--c) inset; }}
+.phase .dt {{ font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: {MUTED}; }}
+.phase h4 {{ margin: 2px 0 6px; font: 600 18px/1.1 "Barlow Condensed", sans-serif; color: {INK}; }}
+.phase ul {{ margin: 0; padding-left: 16px; }}
+.phase li {{ font-size: 12.5px; color: {INK}; margin: 2px 0; }}
+</style>"""
+
+
+def plan_fig(S, metric="load", h=280, mini=False):
+    W, A, ci = S["W"], S["A"], S["ci"]
+    x = [f"S{w['i'] + 1}" for w in W]
+    tgt = [w[metric] for w in W]
+    col = [RED if w["k"] == "R" else GLACIER if w["k"] == "r" else PREV for w in W]
+    f = go.Figure()
+    f.add_bar(x=x, y=tgt, marker_color=col, opacity=.55, name="Objetivo", width=.85,
+              customdata=[[f"{w['frm']:%d/%m}", w["ph"]] for w in W],
+              hovertemplate="%{x} · %{customdata[0]} · %{customdata[1]}<br>objetivo %{y:,.0f}<extra></extra>")
+    real = [A[i][metric] if W[i]["frm"] <= today else None for i in range(len(W))]
+    f.add_bar(x=x, y=real, marker_color=GOLD, name="Real", width=.45,
+              hovertemplate="%{x} · real %{y:,.0f}<extra></extra>")
+    f.update_layout(barmode="overlay", bargap=.1)
+    if ci >= 0:
+        f.add_vrect(x0=ci - .5, x1=ci + .5, line=dict(color=GOLD, width=1, dash="dot"), fillcolor=rgba(GOLD, .06))
+    if not mini:
+        for r in S["races"]:
+            i = next((w["i"] for w in W if w["frm"] <= r["d"] <= w["to"]), None)
+            if i is not None:
+                f.add_annotation(x=x[i], y=max(tgt) * 1.12, text=_html.escape(r["name"].split()[0] if r["name"].split() else r["name"]),
+                                 showarrow=False, font=dict(color=r["c"], size=11))
+        tick = [x[w["i"]] for w in W if w["frm"].day <= 7]
+        f.update_xaxes(tickvals=tick, ticktext=[MES[w["frm"].month - 1] for w in W if w["frm"].day <= 7])
+        f.update_yaxes(range=[0, max(tgt + [v or 0 for v in real] + [1]) * 1.2], ticksuffix=" m" if metric == "dp" else "")
+    return f
+
+
+def plan_tab():
+    st.markdown(PLAN_CSS, unsafe_allow_html=True)
+    S = summary_plan()
+    st.subheader(S.get("title", "Plan de entrenamiento"))
+    if not S["ok"]:
+        st.info("No hay objetivos semanales en el calendario de intervals.icu.")
+        return
+    st.markdown(f'<div class="eyebrow">{_html.escape(S["week_txt"])}</div><div class="note">{_html.escape(S["src_txt"])}. '
+                'Carga = training load de todas las actividades; D+ y km = Run y TrailRun (más Hike si lo sumas).</div>',
+                unsafe_allow_html=True)
+    cards(plan_cards(S))
+    st.markdown(f'<div class="reading" style="--c:{S["text_c"]}">{S["text"]}</div>', unsafe_allow_html=True)
+    met = st.segmented_control("Métrica plan", ["Carga", "D+", "Horas"], default="Carga", key="plan_met",
+                               label_visibility="collapsed") or "Carga"
+    mk = {"Carga": "load", "D+": "dp", "Horas": "h"}[met]
+    st.subheader(f"{met} semanal · objetivo vs real")
+    st.plotly_chart(plot_layout(plan_fig(S, mk), 300), width="stretch", theme=None)
+    st.markdown(f'<span class="note">Barras anchas = objetivo (<span style="color:{GLACIER}">descarga</span>, '
+                f'<span style="color:{RED}">carrera</span>); estrechas en <span style="color:{GOLD}">dorado</span> = real. '
+                'Recuadro punteado = semana en curso.</span>', unsafe_allow_html=True)
+    st.subheader("Fases")
+    st.markdown(plan_phase_html(S), unsafe_allow_html=True)
+    st.subheader("Semana a semana")
+    W, A, ci = S["W"], S["A"], S["ci"]
+    rows = []
+    for w, a in zip(W, A):
+        fut = w["frm"] > today
+        rows.append({"Semana": f"{w['i'] + 1:02d} · {w['frm']:%d/%m}", "Fase": w["ph"] + (" (+ carrera)" if w["k"] == "R" else ""),
+                     "Carga|Obj.": w["load"], "Carga|Real": None if fut else a["load"],
+                     "%": None if fut or w["k"] == "R" or not w["load"] else a["load"] / w["load"] * 100,
+                     "Horas|Obj.": w["h"], "Horas|Real": None if fut else a["h"],
+                     "D+|Obj.": w["dp"], "D+|Real": None if fut else a["dp"], "Km real": None if fut else a["km"]})
+    rows.append({"Semana": "Total", "Fase": "", "Carga|Obj.": sum(w["load"] for w in W), "Carga|Real": sum(a["load"] for a in A),
+                 "%": None, "Horas|Obj.": sum(w["h"] for w in W), "Horas|Real": sum(a["h"] for a in A),
+                 "D+|Obj.": sum(w["dp"] for w in W), "D+|Real": sum(a["dp"] for a in A), "Km real": sum(a["km"] for a in A)})
+    TB = pd.DataFrame(rows)
+    nf_ = lambda d: (lambda v: "" if v is None or pd.isna(v) else fnum(v, d))  # noqa: E731
+    pc_ = lambda v: "" if v is None or pd.isna(v) else f'<span style="color:{GREEN if v >= 85 else ORANGE if v >= 60 else RED}">{fnum(v)} %</span>'  # noqa: E731
+    cls = ["hl" if i == ci else "" for i in range(len(W))] + [""]
+    html_table(TB, left={"Semana", "Fase"}, total_last=True, row_classes=cls, group_start={"Carga|Obj.", "Horas|Obj.", "D+|Obj.", "Km real"},
+               groups=[("", 2, ""), ("Carga", 3, "g"), ("Horas", 2, "g"), ("D+ m", 2, "g"), ("", 1, "g")], max_height=560,
+               fmt={"Carga|Obj.": nf_(0), "Carga|Real": nf_(0), "%": pc_, "Horas|Obj.": nf_(1), "Horas|Real": nf_(1),
+                    "D+|Obj.": nf_(0), "D+|Real": nf_(0), "Km real": nf_(1)})
+    st.markdown('<span class="note">En dorado, la semana en curso. Las semanas futuras solo muestran el objetivo.</span>', unsafe_allow_html=True)
+
+
 def mobile_view():
     st.markdown(f"""<style>
 .block-container {{ max-width: 560px !important; padding: 1.2rem 16px 3rem !important; }}
@@ -2067,109 +2394,39 @@ def mobile_view():
                for k, lab, col, u, d in [m for m in WKM if m[0] in ("dp", "km", "load", "kmE")]])
         st.markdown(f'<div class="note">{last_mon:%d/%m} – {last_mon + dt.timedelta(days=6):%d/%m}</div>', unsafe_allow_html=True)
 
-    # 4 · Esfuerzo y fatiga
-    SF = summary_fatigue()
-    if SF:
-        cur_ = SF["cur"]
-        tsb_txt = ("+" if cur_["tsb"] > 0 else "") + fnum(cur_["tsb"])
-        lab4 = f"**Esfuerzo y fatiga** · Balance {tsb_txt} · :{ZONE_MD.get(SF['tc'], 'gray')}[{SF['tz']}]"
+    # 3b · Plan de entrenamiento (mismo orden que las pestañas: después de Última semana)
+    SP = summary_plan()
+    if not SP["ok"]:
+        lab_p = "**Plan** · sin objetivos"
+    elif SP["ci"] >= 0:
+        cw_, ca_ = SP["W"][SP["ci"]], SP["A"][SP["ci"]]
+        lab_p = (f"**{SP['title'].split(' · ')[0]}** · S{SP['ci'] + 1}/{len(SP['W'])} {cw_['ph']} · "
+                 f"{fnum(ca_['load'])}/{fnum(cw_['load'])} carga")
     else:
-        lab4 = "**Esfuerzo y fatiga** · sin datos"
-    with st.expander(lab4, expanded=True, key="mob_x_fat"):
-        if not SF:
-            st.info("Sin actividades todavía.")
+        lab_p = f"**{SP['title'].split(' · ')[0]}** · " + (f"empieza el {SP['W'][0]['frm']:%d/%m}" if SP["before"] else "terminado")
+    with st.expander(lab_p, key="mob_x_plan"):
+        if not SP["ok"]:
+            st.info("No hay objetivos semanales en el calendario de intervals.icu.")
         else:
-            pill_ = lambda t_, c_: f'<span class="pill" style="--c:{c_}">{t_}</span>'  # noqa: E731
-            cards([
-                ("Forma (CTL)", GLACIER, fnum(cur_["ctl"]), "", ["carga media de 42 días"]),
-                ("Fatiga (ATL)", RED, fnum(cur_["atl"]), "", ["carga media de 7 días"]),
-                ("Balance (TSB)", SF["tc"], tsb_txt, "", [pill_(SF["tz"], SF["tc"])]),
-                ("Agudo:crónico", SF["ac"], fnum(SF["acwr"], 2) if SF["acwr"] else "—", "", [pill_(SF["az"], SF["ac"])]),
-            ])
-            st.markdown(f'<div class="reading" style="--c:{SF["tc"]}">{SF["text"]}</div>', unsafe_allow_html=True)
-
-    # 4b · Salud: bloques Hoy / Recuperación / Sueño / Tensión / Peso
-    H = summary_health()
-    if H["err"] is not None or not H["ok"]:
-        lab_s = "**Salud** · sin datos"
-    else:
-        lab_s = (f"**Salud** · HRV {fnum(H['hrv7_v']) if H['hrv7_v'] else '—'} ms · :{ZONE_MD.get(H['hrv_zc'], 'gray')}[{H['hrv_zone']}]"
-                 + (" · :orange[⚠ aviso]" if H["alert"] else ""))
-    with st.expander(lab_s, key="mob_x_salud"):
-        if H["err"] is not None:
-            st.warning(f"No se pudieron leer los datos de salud de intervals.icu: {H['err']}")
-        elif not H["ok"]:
-            st.info("Sin datos de salud en intervals.icu.")
-        else:
-            blk = st.segmented_control("Bloque salud", ["Hoy", "Recuperación", "Sueño", "Tensión", "Peso"], default="Hoy",
-                                       key="mob_sal_vista", label_visibility="collapsed") or "Hoy"
-            if blk == "Hoy":
-                cards(health_cards(H, ("hrv", "rhr", "sleep", "bp")))
-                st.markdown(f'<div class="reading" style="--c:{H["text_c"]}">{H["text"]}</div>', unsafe_allow_html=True)
-            elif blk == "Recuperación":
-                PM = {"30 días": 30, "90 días": 90, "1 año": 365}
-                pm_ = st.segmented_control("Periodo recuperación", list(PM), default="30 días", key="mob_sal_per",
-                                           label_visibility="collapsed") or "30 días"
-                a_ = pd.Timestamp(today) - pd.Timedelta(days=PM[pm_] - 1)
-                h7_, lo_ = H["hrv7"].loc[a_:], H["hrv_lo"].loc[a_:]
-                n_low = int((h7_ < lo_).sum())
-                rb_ = H["rhr_base"].iloc[-1]
-                rm_ = H["df"]["restingHR"].loc[a_:].mean()
-                cards([("Días bajo tu rango", ORANGE if n_low else GREEN, fnum(n_low), "", [f"HRV 7 d en {pm_}"]),
-                       ("FC reposo media", INK, fnum(rm_, 1) if pd.notna(rm_) else "—", "ppm",
-                        [f"{_sgn(rm_ - rb_)} vs línea base" if pd.notna(rm_) and pd.notna(rb_) else "línea base en construcción"])])
-                st.markdown('<div class="note">HRV de 7 días con tu rango normal</div>', unsafe_allow_html=True)
-                st.plotly_chart(mini_layout(hrv_fig(H, a_, mini=True), 140), width="stretch", theme=None, config={"staticPlot": True})
-                st.markdown('<div class="note">FC en reposo de 7 días y línea base</div>', unsafe_allow_html=True)
-                st.plotly_chart(mini_layout(rhr_fig(H, a_, mini=True), 140), width="stretch", theme=None, config={"staticPlot": True})
-            elif blk == "Sueño":
-                cards([("Sueño 7 días", VIOLET, _hm(H["sleep7"]) if pd.notna(H["sleep7"]) else "—", "h",
-                        [f"score medio {fnum(H['score7']) if pd.notna(H['score7']) else '—'}"]),
-                       ("Noches < 6 h", ORANGE if H["short30"] else GREEN, fnum(H["short30"]), "", ["últimos 30 días"])])
-                nights = H["raw"]["sleepSecs"].dropna().iloc[-7:][::-1]
-                rows_n = []
-                for i, v in nights.items():
-                    sc = H["raw"].at[i, "sleepScore"]
-                    dub_ = i in H["sleep_dubious"]
-                    sub = " · ".join(x for x in [
-                        f"score {fnum(sc)}" if pd.notna(sc) else "",
-                        f"FC {fnum(H['raw'].at[i, 'avgSleepingHR'])}" if pd.notna(H["raw"].at[i, "avgSleepingHR"]) else "",
-                        f"SpO2 {fnum(H['raw'].at[i, 'spO2'])} %" if pd.notna(H["raw"].at[i, "spO2"]) else "",
-                        f'<span style="color:{ORANGE}">dudosa</span>' if dub_ else ""] if x)
-                    rows_n.append((f'{DIAS[i.weekday()].lower()} {i:%d/%m} · <b>{int(v // 3600)} h {int(v % 3600 // 60)} min</b>',
-                                   sub + _bar(min(100.0, v / 3600 / 9 * 100), _sleep_c(sc))))
-                st.markdown(_rows(rows_n), unsafe_allow_html=True)
-            elif blk == "Tensión":
-                if not len(H["bp"]):
-                    st.info(f"Sin mediciones de tensión: {OMRON_HINT}.")
-                else:
-                    cards(health_cards(H, ("bp",)) + [(
-                        "Media 30 días", BP_TXT.get(H["bp_cat"], MUTED),
-                        f"{fnum(H['bp30'][0])}/{fnum(H['bp30'][1])}" if H["bp30"] else "—", "mmHg",
-                        [f"{H['bp30'][2]} mediciones · {H['bp_cat'].lower()}" if H["bp30"] else "sin mediciones en 30 días"])])
-                    bp_ = H["bp"].iloc[::-1]
-                    all_b = st.toggle(f"Mostrar las {len(bp_)}", value=False, key="mob_sal_bpall") if len(bp_) > 10 else True
-                    st.markdown(_rows([(f'{i:%d/%m/%y} · <b>{fnum(r_["systolic"])}/{fnum(r_["diastolic"])}</b>',
-                                        f'<span style="color:{BP_TXT[bp_category(r_["systolic"], r_["diastolic"])]}">'
-                                        f'{bp_category(r_["systolic"], r_["diastolic"]).lower()}</span>')
-                                       for i, r_ in (bp_ if all_b else bp_.head(10)).iterrows()]), unsafe_allow_html=True)
-                    st.plotly_chart(mini_layout(bp_fig(H, pd.Timestamp(today) - pd.Timedelta(days=364), mini=True), 140),
-                                    width="stretch", theme=None, config={"staticPlot": True})
-            else:  # Peso
-                if not len(H["w"]) and not len(H["bf"]):
-                    st.info(f"Sin pesadas: {OMRON_HINT}.")
-                else:
-                    cards(health_cards(H, ("w", "bf")))
-                    st.plotly_chart(mini_layout(weight_fig(H, pd.Timestamp(today) - pd.Timedelta(days=364), mini=True), 140),
-                                    width="stretch", theme=None, config={"staticPlot": True})
-                    wl = H["w"].iloc[::-1].head(5)
-                    st.markdown(_rows([(f'{i:%d/%m/%y} · <b>{fnum(v, 1)} kg</b>',
-                                        f'grasa {fnum(H["df"].at[i, "bodyFat"], 1)} %' if pd.notna(H["df"].at[i, "bodyFat"]) else "sin grasa")
-                                       for i, v in wl.items()]), unsafe_allow_html=True)
-                    if H["n_rep"]:
-                        st.markdown(f'<div class="note">{H["n_rep"]} pesos repetidos descartados (peso de perfil de otra app).</div>',
-                                    unsafe_allow_html=True)
-            st.markdown('<div class="note">Orientativo; no sustituye una valoración médica.</div>', unsafe_allow_html=True)
+            st.markdown(PLAN_CSS, unsafe_allow_html=True)
+            st.markdown(f'<div class="note">{_html.escape(SP["week_txt"])} · {_html.escape(SP["src_txt"])}</div>', unsafe_allow_html=True)
+            cards(plan_cards(SP, ("races",)))
+            cards(plan_cards(SP, ("week", "compl")))
+            st.markdown(f'<div class="reading" style="--c:{SP["text_c"]}">{SP["text"]}</div>', unsafe_allow_html=True)
+            st.markdown(plan_phase_html(SP, only_current=True), unsafe_allow_html=True)
+            st.markdown('<div class="note">Carga semanal: objetivo (barra ancha) y real (dorado)</div>', unsafe_allow_html=True)
+            st.plotly_chart(mini_layout(plan_fig(SP, "load", mini=True), 140), width="stretch", theme=None, config={"staticPlot": True})
+            i0 = max(0, SP["ci"] + 1) if SP["ci"] >= 0 else (0 if SP["before"] else len(SP["W"]))
+            nxt = SP["W"][i0:i0 + 4]
+            if nxt:
+                st.markdown('<div class="eyebrow" style="margin-top:6px">Próximas semanas</div>', unsafe_allow_html=True)
+                st.markdown(_rows([(f'<b>S{w["i"] + 1}</b> · {w["frm"]:%d/%m} · {_html.escape(w["ph"])}'
+                                    + ({"r": " · descarga", "t": " · taper", "R": ' · <span style="color:' + RED + '">carrera</span>'}.get(w["k"], "")
+                                       if w["k"] and not re.search(r"descarga|taper", w["ph"], re.I) else ""),
+                                    f'carga {fnum(w["load"])} · {fnum(w["h"], 1)} h · {fnum(w["dp"])} m D+') for w in nxt]),
+                            unsafe_allow_html=True)
+            if st.toggle("Ver todas las fases", value=False, key="mob_plan_fases"):
+                st.markdown(plan_phase_html(SP), unsafe_allow_html=True)
 
     # Histórico completo y material (Entrenamientos largos «Todo», Comparar y Material)
     shoes, gear_err = load_gear()
@@ -2417,6 +2674,110 @@ def mobile_view():
                 st.markdown('<div class="note">Diferencia = comparada − actual; en verde, la carrera actual fue mejor. '
                             'El análisis por tramos está en la pestaña Comparar de la vista completa.</div>', unsafe_allow_html=True)
 
+    # 7b · Esfuerzo y fatiga (mismo orden que las pestañas: después de Comparar)
+    SF = summary_fatigue()
+    if SF:
+        cur_ = SF["cur"]
+        tsb_txt = ("+" if cur_["tsb"] > 0 else "") + fnum(cur_["tsb"])
+        lab4 = f"**Esfuerzo y fatiga** · Balance {tsb_txt} · :{ZONE_MD.get(SF['tc'], 'gray')}[{SF['tz']}]"
+    else:
+        lab4 = "**Esfuerzo y fatiga** · sin datos"
+    with st.expander(lab4, expanded=True, key="mob_x_fat"):
+        if not SF:
+            st.info("Sin actividades todavía.")
+        else:
+            pill_ = lambda t_, c_: f'<span class="pill" style="--c:{c_}">{t_}</span>'  # noqa: E731
+            cards([
+                ("Forma (CTL)", GLACIER, fnum(cur_["ctl"]), "", ["carga media de 42 días"]),
+                ("Fatiga (ATL)", RED, fnum(cur_["atl"]), "", ["carga media de 7 días"]),
+                ("Balance (TSB)", SF["tc"], tsb_txt, "", [pill_(SF["tz"], SF["tc"])]),
+                ("Agudo:crónico", SF["ac"], fnum(SF["acwr"], 2) if SF["acwr"] else "—", "", [pill_(SF["az"], SF["ac"])]),
+            ])
+            st.markdown(f'<div class="reading" style="--c:{SF["tc"]}">{SF["text"]}</div>', unsafe_allow_html=True)
+
+    # 7c · Salud: bloques Hoy / Recuperación / Sueño / Tensión / Peso
+    H = summary_health()
+    if H["err"] is not None or not H["ok"]:
+        lab_s = "**Salud** · sin datos"
+    else:
+        lab_s = (f"**Salud** · HRV {fnum(H['hrv7_v']) if H['hrv7_v'] else '—'} ms · :{ZONE_MD.get(H['hrv_zc'], 'gray')}[{H['hrv_zone']}]"
+                 + (" · :orange[⚠ aviso]" if H["alert"] else ""))
+    with st.expander(lab_s, key="mob_x_salud"):
+        if H["err"] is not None:
+            st.warning(f"No se pudieron leer los datos de salud de intervals.icu: {H['err']}")
+        elif not H["ok"]:
+            st.info("Sin datos de salud en intervals.icu.")
+        else:
+            blk = st.segmented_control("Bloque salud", ["Hoy", "Recuperación", "Sueño", "Tensión", "Peso"], default="Hoy",
+                                       key="mob_sal_vista", label_visibility="collapsed") or "Hoy"
+            if blk == "Hoy":
+                cards(health_cards(H, ("hrv", "rhr", "sleep", "bp")))
+                st.markdown(f'<div class="reading" style="--c:{H["text_c"]}">{H["text"]}</div>', unsafe_allow_html=True)
+            elif blk == "Recuperación":
+                PM = {"30 días": 30, "90 días": 90, "1 año": 365}
+                pm_ = st.segmented_control("Periodo recuperación", list(PM), default="30 días", key="mob_sal_per",
+                                           label_visibility="collapsed") or "30 días"
+                a_ = pd.Timestamp(today) - pd.Timedelta(days=PM[pm_] - 1)
+                h7_, lo_ = H["hrv7"].loc[a_:], H["hrv_lo"].loc[a_:]
+                n_low = int((h7_ < lo_).sum())
+                rb_ = H["rhr_base"].iloc[-1]
+                rm_ = H["df"]["restingHR"].loc[a_:].mean()
+                cards([("Días bajo tu rango", ORANGE if n_low else GREEN, fnum(n_low), "", [f"HRV 7 d en {pm_}"]),
+                       ("FC reposo media", INK, fnum(rm_, 1) if pd.notna(rm_) else "—", "ppm",
+                        [f"{_sgn(rm_ - rb_)} vs línea base" if pd.notna(rm_) and pd.notna(rb_) else "línea base en construcción"])])
+                st.markdown('<div class="note">HRV de 7 días con tu rango normal</div>', unsafe_allow_html=True)
+                st.plotly_chart(mini_layout(hrv_fig(H, a_, mini=True), 140), width="stretch", theme=None, config={"staticPlot": True})
+                st.markdown('<div class="note">FC en reposo de 7 días y línea base</div>', unsafe_allow_html=True)
+                st.plotly_chart(mini_layout(rhr_fig(H, a_, mini=True), 140), width="stretch", theme=None, config={"staticPlot": True})
+            elif blk == "Sueño":
+                cards([("Sueño 7 días", VIOLET, _hm(H["sleep7"]) if pd.notna(H["sleep7"]) else "—", "h",
+                        [f"score medio {fnum(H['score7']) if pd.notna(H['score7']) else '—'}"]),
+                       ("Noches < 6 h", ORANGE if H["short30"] else GREEN, fnum(H["short30"]), "", ["últimos 30 días"])])
+                nights = H["raw"]["sleepSecs"].dropna().iloc[-7:][::-1]
+                rows_n = []
+                for i, v in nights.items():
+                    sc = H["raw"].at[i, "sleepScore"]
+                    dub_ = i in H["sleep_dubious"]
+                    sub = " · ".join(x for x in [
+                        f"score {fnum(sc)}" if pd.notna(sc) else "",
+                        f"FC {fnum(H['raw'].at[i, 'avgSleepingHR'])}" if pd.notna(H["raw"].at[i, "avgSleepingHR"]) else "",
+                        f"SpO2 {fnum(H['raw'].at[i, 'spO2'])} %" if pd.notna(H["raw"].at[i, "spO2"]) else "",
+                        f'<span style="color:{ORANGE}">dudosa</span>' if dub_ else ""] if x)
+                    rows_n.append((f'{DIAS[i.weekday()].lower()} {i:%d/%m} · <b>{int(v // 3600)} h {int(v % 3600 // 60)} min</b>',
+                                   sub + _bar(min(100.0, v / 3600 / 9 * 100), _sleep_c(sc))))
+                st.markdown(_rows(rows_n), unsafe_allow_html=True)
+            elif blk == "Tensión":
+                if not len(H["bp"]):
+                    st.info(f"Sin mediciones de tensión: {OMRON_HINT}.")
+                else:
+                    cards(health_cards(H, ("bp",)) + [(
+                        "Media 30 días", BP_TXT.get(H["bp_cat"], MUTED),
+                        f"{fnum(H['bp30'][0])}/{fnum(H['bp30'][1])}" if H["bp30"] else "—", "mmHg",
+                        [f"{H['bp30'][2]} mediciones · {H['bp_cat'].lower()}" if H["bp30"] else "sin mediciones en 30 días"])])
+                    bp_ = H["bp"].iloc[::-1]
+                    all_b = st.toggle(f"Mostrar las {len(bp_)}", value=False, key="mob_sal_bpall") if len(bp_) > 10 else True
+                    st.markdown(_rows([(f'{i:%d/%m/%y} · <b>{fnum(r_["systolic"])}/{fnum(r_["diastolic"])}</b>',
+                                        f'<span style="color:{BP_TXT[bp_category(r_["systolic"], r_["diastolic"])]}">'
+                                        f'{bp_category(r_["systolic"], r_["diastolic"]).lower()}</span>')
+                                       for i, r_ in (bp_ if all_b else bp_.head(10)).iterrows()]), unsafe_allow_html=True)
+                    st.plotly_chart(mini_layout(bp_fig(H, pd.Timestamp(today) - pd.Timedelta(days=364), mini=True), 140),
+                                    width="stretch", theme=None, config={"staticPlot": True})
+            else:  # Peso
+                if not len(H["w"]) and not len(H["bf"]):
+                    st.info(f"Sin pesadas: {OMRON_HINT}.")
+                else:
+                    cards(health_cards(H, ("w", "bf")))
+                    st.plotly_chart(mini_layout(weight_fig(H, pd.Timestamp(today) - pd.Timedelta(days=364), mini=True), 140),
+                                    width="stretch", theme=None, config={"staticPlot": True})
+                    wl = H["w"].iloc[::-1].head(5)
+                    st.markdown(_rows([(f'{i:%d/%m/%y} · <b>{fnum(v, 1)} kg</b>',
+                                        f'grasa {fnum(H["df"].at[i, "bodyFat"], 1)} %' if pd.notna(H["df"].at[i, "bodyFat"]) else "sin grasa")
+                                       for i, v in wl.items()]), unsafe_allow_html=True)
+                    if H["n_rep"]:
+                        st.markdown(f'<div class="note">{H["n_rep"]} pesos repetidos descartados (peso de perfil de otra app).</div>',
+                                    unsafe_allow_html=True)
+            st.markdown('<div class="note">Orientativo; no sustituye una valoración médica.</div>', unsafe_allow_html=True)
+
     # 8 · Cinta
     tm_ = df_y[df_y["sport"].isin(CINTA)] if len(df_y) else df_y
     pend_ = int(tm_["incline"].isna().sum()) if len(tm_) else 0
@@ -2465,8 +2826,8 @@ if MOBILE:
     st.stop()
 
 
-tab_temp, tab_cw, tab_lw, tab_sets, tab_long, tab_cmp, tab_fat, tab_sal, tab_cinta, tab_mat = st.tabs(
-    ["Temporada", "Semana en curso", "Última semana", "Hoja por Sets", "Entrenamientos largos", "Comparar",
+tab_temp, tab_cw, tab_lw, tab_plan, tab_sets, tab_long, tab_cmp, tab_fat, tab_sal, tab_cinta, tab_mat = st.tabs(
+    ["Temporada", "Semana en curso", "Última semana", "Plan 2027", "Hoja por Sets", "Entrenamientos largos", "Comparar",
      "Esfuerzo y fatiga", "Salud", "Cinta", "Material"])
 
 with tab_temp:
@@ -2972,6 +3333,10 @@ with tab_fat:
 
 with tab_sal:
     health_tab()
+
+
+with tab_plan:
+    plan_tab()
 
 
 with tab_sets:
