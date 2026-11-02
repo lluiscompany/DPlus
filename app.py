@@ -2411,6 +2411,25 @@ def sess_html(sid: str) -> str:
             + "".join(f"<li>{_html.escape(x)}</li>" for x in ss["ex"]) + "</ul></div>")
 
 
+def week_note(S, wi: int) -> str:
+    """Explica por qué una semana no sigue la semana tipo de su fase (descarga, taper o carrera)."""
+    W = S["W"]
+    w = W[wi]
+    if w["k"] not in ("r", "t", "R"):
+        return ""
+    why = {"r": "semana de descarga", "t": "semana de taper", "R": "semana de carrera"}[w["k"]]
+    nxt = next((x for x in W[wi + 1:] if x["k"] not in ("r", "t", "R")), None)
+    key_ = phase_key(w["ph"])
+    lab_ = next((l_ for l_, k_ in PHASE_ROWS if k_ == key_), None)
+    txt = (f"S{wi + 1} es {why}: la fuerza y la cinta se reducen a "
+           + ("la activación de carrera" if w["k"] == "R" else "activación y cinta suave")
+           + " (fila «" + ("Semana de carrera" if w["k"] == "R" else "Descarga y taper") + "» de la tabla).")
+    if nxt is not None:
+        nl_ = next((l_ for l_, k_ in PHASE_ROWS if k_ == phase_key(nxt["ph"])), nxt["ph"])
+        txt += f" La semana tipo de {nl_} empieza la S{nxt['i'] + 1} ({nxt['frm']:%d/%m})."
+    return txt
+
+
 def todo_rows(S, wi: int) -> list[tuple[str, str]]:
     rows = []
     for t in week_todo(S, wi):
@@ -2497,6 +2516,8 @@ def plan_tab():
     wi_ = S["ci"] if S["ci"] >= 0 else (0 if S["before"] else None)
     if wi_ is not None:
         st.subheader("Fuerza y cinta · " + ("esta semana" if S["ci"] >= 0 else "primera semana"))
+        if week_note(S, wi_):
+            st.markdown(f'<div class="note">{_html.escape(week_note(S, wi_))}</div>', unsafe_allow_html=True)
         st.markdown(_rows(todo_rows(S, wi_)), unsafe_allow_html=True)
     st.subheader("Objetivos por fase · fuerza y cinta")
     TP = pd.DataFrame([{"Fase": lab_, "Fuerza": tpl_summary(key_, "fuerza"), "Cinta (inclinada)": tpl_summary(key_, "cinta")}
@@ -2504,6 +2525,9 @@ def plan_tab():
     st.markdown('<div class="tblw"><table class="tbl objt"><thead><tr>' + "".join(f'<th class="l">{c}</th>' for c in TP.columns)
                 + "</tr></thead><tbody>" + "".join("<tr>" + "".join(f'<td class="l">{_html.escape(str(v))}</td>' for v in r_) + "</tr>"
                                                     for r_ in TP.itertuples(index=False)) + "</tbody></table></div>", unsafe_allow_html=True)
+    red_ = [f"S{w['i'] + 1}" for w in S["W"] if w["k"] in ("r", "t")]
+    st.markdown('<span class="note">Cada fila es la semana tipo de la fase. Las semanas de descarga o taper ('
+                + ", ".join(red_) + ') usan la fila «Descarga y taper» sea cual sea su fase. </span>', unsafe_allow_html=True)
     st.markdown('<span class="note">Días orientativos: las tiradas largas van en fin de semana. En el Pico ultra, la fuerza va el martes '
                 'para no hacerla en las 48 h antes de una larga. Zonas de FC de carrera de intervals.icu: Z2 134–142, Z3 142–150, '
                 'Z4 150–158.</span>', unsafe_allow_html=True)
@@ -2673,6 +2697,8 @@ def mobile_view():
             if wi_m is not None:
                 st.markdown('<div class="eyebrow" style="margin-top:6px">Fuerza y cinta · '
                             + ("esta semana" if SP["ci"] >= 0 else "primera semana") + "</div>", unsafe_allow_html=True)
+                if week_note(SP, wi_m):
+                    st.markdown(f'<div class="note">{_html.escape(week_note(SP, wi_m))}</div>', unsafe_allow_html=True)
                 st.markdown(_rows(todo_rows(SP, wi_m)), unsafe_allow_html=True)
                 if st.toggle("Ver los ejercicios de esta semana", value=False, key="mob_plan_ej"):
                     ids_m = list(dict.fromkeys(sid for _d, sid in SP["W"][wi_m]["ses"]))
