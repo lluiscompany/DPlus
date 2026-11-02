@@ -2022,37 +2022,137 @@ PLAN_LOCAL = dict(
                                                   "Dormir, hidratar, revisar material", "Carrera 19 jun"]),
     ],
 )
-# Fuerza y cinta por semana, según la fase y el tipo de semana (se aplica igual al plan leído del calendario).
-# (sesiones de fuerza, minutos de fuerza, sesiones de cinta, km de cinta, D+ de cinta en m)
-FZCI_TYPE = {"R": (1, 20, 0, 0, 0), "r": (1, 30, 1, 5, 300), "t": (1, 30, 1, 5, 300)}
-FZCI_PHASE = [("base 1", (2, 80, 1, 6, 500)), ("base 2", (2, 90, 1, 7, 700)), ("espec", (2, 80, 1, 7, 800)),
-              ("pico", (1, 45, 1, 6, 900))]
-FZCI_DEFAULT = (2, 80, 1, 6, 600)
-# Contenido de fuerza y cinta de cada fase (se muestra en las tarjetas de fase)
-FZCI_TXT = [
-    ("base 1", "2×40 min: sentadilla, step-ups, peso muerto rumano y excéntricos de cuádriceps; core 10 min",
-     "1×45 min de rodaje en subida al 8–12 % en Z2 (≈ 500 m D+), sobre todo entre semana y con mal tiempo"),
-    ("base 2", "2×45 min: fuerza máxima (3–5 reps) + pliometría suave (saltos al cajón, multisaltos)",
-     "1×50 min: subidas 5×5 min al 12–15 % en Z4, rec. 2 min llano (≈ 700 m D+)"),
-    ("espec", "2×40 min: una de fuerza máxima y una de excéntricos para bajadas (step-down lento, sentadilla búlgara)",
-     "1×50 min: tempo en subida 20–30 min al 10–12 % o 5×5 min Z4 (≈ 800 m D+)"),
-    ("pico", "1×45 min de mantenimiento: excéntricos, isométricos y core; nunca 48 h antes de una tirada larga",
-     "1×60 min de marcha rápida al 15–20 % (power hiking, ≈ 900 m D+) para las subidas largas de Cavalls"),
-    ("taper", "1×25–30 min de activación (sin cargas altas); nada en los 5 días previos a la carrera",
-     "1×30–40 min suave al 6–8 %, solo si llueve; si no, por fuera"),
-]
+# Sesiones de fuerza y cinta del Plan 2027: plantillas con ejercicios y semana tipo por fase.
+# Lo usan la pestaña Plan 2027, la vista móvil y la carga de sesiones en el calendario de intervals.icu.
+# Zonas de FC de carrera (intervals.icu): Z1 < 134 · Z2 134–142 · Z3 142–150 · Z4 150–158 · umbral 159.
+SESS = {
+    "F-B1": dict(kind="fuerza", name="Fuerza general", min=40, focus="Base de fuerza y excéntricos de cuádriceps", ex=[
+        "Calentamiento 8 min: movilidad de cadera y tobillo, 2 × 10 sentadillas sin carga",
+        "Sentadilla goblet o con barra: 3 × 10, RPE 7, descanso 90 s",
+        "Step-ups a cajón alto (40–50 cm): 3 × 10 por pierna, con mancuernas ligeras",
+        "Peso muerto rumano: 3 × 10, RPE 7",
+        "Sentadilla excéntrica (4 s de bajada) o step-down lento: 3 × 8 por pierna",
+        "Gemelos excéntricos en escalón: 3 × 12",
+        "Core: plancha 3 × 40 s y plancha lateral 2 × 30 s por lado"]),
+    "F-B2": dict(kind="fuerza", name="Fuerza máxima + pliometría", min=45, focus="Fuerza máxima y reactividad", ex=[
+        "Calentamiento 8 min y 2 series de aproximación",
+        "Sentadilla con barra: 4 × 4–5, RPE 8, descanso 2–3 min",
+        "Peso muerto rumano o hip thrust: 3 × 5–6, RPE 8",
+        "Sentadilla búlgara: 3 × 6 por pierna",
+        "Saltos al cajón: 4 × 5 (caída suave, recuperación completa)",
+        "Multisaltos o zancadas saltadas: 3 × 6 por pierna",
+        "Core antiextensión (rueda o dead bug): 3 × 10"]),
+    "F-EA": dict(kind="fuerza", name="Fuerza máxima", min=40, focus="Mantener la fuerza máxima", ex=[
+        "Calentamiento 8 min",
+        "Sentadilla con barra: 4 × 4, RPE 8, descanso 2–3 min",
+        "Peso muerto rumano: 3 × 5, RPE 8",
+        "Step-ups con carga: 3 × 6 por pierna",
+        "Saltos al cajón: 3 × 5"]),
+    "F-EB": dict(kind="fuerza", name="Excéntricos para bajadas", min=40, focus="Cuádriceps y gemelos resistentes en las bajadas", ex=[
+        "Calentamiento 8 min",
+        "Step-down lento desde cajón (bajada en 4 s): 3 × 8 por pierna",
+        "Sentadilla búlgara con bajada de 3–4 s: 3 × 8 por pierna",
+        "Curl nórdico o excéntrico de isquios: 3 × 5",
+        "Gemelos excéntricos en escalón: 3 × 12",
+        "Core 10 min: plancha, plancha lateral y bird-dog"]),
+    "F-P": dict(kind="fuerza", name="Fuerza de mantenimiento", min=45, focus="Mantener sin acumular fatiga; nunca en las 48 h antes de una larga", ex=[
+        "Calentamiento 8 min",
+        "Sentadilla: 3 × 5, RPE 7",
+        "Step-down excéntrico: 3 × 8 por pierna",
+        "Sentadilla isométrica en pared: 3 × 45 s",
+        "Puente de glúteo a una pierna: 3 × 10 por pierna",
+        "Gemelos en escalón: 3 × 12",
+        "Core 10 min"]),
+    "F-D": dict(kind="fuerza", name="Activación", min=30, focus="Mantener el patrón sin fatiga (sin cargas altas)", ex=[
+        "Circuito con peso corporal, 2 vueltas:",
+        "Sentadilla: 12",
+        "Zancada: 10 por pierna",
+        "Puente de glúteo: 12",
+        "Gemelos: 15",
+        "Plancha: 40 s",
+        "Movilidad de cadera y tobillo: 5 min"]),
+    "F-R": dict(kind="fuerza", name="Activación de carrera", min=20, focus="Solo peso corporal, sin agujetas", ex=[
+        "1 vuelta del circuito de activación con peso corporal",
+        "Movilidad 10 min",
+        "Nada con cargas en los 5 días previos a la carrera"]),
+    "C-B1": dict(kind="cinta", name="Cinta en subida Z2", min=45, km=5, dp=500, focus="Volumen de subida en Z2 (FC 134–142)", ex=[
+        "10 min de calentamiento al 5 %",
+        "30 min en Z2 alternando 8 % y 12 % cada 5 min, andando rápido o trotando para no pasar de 142 ppm",
+        "5 min suaves al 3 %"]),
+    "C-B2": dict(kind="cinta", name="Subidas 5 × 5 Z4", min=50, km=6, dp=500, focus="Potencia en subida en Z4 (FC 150–158)", ex=[
+        "12 min de calentamiento al 6 % en Z1–Z2",
+        "5 × (5 min al 12–15 % en Z4 + 2 min al 2 % suaves)",
+        "5 min de vuelta a la calma"]),
+    "C-EA": dict(kind="cinta", name="Tempo en subida", min=50, km=6, dp=500, focus="Ritmo sostenido de carrera en subida", ex=[
+        "10 min de calentamiento al 5 %",
+        "25 min continuos al 10–12 % en Z3–Z4 (FC 145–155)",
+        "10 min suaves al 3 %"]),
+    "C-EB": dict(kind="cinta", name="Subidas 5 × 5 Z4", min=50, km=6, dp=500, focus="Potencia en subida en Z4 (FC 150–158)", ex=[
+        "12 min de calentamiento al 6 % en Z1–Z2",
+        "5 × (5 min al 12–15 % en Z4 + 2 min al 2 % suaves)",
+        "5 min de vuelta a la calma"]),
+    "C-P": dict(kind="cinta", name="Marcha rápida empinada", min=60, km=4.5, dp=650, focus="Marcha de ultra para las subidas largas de Cavalls", ex=[
+        "10 min andando al 8 %",
+        "45 min de marcha rápida al 15–20 % en Z2–Z3 (FC 135–150), manos en las rodillas si hace falta",
+        "Con la mochila de carrera cargada al menos una vez al mes",
+        "5 min suaves al 3 %"]),
+    "C-D": dict(kind="cinta", name="Cinta suave", min=35, km=4, dp=300, focus="Moverse sin fatiga (solo si llueve; si no, por fuera)", ex=[
+        "35 min en Z1–Z2 al 6–8 %"]),
+}
+DIAS_L = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+# Semana tipo: (día de la semana 0 = lunes, sesión). Las tiradas largas van en fin de semana.
+WEEK_TPL = {
+    "base 1": [(0, "F-B1"), (2, "C-B1"), (3, "F-B1")],
+    "base 2": [(0, "F-B2"), (2, "C-B2"), (3, "F-B2")],
+    "espec": [(0, "F-EA"), (2, "C-EA"), (3, "F-EB")],          # cinta: tempo y 5 × 5 en semanas alternas
+    "pico": [(1, "F-P"), (2, "C-P")],
+    "r": [(1, "F-D"), (3, "C-D")],                               # descarga y recuperación
+    "t": [(1, "F-D"), (3, "C-D")],                               # taper
+    "R": [(0, "F-R")],                                           # semana de carrera
+}
+PHASE_ROWS = [("Base 1", "base 1"), ("Base 2", "base 2"), ("Específico Montseny", "espec"), ("Pico ultra", "pico"),
+              ("Descarga y taper", "r"), ("Semana de carrera", "R")]
 
 
-def fzci_week(ph: str, k: str) -> tuple:
-    if k in FZCI_TYPE:
-        return FZCI_TYPE[k]
+def week_sessions(ph: str, k: str, wi: int = 0) -> list[tuple[int, str]]:
+    """Sesiones de fuerza y cinta de una semana del plan: [(día, id de sesión)]."""
+    if k in ("r", "t", "R"):
+        tpl = WEEK_TPL[k]
+    else:
+        p = (ph or "").lower()
+        tpl = next((v for key, v in WEEK_TPL.items() if len(key) > 1 and key in p), WEEK_TPL["base 1"])
+    if tpl is WEEK_TPL["espec"] and wi % 2:
+        tpl = [(d, "C-EB" if s == "C-EA" else s) for d, s in tpl]
+    return tpl
+
+
+def fzci_week(ph: str, k: str, wi: int = 0) -> tuple:
+    """(sesiones de fuerza, minutos de fuerza, sesiones de cinta, km de cinta, D+ de cinta) de una semana."""
+    ss = [SESS[s] for _d, s in week_sessions(ph, k, wi)]
+    fz = [s for s in ss if s["kind"] == "fuerza"]
+    ci = [s for s in ss if s["kind"] == "cinta"]
+    return len(fz), sum(s["min"] for s in fz), len(ci), sum(s["km"] for s in ci), sum(s["dp"] for s in ci)
+
+
+def tpl_summary(key: str, kind: str) -> str:
+    """Resumen de una fase para la tabla de objetivos: «2 × 40 min: …»."""
+    tpl = WEEK_TPL[key]
+    ss = [(d, SESS[s]) for d, s in tpl if SESS[s]["kind"] == kind]
+    if not ss:
+        return "Nada"
+    days = " y ".join(DIAS_L[d].lower() for d, _s in ss)
+    names = list(dict.fromkeys(s["name"] for _d, s in ss))
+    if key == "espec" and kind == "cinta":
+        names = [SESS["C-EA"]["name"], SESS["C-EB"]["name"] + " (semanas alternas)"]
+    mins = sorted({s["min"] for _d, s in ss})
+    extra = (f", unos {fnum(ss[0][1]['dp'])} m D+" if kind == "cinta" else "")
+    txt = " · ".join(n[:1].lower() + n[1:] for n in names)
+    return f"{len(ss)} × {'/'.join(str(m) for m in mins)} min ({days}): " + txt + extra
+
+
+def phase_key(ph: str) -> str | None:
     p = (ph or "").lower()
-    return next((v for key, v in FZCI_PHASE if key in p), FZCI_DEFAULT)
-
-
-def fzci_txt(ph: str) -> tuple:
-    p = (ph or "").lower()
-    return next(((f, c) for key, f, c in FZCI_TXT if key in p), (None, None))
+    return next((key for key in ("base 1", "base 2", "espec", "pico") if key in p), "r" if "taper" in p else None)
 
 
 PH_COLS = [GLACIER, TEAL, ORANGE, GOLD, VIOLET]
@@ -2149,9 +2249,10 @@ def plan_weeks(P: dict) -> list[dict]:
     out = []
     for i, p in enumerate(P["plan"]):
         frm = _d(p[5]) if len(p) > 5 and p[5] else s0 + dt.timedelta(days=7 * i)
-        fz_n, fz_min, ci_n, ci_km, ci_dp = fzci_week(p[0], p[4])
+        fz_n, fz_min, ci_n, ci_km, ci_dp = fzci_week(p[0], p[4], i)
         out.append(dict(i=i, frm=frm, to=frm + dt.timedelta(days=6), ph=p[0], load=float(p[1]), h=float(p[2]), dp=float(p[3]), k=p[4],
-                        fz_n=fz_n, fz_min=float(fz_min), ci_n=ci_n, ci_km=float(ci_km), ci_dp=float(ci_dp)))
+                        fz_n=fz_n, fz_min=float(fz_min), ci_n=ci_n, ci_km=float(ci_km), ci_dp=float(ci_dp),
+                        ses=[(frm + dt.timedelta(days=d_), sid) for d_, sid in week_sessions(p[0], p[4], i)]))
     return out
 
 
@@ -2277,11 +2378,49 @@ def plan_phase_html(S, only_current=False) -> str:
         h.append(f'<div class="phase{" now" if now else ""}" style="--c:{p["c"]}"><span class="dt">{p["a"]:%d/%m} – {p["b"]:%d/%m}'
                  f'{" · ahora" if now else ""}</span><h4>{_html.escape(p["t"])}</h4><ul>'
                  + "".join(f"<li>{_html.escape(x)}</li>" for x in p["s"]) + "</ul>"
-                 + "".join(f'<div class="fz"><b style="color:{c_}">{lab_}</b> {_html.escape(x_)}</div>'
-                           for lab_, x_, c_ in zip(("Fuerza", "Cinta"), fzci_txt(p["t"]), (GREEN, GLACIER)) if x_)
+                 + ("".join(f'<div class="fz"><b style="color:{c_}">{lab_}</b> {_html.escape(tpl_summary(phase_key(p["t"]), kind_))}</div>'
+                            for lab_, kind_, c_ in (("Fuerza", "fuerza", GREEN), ("Cinta", "cinta", GLACIER)))
+                    if phase_key(p["t"]) else "")
                  + "</div>")
     h.append("</div>")
     return "".join(h)
+
+
+def week_todo(S, wi: int) -> list[dict]:
+    """Sesiones de fuerza y cinta de la semana wi, con su estado (hecha / pendiente / no hecha)."""
+    W, A = S["W"], S["A"]
+    w, a = W[wi], A[wi]
+    done = {"fuerza": a["fz_n"], "cinta": a["ci_n"]}
+    out = []
+    for d_, sid in w["ses"]:
+        ss = SESS[sid]
+        if done[ss["kind"]] > 0:
+            st_, done[ss["kind"]] = "hecha", done[ss["kind"]] - 1
+        else:
+            st_ = "pendiente" if d_ >= today else "no hecha"
+        out.append(dict(date=d_, sid=sid, s=ss, st=st_))
+    return out
+
+
+def sess_html(sid: str) -> str:
+    ss = SESS[sid]
+    col = GREEN if ss["kind"] == "fuerza" else GLACIER
+    meta = f'{ss["min"]} min' + (f' · ≈ {fnum(ss["km"], 1)} km · ≈ {fnum(ss["dp"])} m D+' if ss["kind"] == "cinta" else "")
+    return (f'<div class="phase" style="--c:{col}"><span class="dt">{"Fuerza" if ss["kind"] == "fuerza" else "Cinta"} · {meta}</span>'
+            f'<h4>{_html.escape(ss["name"])}</h4><div class="note" style="margin-bottom:4px">{_html.escape(ss["focus"])}</div><ul>'
+            + "".join(f"<li>{_html.escape(x)}</li>" for x in ss["ex"]) + "</ul></div>")
+
+
+def todo_rows(S, wi: int) -> list[tuple[str, str]]:
+    rows = []
+    for t in week_todo(S, wi):
+        c_ = GREEN if t["st"] == "hecha" else MUTED if t["st"] == "pendiente" else RED
+        ico = "✓" if t["st"] == "hecha" else "○" if t["st"] == "pendiente" else "✗"
+        rows.append((f'<span style="color:{c_}">{ico}</span> <b>{DIAS_L[t["date"].weekday()]} {t["date"]:%d/%m}</b> · '
+                     f'{"Fuerza" if t["s"]["kind"] == "fuerza" else "Cinta"}: {_html.escape(t["s"]["name"])}',
+                     f'{t["s"]["min"]} min' + (f' · ≈ {fnum(t["s"]["dp"])} m D+' if t["s"]["kind"] == "cinta" else "")
+                     + f' · <span style="color:{c_}">{t["st"]}</span>'))
+    return rows
 
 
 PLAN_CSS = f"""<style>
@@ -2292,6 +2431,12 @@ PLAN_CSS = f"""<style>
 .phase h4 {{ margin: 2px 0 6px; font: 600 18px/1.1 "Barlow Condensed", sans-serif; color: {INK}; }}
 .phase ul {{ margin: 0; padding-left: 16px; }}
 .phase li {{ font-size: 12.5px; color: {INK}; margin: 2px 0; }}
+table.tbl.objt td {{ white-space: normal; vertical-align: top; }}
+table.tbl.objt td:first-child {{ white-space: nowrap; }}
+.mlist {{ border-top: 1px solid {LINE}; margin: 4px 0 8px; }}
+.mrow {{ padding: 7px 2px; border-bottom: 1px solid {GRID}; min-height: 44px; display: grid; gap: 1px; align-content: center; }}
+.mrow .t {{ font-size: 14px; color: {INK}; }}
+.mrow .s {{ font-size: 12.5px; color: {MUTED}; font-variant-numeric: tabular-nums; }}
 .phase .fz {{ font-size: 12px; color: {INK}; margin-top: 6px; padding-top: 6px; border-top: 1px solid {GRID}; }}
 </style>"""
 
@@ -2347,6 +2492,31 @@ def plan_tab():
                 'Recuadro punteado = semana en curso.</span>', unsafe_allow_html=True)
     st.subheader("Fases")
     st.markdown(plan_phase_html(S), unsafe_allow_html=True)
+
+    # Fuerza y cinta: esta semana y objetivos por fase con los ejercicios de cada sesión
+    wi_ = S["ci"] if S["ci"] >= 0 else (0 if S["before"] else None)
+    if wi_ is not None:
+        st.subheader("Fuerza y cinta · " + ("esta semana" if S["ci"] >= 0 else "primera semana"))
+        st.markdown(_rows(todo_rows(S, wi_)), unsafe_allow_html=True)
+    st.subheader("Objetivos por fase · fuerza y cinta")
+    TP = pd.DataFrame([{"Fase": lab_, "Fuerza": tpl_summary(key_, "fuerza"), "Cinta (inclinada)": tpl_summary(key_, "cinta")}
+                       for lab_, key_ in PHASE_ROWS])
+    st.markdown('<div class="tblw"><table class="tbl objt"><thead><tr>' + "".join(f'<th class="l">{c}</th>' for c in TP.columns)
+                + "</tr></thead><tbody>" + "".join("<tr>" + "".join(f'<td class="l">{_html.escape(str(v))}</td>' for v in r_) + "</tr>"
+                                                    for r_ in TP.itertuples(index=False)) + "</tbody></table></div>", unsafe_allow_html=True)
+    st.markdown('<span class="note">Días orientativos: las tiradas largas van en fin de semana. En el Pico ultra, la fuerza va el martes '
+                'para no hacerla en las 48 h antes de una larga. Zonas de FC de carrera de intervals.icu: Z2 134–142, Z3 142–150, '
+                'Z4 150–158.</span>', unsafe_allow_html=True)
+    cur_key = "base 1"
+    if S["ci"] >= 0:
+        cw_ = S["W"][S["ci"]]
+        cur_key = ("r" if cw_["k"] == "t" else cw_["k"]) if cw_["k"] in ("r", "t", "R") else (phase_key(cw_["ph"]) or "base 1")
+    labs = [lab_ for lab_, _k in PHASE_ROWS]
+    sel = st.segmented_control("Ver ejercicios de", labs, default=next((lab_ for lab_, k_ in PHASE_ROWS if k_ == cur_key), labs[0]),
+                               key="plan_ses_fase") or labs[0]
+    key_sel = dict(PHASE_ROWS)[sel]
+    ids_ = list(dict.fromkeys([sid for _d, sid in WEEK_TPL[key_sel]] + (["C-EB"] if key_sel == "espec" else [])))
+    st.markdown('<div class="phases">' + "".join(sess_html(sid) for sid in ids_) + "</div>", unsafe_allow_html=True)
     st.subheader("Semana a semana")
     W, A, ci = S["W"], S["A"], S["ci"]
     rows = []
@@ -2499,6 +2669,14 @@ def mobile_view():
                                     + (f' · fuerza {w["fz_n"]}×' if w["fz_n"] else "")
                                     + (f' · cinta {fnum(w["ci_km"])} km' if w["ci_n"] else "")) for w in nxt]),
                             unsafe_allow_html=True)
+            wi_m = SP["ci"] if SP["ci"] >= 0 else (0 if SP["before"] else None)
+            if wi_m is not None:
+                st.markdown('<div class="eyebrow" style="margin-top:6px">Fuerza y cinta · '
+                            + ("esta semana" if SP["ci"] >= 0 else "primera semana") + "</div>", unsafe_allow_html=True)
+                st.markdown(_rows(todo_rows(SP, wi_m)), unsafe_allow_html=True)
+                if st.toggle("Ver los ejercicios de esta semana", value=False, key="mob_plan_ej"):
+                    ids_m = list(dict.fromkeys(sid for _d, sid in SP["W"][wi_m]["ses"]))
+                    st.markdown('<div class="phases">' + "".join(sess_html(sid) for sid in ids_m) + "</div>", unsafe_allow_html=True)
             if st.toggle("Ver todas las fases", value=False, key="mob_plan_fases"):
                 st.markdown(plan_phase_html(SP), unsafe_allow_html=True)
 
