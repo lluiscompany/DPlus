@@ -2098,20 +2098,49 @@ SESS = {
         "5 min suaves al 3 %"]),
     "C-D": dict(kind="cinta", name="Cinta suave", min=35, km=4, dp=300, focus="Moverse sin fatiga (solo si llueve; si no, por fuera)", ex=[
         "35 min en Z1–Z2 al 6–8 %"]),
+    # Sesiones de calidad (carrera, el miércoles). Si llueve, se hacen en cinta con la variante indicada.
+    "Q-B1": dict(kind="calidad", name="Rodaje + progresivos", min=66, focus="Rodaje suave con progresivos rápidos pero relajados (no sprint)", ex=[
+        "40 min en Z2", "8 × (20 s en Z5 + 100 s en Z1)", "10 min en Z2",
+        "Si llueve, en cinta: 40 min en Z2 al 1–2 % y los 8 progresivos subiendo la velocidad, sin sprint"]),
+    "Q-B2F": dict(kind="calidad", name="Fartlek 8×2'", min=57, focus="Terreno ondulado; tramos a ritmo vivo y recuperación trotando sin parar", ex=[
+        "15 min en Z2", "8 × (2 min en Z4 + 2 min en Z2)", "10 min en Z2",
+        "Si llueve, en cinta: los tramos de 2' al 6–8 % en Z4 y la recuperación al 2 % trotando"]),
+    "Q-B2S": dict(kind="calidad", name="Subidas 5×5'", min=65, focus="Subidas en Z4 en cuesta continua de 6–10 %, bajando suave", ex=[
+        "15 min en Z2", "5 × (5 min en Z4 + 3 min en Z1)", "10 min en Z2",
+        "Si llueve, en cinta: 5 × (5' al 12–15 % en Z4 + 3' al 2 % suaves)"]),
+    "Q-EU": dict(kind="calidad", name="Umbral 3×10'", min=64, focus="Ritmo sostenido pero controlado, en terreno corrible o subida suave", ex=[
+        "15 min en Z2", "3 × (10 min en Z3–Z4 + 3 min en Z1)", "10 min en Z2",
+        "Si llueve, en cinta: 3 × (10' al 8–10 % en Z3–Z4 + 3' al 2 % suaves)"]),
+    "Q-P": dict(kind="calidad", name="Subidas largas 3×15'", min=85, focus="A ritmo de carrera, con bastones y marcha rápida donde la pendiente lo pida", ex=[
+        "15 min en Z2", "3 × (15 min en Z3 + 5 min en Z1)", "10 min en Z2",
+        "Si llueve, en cinta: 3 × (15' de marcha rápida o trote al 15–20 % en Z3 + 5' al 3 %), alguna vez con la mochila cargada"]),
+    "Q-T1": dict(kind="calidad", name="Taper Montseny · 4×4'", min=53, focus="Toque de intensidad: piernas vivas sin acumular fatiga", ex=[
+        "15 min en Z2", "4 × (4 min en Z4 + 3 min en Z1)", "10 min en Z2", "Si llueve, en cinta: 4 × (4' al 8 % en Z4 + 3' al 2 %)"]),
+    "Q-T2": dict(kind="calidad", name="Taper Cavalls · 3×5'", min=49, focus="Último toque de ritmo, suelto y controlado", ex=[
+        "15 min en Z2", "3 × (5 min en Z3 + 3 min en Z1)", "10 min en Z2", "Si llueve, en cinta: 3 × (5' al 6–8 % en Z3 + 3' al 2 %)"]),
 }
+# Sesiones leídas del calendario de intervals.icu (calidad), con la misma forma que SESS. Clave «CAL-<id del evento>».
+CAL_SESS: dict[str, dict] = {}
+
+
+def sess(sid: str) -> dict:
+    return SESS.get(sid) or CAL_SESS[sid]
 DIAS_L = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
 # Semana tipo: (día de la semana 0 = lunes, sesión). Las tiradas largas van en fin de semana.
+# El miércoles es la sesión de calidad (fuera; si llueve, en cinta). La cinta como sesión aparte solo queda en descarga y taper.
 WEEK_TPL = {
-    "base 1": [(0, "F-B1"), (2, "C-B1"), (3, "F-B1")],
-    "base 2": [(0, "F-B2"), (2, "C-B2"), (3, "F-B2")],
-    "espec": [(0, "F-EA"), (2, "C-EA"), (3, "F-EB")],          # cinta: tempo y 5 × 5 en semanas alternas
-    "pico": [(1, "F-P"), (2, "C-P")],
+    "base 1": [(0, "F-B1"), (2, "Q-B1"), (3, "F-B1")],
+    "base 2": [(0, "F-B2"), (2, "Q-B2F"), (3, "F-B2")],         # fartlek y subidas 5×5' en semanas alternas
+    "espec": [(0, "F-EA"), (2, "Q-EU"), (3, "F-EB")],
+    "pico": [(1, "F-P"), (2, "Q-P")],
     "r": [(1, "F-D"), (3, "C-D")],                               # descarga y recuperación
-    "t": [(1, "F-D"), (3, "C-D")],                               # taper
+    "t": [(1, "F-D"), (2, "Q-T1"), (3, "C-D")],                  # taper: toque de intensidad el miércoles
     "R": [(0, "F-R")],                                           # semana de carrera
 }
+QALT = {"base 2": "Q-B2S", "t": "Q-T2"}                          # otras sesiones de calidad de la fase (para ver los ejercicios)
+QUAL_LOCAL = {8: "Q-B2F", 9: "Q-B2S", 10: "Q-B2F", 12: "Q-B2S", 13: "Q-B2F", 14: "Q-B2S", 21: "Q-T1", 31: "Q-T2"}  # semana → calidad
 PHASE_ROWS = [("Base 1", "base 1"), ("Base 2", "base 2"), ("Específico Montseny", "espec"), ("Pico ultra", "pico"),
-              ("Descarga y taper", "r"), ("Semana de carrera", "R")]
+              ("Descarga y recuperación", "r"), ("Taper", "t"), ("Semana de carrera", "R")]
 
 
 def week_sessions(ph: str, k: str, wi: int = 0) -> list[tuple[int, str]]:
@@ -2121,14 +2150,14 @@ def week_sessions(ph: str, k: str, wi: int = 0) -> list[tuple[int, str]]:
     else:
         p = (ph or "").lower()
         tpl = next((v for key, v in WEEK_TPL.items() if len(key) > 1 and key in p), WEEK_TPL["base 1"])
-    if tpl is WEEK_TPL["espec"] and wi % 2:
-        tpl = [(d, "C-EB" if s == "C-EA" else s) for d, s in tpl]
+    if wi in QUAL_LOCAL:
+        tpl = [(d, QUAL_LOCAL[wi] if SESS[s]["kind"] == "calidad" else s) for d, s in tpl]
     return tpl
 
 
 def fzci_week(ph: str, k: str, wi: int = 0) -> tuple:
     """(sesiones de fuerza, minutos de fuerza, sesiones de cinta, km de cinta, D+ de cinta) de una semana."""
-    ss = [SESS[s] for _d, s in week_sessions(ph, k, wi)]
+    ss = [sess(s) for _d, s in week_sessions(ph, k, wi)]
     fz = [s for s in ss if s["kind"] == "fuerza"]
     ci = [s for s in ss if s["kind"] == "cinta"]
     return len(fz), sum(s["min"] for s in fz), len(ci), sum(s["km"] for s in ci), sum(s["dp"] for s in ci)
@@ -2139,12 +2168,17 @@ def tpl_summary(key: str, kind: str) -> str:
     tpl = WEEK_TPL[key]
     ss = [(d, SESS[s]) for d, s in tpl if SESS[s]["kind"] == kind]
     if not ss:
-        return "Nada"
+        return ("Solo si llueve: la calidad del miércoles en cinta" if kind == "cinta" and any(SESS[s]["kind"] == "calidad" for _d, s in tpl)
+                else "Nada")
     days = " y ".join(DIAS_L[d].lower() for d, _s in ss)
     names = list(dict.fromkeys(s["name"] for _d, s in ss))
-    if key == "espec" and kind == "cinta":
-        names = [SESS["C-EA"]["name"], SESS["C-EB"]["name"] + " (semanas alternas)"]
-    mins = sorted({s["min"] for _d, s in ss})
+    if key == "t" and kind == "calidad":
+        a_, b_ = SESS["Q-T1"], SESS["Q-T2"]
+        return (f"1 × {b_['min']}–{a_['min']} min (miércoles): toque corto de intensidad, "
+                f"{a_['name'].split(' · ')[-1]} antes de Montseny y {b_['name'].split(' · ')[-1]} antes de Cavalls")
+    if key in QALT and kind == "calidad":
+        names = [names[0], SESS[QALT[key]]["name"] + " (semanas alternas)"]
+    mins = sorted({s["min"] for _d, s in ss} | ({SESS[QALT[key]]["min"]} if key in QALT and kind == "calidad" else set()))
     extra = (f", unos {fnum(ss[0][1]['dp'])} m D+" if kind == "cinta" else "")
     txt = " · ".join(n[:1].lower() + n[1:] for n in names)
     return f"{len(ss)} × {'/'.join(str(m) for m in mins)} min ({days}): " + txt + extra
@@ -2152,7 +2186,7 @@ def tpl_summary(key: str, kind: str) -> str:
 
 def phase_key(ph: str) -> str | None:
     p = (ph or "").lower()
-    return next((key for key in ("base 1", "base 2", "espec", "pico") if key in p), "r" if "taper" in p else None)
+    return next((key for key in ("base 1", "base 2", "espec", "pico") if key in p), "t" if "taper" in p else None)
 
 
 PH_COLS = [GLACIER, TEAL, ORANGE, GOLD, VIOLET]
@@ -2229,7 +2263,47 @@ def plan_from_events(evs: list[dict]) -> dict | None:
         phases.append(dict(t=re.sub(r"^fase\s*[·:\-]\s*", "", e.get("name") or "", flags=re.I).strip(),
                            frm=frm if frm >= 0 else 0, to=to if to >= 0 else len(plan) - 1,
                            s=lines or [str(e.get("description") or "").splitlines()[0] if e.get("description") else ""]))
-    return dict(start=first.isoformat(), races=races, plan=plan, phases=phases)
+    # Sesiones de calidad: WORKOUT de carrera (Run o TrailRun) dentro de las semanas del plan
+    CAL_SESS.clear()
+    qual = {}
+    for e in sorted(evs, key=lambda e: str(e.get("start_date_local"))):
+        d_ = _d(e.get("start_date_local"))
+        if (e.get("category") != "WORKOUT" or e.get("type") not in ("Run", "TrailRun") or d_ is None
+                or not first <= d_ <= last_end or re.match(r"^\s*_?eliminar", e.get("name") or "", re.I)):
+            continue
+        sid = f"CAL-{e.get('id') or e.get('event_id') or len(CAL_SESS)}"
+        CAL_SESS[sid] = cal_session(e)
+        qual.setdefault(w_idx(d_), []).append((d_.isoformat(), sid))
+    return dict(start=first.isoformat(), races=races, plan=plan, phases=phases, qual=qual)
+
+
+def cal_session(e: dict) -> dict:
+    """Sesión de calidad del calendario con la forma de SESS: nombre, minutos, foco y pasos legibles."""
+    txt = str(e.get("description") or "")
+    lines = [x.strip() for x in txt.splitlines() if x.strip()]
+    focus = next((x for x in lines if not x.startswith("-") and not re.match(r"^\d+\s*x$", x, re.I) and not x.startswith("Si llueve")), "")
+
+    def human(x):
+        x = re.sub(r"\s*HR\b", "", x.lstrip("- ").strip())
+        x = re.sub(r"\b(\d+)m\b", r"\1 min", x)
+        x = re.sub(r"\b(\d+)s\b", r"\1 s", x)
+        return re.sub(r"\b(Z\d(?:-Z\d)?)\b", lambda m_: "en " + m_.group(1).replace("-", "–"), x)
+
+    ex, rep_ = [], None
+    for x in [y.strip() for y in txt.splitlines()] + [""]:
+        if re.match(r"^\d+\s*x$", x, re.I):
+            rep_ = [int(re.match(r"\d+", x).group()), []]
+        elif x.startswith("-"):
+            (rep_[1] if rep_ is not None else ex).append(human(x))
+        else:
+            if rep_ is not None and rep_[1]:
+                ex.append(f"{rep_[0]} × (" + " + ".join(rep_[1]) + ")")
+            rep_ = None
+            if x.startswith("Si llueve"):
+                ex.append(x)
+    secs = e.get("moving_time") or e.get("time_target") or e.get("moving_time_seconds") or e.get("time_target_seconds") or 0
+    name = re.sub(r"^(base\s*\d|espec[ií]fico|pico ultra)\s*·\s*", "", e.get("name") or "Calidad", flags=re.I).strip()
+    return dict(kind="calidad", name=name, min=round(float(secs) / 60), focus=focus, ex=ex or lines[:6], cal=True)
 
 
 def load_plan() -> tuple[dict, str, Exception | None]:
@@ -2250,9 +2324,14 @@ def plan_weeks(P: dict) -> list[dict]:
     for i, p in enumerate(P["plan"]):
         frm = _d(p[5]) if len(p) > 5 and p[5] else s0 + dt.timedelta(days=7 * i)
         fz_n, fz_min, ci_n, ci_km, ci_dp = fzci_week(p[0], p[4], i)
+        ses = [(frm + dt.timedelta(days=d_), sid) for d_, sid in week_sessions(p[0], p[4], i)]
+        if P.get("qual"):   # el calendario manda: sus sesiones de calidad sustituyen a las de la plantilla
+            ses = sorted([x for x in ses if SESS[x[1]]["kind"] != "calidad"]
+                         + [(_d(d_), sid) for d_, sid in P["qual"].get(i, [])], key=lambda x: x[0])
+        q_ = [sess(sid) for _d_, sid in ses if sess(sid)["kind"] == "calidad"]
         out.append(dict(i=i, frm=frm, to=frm + dt.timedelta(days=6), ph=p[0], load=float(p[1]), h=float(p[2]), dp=float(p[3]), k=p[4],
                         fz_n=fz_n, fz_min=float(fz_min), ci_n=ci_n, ci_km=float(ci_km), ci_dp=float(ci_dp),
-                        ses=[(frm + dt.timedelta(days=d_), sid) for d_, sid in week_sessions(p[0], p[4], i)]))
+                        q_n=len(q_), q_min=float(sum(s_["min"] for s_ in q_)), ses=ses))
     return out
 
 
@@ -2379,7 +2458,7 @@ def plan_phase_html(S, only_current=False) -> str:
                  f'{" · ahora" if now else ""}</span><h4>{_html.escape(p["t"])}</h4><ul>'
                  + "".join(f"<li>{_html.escape(x)}</li>" for x in p["s"]) + "</ul>"
                  + ("".join(f'<div class="fz"><b style="color:{c_}">{lab_}</b> {_html.escape(tpl_summary(phase_key(p["t"]), kind_))}</div>'
-                            for lab_, kind_, c_ in (("Fuerza", "fuerza", GREEN), ("Cinta", "cinta", GLACIER)))
+                            for lab_, kind_, c_ in (("Fuerza", "fuerza", GREEN), ("Calidad", "calidad", ORANGE), ("Cinta", "cinta", GLACIER)))
                     if phase_key(p["t"]) else "")
                  + "</div>")
     h.append("</div>")
@@ -2391,9 +2470,14 @@ def week_todo(S, wi: int) -> list[dict]:
     W, A = S["W"], S["A"]
     w, a = W[wi], A[wi]
     done = {"fuerza": a["fz_n"], "cinta": a["ci_n"]}
+    run_days = set(all_df.loc[all_df["sport"].isin(OUT | CINTA), "date"]) if len(all_df) else set()
     out = []
     for d_, sid in w["ses"]:
-        ss = SESS[sid]
+        ss = sess(sid)
+        if ss["kind"] == "calidad":
+            st_ = "hecha" if d_ in run_days else "pendiente" if d_ >= today else "no hecha"
+            out.append(dict(date=d_, sid=sid, s=ss, st=st_))
+            continue
         if done[ss["kind"]] > 0:
             st_, done[ss["kind"]] = "hecha", done[ss["kind"]] - 1
         else:
@@ -2402,11 +2486,14 @@ def week_todo(S, wi: int) -> list[dict]:
     return out
 
 
+KIND_L = {"fuerza": "Fuerza", "cinta": "Cinta", "calidad": "Calidad"}
+
+
 def sess_html(sid: str) -> str:
-    ss = SESS[sid]
-    col = GREEN if ss["kind"] == "fuerza" else GLACIER
+    ss = sess(sid)
+    col = {"fuerza": GREEN, "cinta": GLACIER, "calidad": ORANGE}[ss["kind"]]
     meta = f'{ss["min"]} min' + (f' · ≈ {fnum(ss["km"], 1)} km · ≈ {fnum(ss["dp"])} m D+' if ss["kind"] == "cinta" else "")
-    return (f'<div class="phase" style="--c:{col}"><span class="dt">{"Fuerza" if ss["kind"] == "fuerza" else "Cinta"} · {meta}</span>'
+    return (f'<div class="phase" style="--c:{col}"><span class="dt">{KIND_L[ss["kind"]]} · {meta}</span>'
             f'<h4>{_html.escape(ss["name"])}</h4><div class="note" style="margin-bottom:4px">{_html.escape(ss["focus"])}</div><ul>'
             + "".join(f"<li>{_html.escape(x)}</li>" for x in ss["ex"]) + "</ul></div>")
 
@@ -2421,9 +2508,10 @@ def week_note(S, wi: int) -> str:
     nxt = next((x for x in W[wi + 1:] if x["k"] not in ("r", "t", "R")), None)
     key_ = phase_key(w["ph"])
     lab_ = next((l_ for l_, k_ in PHASE_ROWS if k_ == key_), None)
-    txt = (f"S{wi + 1} es {why}: la fuerza y la cinta se reducen a "
-           + ("la activación de carrera" if w["k"] == "R" else "activación y cinta suave")
-           + " (fila «" + ("Semana de carrera" if w["k"] == "R" else "Descarga y taper") + "» de la tabla).")
+    txt = (f"S{wi + 1} es {why}: las sesiones se reducen a "
+           + {"R": "la activación de carrera", "t": "activación, un toque corto de calidad y cinta suave",
+              "r": "activación y cinta suave, sin calidad"}[w["k"]]
+           + " (fila «" + {"R": "Semana de carrera", "t": "Taper", "r": "Descarga y recuperación"}[w["k"]] + "» de la tabla).")
     if nxt is not None:
         nl_ = next((l_ for l_, k_ in PHASE_ROWS if k_ == phase_key(nxt["ph"])), nxt["ph"])
         txt += f" La semana tipo de {nl_} empieza la S{nxt['i'] + 1} ({nxt['frm']:%d/%m})."
@@ -2436,7 +2524,7 @@ def todo_rows(S, wi: int) -> list[tuple[str, str]]:
         c_ = GREEN if t["st"] == "hecha" else MUTED if t["st"] == "pendiente" else RED
         ico = "✓" if t["st"] == "hecha" else "○" if t["st"] == "pendiente" else "✗"
         rows.append((f'<span style="color:{c_}">{ico}</span> <b>{DIAS_L[t["date"].weekday()]} {t["date"]:%d/%m}</b> · '
-                     f'{"Fuerza" if t["s"]["kind"] == "fuerza" else "Cinta"}: {_html.escape(t["s"]["name"])}',
+                     f'{KIND_L[t["s"]["kind"]]}: {_html.escape(t["s"]["name"])}',
                      f'{t["s"]["min"]} min' + (f' · ≈ {fnum(t["s"]["dp"])} m D+' if t["s"]["kind"] == "cinta" else "")
                      + f' · <span style="color:{c_}">{t["st"]}</span>'))
     return rows
@@ -2515,31 +2603,33 @@ def plan_tab():
     # Fuerza y cinta: esta semana y objetivos por fase con los ejercicios de cada sesión
     wi_ = S["ci"] if S["ci"] >= 0 else (0 if S["before"] else None)
     if wi_ is not None:
-        st.subheader("Fuerza y cinta · " + ("esta semana" if S["ci"] >= 0 else "primera semana"))
+        st.subheader("Fuerza, calidad y cinta · " + ("esta semana" if S["ci"] >= 0 else "primera semana"))
         if week_note(S, wi_):
             st.markdown(f'<div class="note">{_html.escape(week_note(S, wi_))}</div>', unsafe_allow_html=True)
         st.markdown(_rows(todo_rows(S, wi_)), unsafe_allow_html=True)
-    st.subheader("Objetivos por fase · fuerza y cinta")
-    TP = pd.DataFrame([{"Fase": lab_, "Fuerza": tpl_summary(key_, "fuerza"), "Cinta (inclinada)": tpl_summary(key_, "cinta")}
-                       for lab_, key_ in PHASE_ROWS])
+    st.subheader("Objetivos por fase · fuerza, calidad y cinta")
+    TP = pd.DataFrame([{"Fase": lab_, "Fuerza": tpl_summary(key_, "fuerza"), "Calidad (carrera)": tpl_summary(key_, "calidad"),
+                        "Cinta (inclinada)": tpl_summary(key_, "cinta")} for lab_, key_ in PHASE_ROWS])
     st.markdown('<div class="tblw"><table class="tbl objt"><thead><tr>' + "".join(f'<th class="l">{c}</th>' for c in TP.columns)
                 + "</tr></thead><tbody>" + "".join("<tr>" + "".join(f'<td class="l">{_html.escape(str(v))}</td>' for v in r_) + "</tr>"
                                                     for r_ in TP.itertuples(index=False)) + "</tbody></table></div>", unsafe_allow_html=True)
     red_ = [f"S{w['i'] + 1}" for w in S["W"] if w["k"] in ("r", "t")]
     st.markdown('<span class="note">Cada fila es la semana tipo de la fase. Las semanas de descarga o taper ('
-                + ", ".join(red_) + ') usan la fila «Descarga y taper» sea cual sea su fase. </span>', unsafe_allow_html=True)
+                + ", ".join(red_) + ') usan su fila sea cual sea su fase. La calidad del miércoles se hace fuera; si llueve, en cinta '
+                '(cada sesión trae su variante). ' + ("Las sesiones de calidad se leen del calendario de intervals.icu." if S["P"].get("qual")
+                                                      else "Sesiones de calidad del plan guardado en la app.") + '</span>', unsafe_allow_html=True)
     st.markdown('<span class="note">Días orientativos: las tiradas largas van en fin de semana. En el Pico ultra, la fuerza va el martes '
                 'para no hacerla en las 48 h antes de una larga. Zonas de FC de carrera de intervals.icu: Z2 134–142, Z3 142–150, '
                 'Z4 150–158.</span>', unsafe_allow_html=True)
     cur_key = "base 1"
     if S["ci"] >= 0:
         cw_ = S["W"][S["ci"]]
-        cur_key = ("r" if cw_["k"] == "t" else cw_["k"]) if cw_["k"] in ("r", "t", "R") else (phase_key(cw_["ph"]) or "base 1")
+        cur_key = cw_["k"] if cw_["k"] in ("r", "t", "R") else (phase_key(cw_["ph"]) or "base 1")
     labs = [lab_ for lab_, _k in PHASE_ROWS]
     sel = st.segmented_control("Ver ejercicios de", labs, default=next((lab_ for lab_, k_ in PHASE_ROWS if k_ == cur_key), labs[0]),
                                key="plan_ses_fase") or labs[0]
     key_sel = dict(PHASE_ROWS)[sel]
-    ids_ = list(dict.fromkeys([sid for _d, sid in WEEK_TPL[key_sel]] + (["C-EB"] if key_sel == "espec" else [])))
+    ids_ = list(dict.fromkeys([sid for _d, sid in WEEK_TPL[key_sel]] + ([QALT[key_sel]] if key_sel in QALT else [])))
     st.markdown('<div class="phases">' + "".join(sess_html(sid) for sid in ids_) + "</div>", unsafe_allow_html=True)
     st.subheader("Semana a semana")
     W, A, ci = S["W"], S["A"], S["ci"]
@@ -2691,11 +2781,12 @@ def mobile_view():
                                        if w["k"] and not re.search(r"descarga|taper", w["ph"], re.I) else ""),
                                     f'carga {fnum(w["load"])} · {fnum(w["h"], 1)} h · {fnum(w["dp"])} m D+'
                                     + (f' · fuerza {w["fz_n"]}×' if w["fz_n"] else "")
+                                    + (f' · calidad {w["q_n"]}×' if w.get("q_n") else "")
                                     + (f' · cinta {fnum(w["ci_km"])} km' if w["ci_n"] else "")) for w in nxt]),
                             unsafe_allow_html=True)
             wi_m = SP["ci"] if SP["ci"] >= 0 else (0 if SP["before"] else None)
             if wi_m is not None:
-                st.markdown('<div class="eyebrow" style="margin-top:6px">Fuerza y cinta · '
+                st.markdown('<div class="eyebrow" style="margin-top:6px">Fuerza, calidad y cinta · '
                             + ("esta semana" if SP["ci"] >= 0 else "primera semana") + "</div>", unsafe_allow_html=True)
                 if week_note(SP, wi_m):
                     st.markdown(f'<div class="note">{_html.escape(week_note(SP, wi_m))}</div>', unsafe_allow_html=True)
