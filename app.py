@@ -298,8 +298,16 @@ def get_secret(name, default=""):
         return os.environ.get(name, default)
 
 
-# Campo personalizado de actividad en intervals.icu donde se guarda la pendiente media (%) de la cinta
+# Campo personalizado de actividad en intervals.icu donde se guarda el NIVEL de inclinación de la cinta (el número que
+# marca la máquina, 0–12). La pendiente real se obtiene con una conversión lineal: nivel 12 = 8 % real.
 INCLINE_FIELD = str(get_secret("INCLINE_FIELD", "Pendiente")).strip() or "Pendiente"
+CINTA_MAX_LEVEL = float(get_secret("CINTA_MAX_LEVEL", 12) or 12)    # nivel máximo de la cinta
+CINTA_MAX_PCT = float(get_secret("CINTA_MAX_PCT", 8) or 8)          # % real que corresponde al nivel máximo
+
+
+def level_to_pct(level):
+    """Nivel de la cinta → pendiente real (%)."""
+    return level * CINTA_MAX_PCT / CINTA_MAX_LEVEL
 
 
 def map_activity(a: dict) -> dict:
@@ -394,8 +402,9 @@ def to_frame(rows: list[dict], hike: bool, cinta_dp: bool = True, overrides: dic
         ov = df["id"].map(overrides)
         df["incline"] = ov.where(ov.notna(), df["incline"])
     is_cinta = df["sport"].isin(CINTA)
-    # D+ de cinta = distancia × pendiente media
-    df.loc[is_cinta, "dp"] = (df.loc[is_cinta, "km"] * 1000 * df.loc[is_cinta, "incline"].fillna(0) / 100).round(0)
+    # D+ de cinta = distancia × pendiente real (el campo guarda el nivel de la cinta, que se convierte a %)
+    df["incline_pct"] = level_to_pct(df["incline"])
+    df.loc[is_cinta, "dp"] = (df.loc[is_cinta, "km"] * 1000 * df.loc[is_cinta, "incline_pct"].fillna(0) / 100).round(0)
     cinta_up = is_cinta & cinta_dp & (df["dp"] > 0)
     out_mask = df["sport"].isin(OUT) | (hike & (df["sport"] == "Hike"))
     df["out_km"] = np.where(out_mask, df["km"], 0.0)
@@ -1181,7 +1190,8 @@ with st.sidebar:
     year = st.selectbox("Temporada", list(range(now_y, 2022, -1)), index=0)
     hike = st.toggle("Sumar caminatas a D+ y Km", key="sb_hike", on_change=_sync_flags)
     cinta_dp = st.toggle("Sumar D+ de cinta (según pendiente)", key="sb_cinta_dp", on_change=_sync_flags,
-                         help="El D+ de cinta se calcula como km × pendiente media. Se edita en la pestaña Cinta.")
+                         help="El D+ de cinta se calcula como km × pendiente real (el nivel de la cinta convertido a %). "
+                              "Se edita en la pestaña Cinta.")
     if st.button("Actualizar datos", type="primary", width="stretch"):
         st.cache_data.clear()
     demo = str(get_secret("DEMO", "")).strip() == "1"
@@ -2092,55 +2102,56 @@ SESS = {
         "1 vuelta del circuito de activación con peso corporal",
         "Movilidad 10 min",
         "Nada con cargas en los 5 días previos a la carrera"]),
-    "C-B1": dict(kind="cinta", name="Cinta en subida Z2", min=45, km=5, dp=500, focus="Volumen de subida en Z2 (FC 134–142)", ex=[
-        "10 min de calentamiento al 5 %",
-        "30 min en Z2 alternando 8 % y 12 % cada 5 min, andando rápido o trotando para no pasar de 142 ppm",
-        "5 min suaves al 3 %"]),
-    "C-B2": dict(kind="cinta", name="Subidas 5 × 5 Z4", min=50, km=6, dp=500, focus="Potencia en subida en Z4 (FC 150–158)", ex=[
-        "12 min de calentamiento al 6 % en Z1–Z2",
-        "5 × (5 min al 12–15 % en Z4 + 2 min al 2 % suaves)",
+    # Cinta: inclinación en NIVELES de la máquina (0–12); nivel 12 = 8 % real, el máximo. Km y D+ estimados a ~6–6,5 km/h.
+    "C-B1": dict(kind="cinta", name="Cinta en subida Z2", min=45, km=4.7, dp=270, focus="Volumen de subida en Z2 (FC 134–142)", ex=[
+        "10 min de calentamiento al nivel 6 (4 % real)",
+        "30 min en Z2 alternando nivel 9 y nivel 12 (6 % y 8 % real) cada 5 min, andando rápido o trotando para no pasar de 142 ppm",
+        "5 min suaves al nivel 3 (2 % real)"]),
+    "C-B2": dict(kind="cinta", name="Subidas 5 × 5 Z4", min=50, km=6, dp=330, focus="Potencia en subida en Z4 (FC 150–158)", ex=[
+        "12 min de calentamiento al nivel 6 (4 % real) en Z1–Z2",
+        "5 × (5 min al nivel 12 (8 % real, el máximo) en Z4, subiendo la velocidad si hace falta + 2 min al nivel 3 suaves)",
         "5 min de vuelta a la calma"]),
-    "C-EA": dict(kind="cinta", name="Tempo en subida", min=50, km=6, dp=500, focus="Ritmo sostenido de carrera en subida", ex=[
-        "10 min de calentamiento al 5 %",
-        "25 min continuos al 10–12 % en Z3–Z4 (FC 145–155)",
-        "10 min suaves al 3 %"]),
-    "C-EB": dict(kind="cinta", name="Subidas 5 × 5 Z4", min=50, km=6, dp=500, focus="Potencia en subida en Z4 (FC 150–158)", ex=[
-        "12 min de calentamiento al 6 % en Z1–Z2",
-        "5 × (5 min al 12–15 % en Z4 + 2 min al 2 % suaves)",
+    "C-EA": dict(kind="cinta", name="Tempo en subida", min=50, km=6, dp=330, focus="Ritmo sostenido de carrera en subida", ex=[
+        "10 min de calentamiento al nivel 6 (4 % real)",
+        "25 min continuos al nivel 12 (8 % real) en Z3–Z4 (FC 145–155)",
+        "10 min suaves al nivel 3 (2 % real)"]),
+    "C-EB": dict(kind="cinta", name="Subidas 5 × 5 Z4", min=50, km=6, dp=330, focus="Potencia en subida en Z4 (FC 150–158)", ex=[
+        "12 min de calentamiento al nivel 6 (4 % real) en Z1–Z2",
+        "5 × (5 min al nivel 12 (8 % real, el máximo) en Z4, subiendo la velocidad si hace falta + 2 min al nivel 3 suaves)",
         "5 min de vuelta a la calma"]),
-    "C-P": dict(kind="cinta", name="Marcha rápida empinada", min=60, km=4.5, dp=650, focus="Marcha de ultra para las subidas largas de Cavalls", ex=[
-        "10 min andando al 8 %",
-        "45 min de marcha rápida al 15–20 % en Z2–Z3 (FC 135–150), manos en las rodillas si hace falta",
+    "C-P": dict(kind="cinta", name="Marcha rápida empinada", min=60, km=5.8, dp=420, focus="Marcha de ultra para las subidas largas de Cavalls", ex=[
+        "10 min andando al nivel 9 (6 % real)",
+        "45 min de marcha rápida al nivel 12 (8 % real, el máximo) en Z2–Z3 (FC 135–150)",
         "Con la mochila de carrera cargada al menos una vez al mes",
-        "5 min suaves al 3 %"]),
-    "C-PZ": dict(kind="cinta", name="Marcha empinada Z2", min=60, km=4.5, dp=650,
+        "5 min suaves al nivel 3 (2 % real)"]),
+    "C-PZ": dict(kind="cinta", name="Marcha empinada Z2", min=60, km=5.8, dp=420,
                  focus="Marcha de ultra para las subidas largas de Cavalls, en Z2 (la intensidad ya va el miércoles)", ex=[
-        "10 min andando al 8 %",
-        "45 min de marcha rápida al 15–20 % en Z2 (FC 134–142), manos en las rodillas si hace falta",
-        "Con la mochila de carrera cargada al menos una vez al mes",
-        "5 min suaves al 3 %"]),
-    "C-D": dict(kind="cinta", name="Cinta suave", min=35, km=4, dp=300, focus="Moverse sin fatiga (solo si llueve; si no, por fuera)", ex=[
-        "35 min en Z1–Z2 al 6–8 %"]),
+        "10 min andando al nivel 9 (6 % real)",
+        "45 min de marcha rápida al nivel 12 (8 % real, el máximo) en Z2 (FC 134–142)",
+        "La cinta no pasa del 8 %: para acercarte a las rampas de Cavalls, ve con la mochila cargada al menos una vez al mes",
+        "5 min suaves al nivel 3 (2 % real)"]),
+    "C-D": dict(kind="cinta", name="Cinta suave", min=35, km=3.8, dp=260, focus="Moverse sin fatiga (solo si llueve; si no, por fuera)", ex=[
+        "35 min en Z1–Z2 entre nivel 9 y nivel 12 (6–8 % real)"]),
     # Sesiones de calidad (carrera, el miércoles). Si llueve, se hacen en cinta con la variante indicada.
     "Q-B1": dict(kind="calidad", name="Rodaje + progresivos", min=66, focus="Rodaje suave con progresivos rápidos pero relajados (no sprint)", ex=[
         "40 min en Z2", "8 × (20 s en Z5 + 100 s en Z1)", "10 min en Z2",
-        "Si llueve, en cinta: 40 min en Z2 al 1–2 % y los 8 progresivos subiendo la velocidad, sin sprint"]),
+        "Si llueve, en cinta: 40 min en Z2 al nivel 2–3 (1,3–2 % real) y los 8 progresivos subiendo la velocidad, sin sprint"]),
     "Q-B2F": dict(kind="calidad", name="Fartlek 8×2'", min=57, focus="Terreno ondulado; tramos a ritmo vivo y recuperación trotando sin parar", ex=[
         "15 min en Z2", "8 × (2 min en Z4 + 2 min en Z2)", "10 min en Z2",
-        "Si llueve, en cinta: los tramos de 2' al 6–8 % en Z4 y la recuperación al 2 % trotando"]),
+        "Si llueve, en cinta: los tramos de 2' al nivel 9–12 (6–8 % real) en Z4 y la recuperación al nivel 3 (2 % real) trotando"]),
     "Q-B2S": dict(kind="calidad", name="Subidas 5×5'", min=65, focus="Subidas en Z4 en cuesta continua de 6–10 %, bajando suave", ex=[
         "15 min en Z2", "5 × (5 min en Z4 + 3 min en Z1)", "10 min en Z2",
-        "Si llueve, en cinta: 5 × (5' al 12–15 % en Z4 + 3' al 2 % suaves)"]),
+        "Si llueve, en cinta: 5 × (5' al nivel 12 (8 % real, el máximo) en Z4, subiendo la velocidad si hace falta + 3' al nivel 3 suaves)"]),
     "Q-EU": dict(kind="calidad", name="Umbral 3×10'", min=64, focus="Ritmo sostenido pero controlado, en terreno corrible o subida suave", ex=[
         "15 min en Z2", "3 × (10 min en Z3–Z4 + 3 min en Z1)", "10 min en Z2",
-        "Si llueve, en cinta: 3 × (10' al 8–10 % en Z3–Z4 + 3' al 2 % suaves)"]),
+        "Si llueve, en cinta: 3 × (10' al nivel 12 (8 % real) en Z3–Z4 + 3' al nivel 3 suaves)"]),
     "Q-P": dict(kind="calidad", name="Subidas largas 3×15'", min=85, focus="A ritmo de carrera, con bastones y marcha rápida donde la pendiente lo pida", ex=[
         "15 min en Z2", "3 × (15 min en Z3 + 5 min en Z1)", "10 min en Z2",
-        "Si llueve, en cinta: 3 × (15' de marcha rápida o trote al 15–20 % en Z3 + 5' al 3 %), alguna vez con la mochila cargada"]),
+        "Si llueve, en cinta: 3 × (15' de marcha rápida o trote al nivel 12 (8 % real, el máximo) en Z3 + 5' al nivel 4); la cinta no llega al 15–20 %, así que compénsalo con velocidad o con la mochila cargada"]),
     "Q-T1": dict(kind="calidad", name="Taper Montseny · 4×4'", min=53, focus="Toque de intensidad: piernas vivas sin acumular fatiga", ex=[
-        "15 min en Z2", "4 × (4 min en Z4 + 3 min en Z1)", "10 min en Z2", "Si llueve, en cinta: 4 × (4' al 8 % en Z4 + 3' al 2 %)"]),
+        "15 min en Z2", "4 × (4 min en Z4 + 3 min en Z1)", "10 min en Z2", "Si llueve, en cinta: 4 × (4' al nivel 12 (8 % real) en Z4 + 3' al nivel 3)"]),
     "Q-T2": dict(kind="calidad", name="Taper Cavalls · 3×5'", min=49, focus="Último toque de ritmo, suelto y controlado", ex=[
-        "15 min en Z2", "3 × (5 min en Z3 + 3 min en Z1)", "10 min en Z2", "Si llueve, en cinta: 3 × (5' al 6–8 % en Z3 + 3' al 2 %)"]),
+        "15 min en Z2", "3 × (5 min en Z3 + 3 min en Z1)", "10 min en Z2", "Si llueve, en cinta: 3 × (5' al nivel 9–12 (6–8 % real) en Z3 + 3' al nivel 3)"]),
 }
 # Sesiones leídas del calendario de intervals.icu (calidad), con la misma forma que SESS. Clave «CAL-<id del evento>».
 CAL_SESS: dict[str, dict] = {}
@@ -3232,12 +3243,12 @@ def mobile_view():
     tm_ = df_y[df_y["sport"].isin(CINTA)] if len(df_y) else df_y
     pend_ = int(tm_["incline"].isna().sum()) if len(tm_) else 0
     with st.expander(f"**Cinta** · {len(tm_)} sesiones · {fnum(tm_['dp'].sum() if len(tm_) else 0)} m D+"
-                     + (f" · :orange[{pend_} sin pendiente]" if pend_ else ""), key="mob_x_cinta"):
+                     + (f" · :orange[{pend_} sin nivel]" if pend_ else ""), key="mob_x_cinta"):
         if not len(tm_):
             st.info(f"Sin sesiones de cinta en {year}.")
         else:
             if pend_:
-                st.markdown(f'<div class="reading" style="--c:{ORANGE}"><b>{pend_} {"sesiones" if pend_ != 1 else "sesión"} sin pendiente</b>: '
+                st.markdown(f'<div class="reading" style="--c:{ORANGE}"><b>{pend_} {"sesiones" if pend_ != 1 else "sesión"} sin nivel de cinta</b>: '
                             'su D+ cuenta como 0. Añádela en la pestaña Cinta de la vista completa.</div>', unsafe_allow_html=True)
             cards([("Sesiones", GLACIER, fnum(len(tm_)), "", [f"{fnum(tm_['km'].sum(), 1)} km en {year}"]),
                    ("D+ cinta", GOLD, fnum(tm_["dp"].sum()), "m", ["sumado al D+ total" if cinta_dp else "no se suma (desactivado)"])])
@@ -3951,9 +3962,15 @@ with tab_cinta:
     if st.session_state.get("cinta_msg"):
         st.success(st.session_state.pop("cinta_msg"))
     st.markdown(
-        f'<span class="note">El reloj no registra el desnivel en cinta. Indica la <b>pendiente media (%)</b> de cada sesión y se calculará '
-        f'su D+ (km × pendiente). Se guarda en intervals.icu, en el campo personalizado de actividad <b>{INCLINE_FIELD}</b>, '
-        f'así queda junto a la actividad y lo verás desde cualquier dispositivo.</span>', unsafe_allow_html=True)
+        f'<span class="note">El reloj no registra el desnivel en cinta. Escribe el <b>nivel de inclinación de la cinta</b> '
+        f'(el número de la máquina, 0–{fnum(CINTA_MAX_LEVEL)}) y la app lo convierte a <b>pendiente real</b>: '
+        f'nivel {fnum(CINTA_MAX_LEVEL)} = {fnum(CINTA_MAX_PCT)} % real (cada nivel = {fnum(level_to_pct(1), 2)} %). '
+        f'D+ = km × pendiente real. El nivel se guarda en intervals.icu, en el campo personalizado de actividad <b>{INCLINE_FIELD}</b>.</span>',
+        unsafe_allow_html=True)
+    eq_ = [0, 2, 4, 5, 6, 8, 10, 12]
+    st.markdown('<div class="tblw" style="display:inline-block"><table class="tbl"><thead><tr><th class="l">Nivel cinta</th>'
+                + "".join(f"<th>{fnum(l_)}</th>" for l_ in eq_) + '</tr></thead><tbody><tr><td class="l">% real</td>'
+                + "".join(f"<td>{fnum(level_to_pct(l_), 1)}</td>" for l_ in eq_) + "</tr></tbody></table></div>", unsafe_allow_html=True)
     tm_ = all_df[all_df["sport"].isin(CINTA)].sort_values("ts", ascending=False) if len(all_df) else all_df
     periodo = st.segmented_control("Periodo cinta", ["30 días", "90 días", f"Año {year}", "Todo"], default="90 días",
                                    label_visibility="collapsed", key="cinta_rng") or "90 días"
@@ -3967,11 +3984,13 @@ with tab_cinta:
         st.info("No hay sesiones de cinta en este periodo.")
     else:
         pend_n = int(tm_["incline"].isna().sum())
+        pm_ = (tm_["dp"].sum() / (tm_["km"].sum() * 10)) if tm_["km"].sum() else 0
         cards([
-            ("Sesiones", GLACIER, fnum(len(tm_)), "", [f"{pend_n} sin pendiente" if pend_n else "todas con pendiente"]),
+            ("Sesiones", GLACIER, fnum(len(tm_)), "", [f"{pend_n} sin nivel" if pend_n else "todas con nivel"]),
             ("Km cinta", GLACIER, fnum(tm_["km"].sum(), 1), "km", ["&nbsp;"]),
             ("D+ cinta", GOLD, fnum(tm_["dp"].sum()), "m", ["sumado al D+ total" if cinta_dp else "no se suma (desactivado)"]),
-            ("Pendiente media", ORANGE, fnum((tm_["dp"].sum() / (tm_["km"].sum() * 10)) if tm_["km"].sum() else 0, 1), "%", ["ponderada por km"]),
+            ("Pendiente media", ORANGE, fnum(pm_, 1), "% real",
+             [f"nivel medio {fnum(pm_ * CINTA_MAX_LEVEL / CINTA_MAX_PCT, 1)} · ponderada por km"]),
         ])
         # Paginación
         PER_PAGE = 20
@@ -3995,9 +4014,10 @@ with tab_cinta:
                     st.session_state["cinta_page"] = page + 1
                     st.rerun()
         rows_c = tm_.iloc[(page - 1) * PER_PAGE: page * PER_PAGE]
-        CW_ = [1.1, 2.8, 0.9, 0.9, 1.3, 1.0]
+        CW_ = [1.1, 2.6, 0.8, 0.8, 1.3, 0.8, 0.9]
         hc = st.columns(CW_, vertical_alignment="center")
-        for col, (t, r) in zip(hc, [("Fecha", ""), ("Sesión", ""), ("Km", "r"), ("Tiempo", "r"), ("Pendiente %", ""), ("D+ m", "r")]):
+        for col, (t, r) in zip(hc, [("Fecha", ""), ("Sesión", ""), ("Km", "r"), ("Tiempo", "r"), (f"Nivel cinta (0–{fnum(CINTA_MAX_LEVEL)})", ""),
+                                    ("% real", "r"), ("D+ m", "r")]):
             col.markdown(f'<div class="chd {r}">{t}</div>', unsafe_allow_html=True)
         with st.form("cinta_form", border=False):
             inputs = {}
@@ -4009,18 +4029,20 @@ with tab_cinta:
                     cc[2].markdown(f'<div class="ctd r">{fnum(rw["km"], 2)}</div>', unsafe_allow_html=True)
                     cc[3].markdown(f'<div class="ctd r">{int(rw["secs"] // 3600)}:{int(rw["secs"] % 3600 // 60):02d}</div>', unsafe_allow_html=True)
                     inputs[rw["id"]] = cc[4].number_input(
-                        "Pendiente %", min_value=0.0, max_value=40.0, step=0.5, format="%.1f",
-                        value=None if pd.isna(rw["incline"]) else float(rw["incline"]),
-                        placeholder="—", label_visibility="collapsed", key=f"inc_{rw['id']}")
+                        "Nivel cinta", min_value=0.0, max_value=CINTA_MAX_LEVEL, step=0.5, format="%.1f",
+                        value=None if pd.isna(rw["incline"]) else min(float(rw["incline"]), CINTA_MAX_LEVEL),
+                        placeholder="—", label_visibility="collapsed", key=f"lvl_{rw['id']}")
+                    cc[5].markdown(f'<div class="ctd r">{"—" if pd.isna(rw["incline"]) else fnum(level_to_pct(rw["incline"]), 1) + " %"}</div>',
+                                   unsafe_allow_html=True)
                     dpv = rw["dp"]
-                    cc[5].markdown(f'<div class="ctd r" style="color:{GOLD if dpv > 0 else ZERO}">{fnum(dpv) if dpv > 0 else "0"}</div>',
+                    cc[6].markdown(f'<div class="ctd r" style="color:{GOLD if dpv > 0 else ZERO}">{fnum(dpv) if dpv > 0 else "0"}</div>',
                                    unsafe_allow_html=True)
             cA, cB = st.columns([1, 3], vertical_alignment="center")
             with cA:
                 save = st.form_submit_button("Guardar en intervals.icu", type="primary", width="stretch")
             with cB:
                 st.caption(("Guarda antes de cambiar de página: los cambios sin guardar se pierden. " if n_pages > 1 else "")
-                           + "Escribe la pendiente media y pulsa Guardar; el D+ se recalcula al guardar. Antes del primer guardado, crea en "
+                           + "Escribe el nivel de la cinta y pulsa Guardar; el % real y el D+ se recalculan al guardar. Antes del primer guardado, crea en "
                            f"intervals.icu un campo personalizado de actividad, numérico, con el código `{INCLINE_FIELD}`.")
         orig = rows_c.set_index("id")["incline"]
         changed = []
@@ -4052,11 +4074,56 @@ with tab_cinta:
                     fails.append(f"{act_id}: {e}")
             st.session_state["incline_overrides"] = ov
             if fails:
-                st.error("No se pudieron guardar algunas pendientes:\n\n" + "\n\n".join(fails))
+                st.error("No se pudieron guardar algunos niveles:\n\n" + "\n\n".join(fails))
             if ok:
                 st.cache_data.clear()
-                st.session_state["cinta_msg"] = f"Guardadas {ok} pendientes en intervals.icu."
+                st.session_state["cinta_msg"] = f"Guardados {ok} niveles de cinta en intervals.icu."
                 st.rerun()
+
+    # Aplicar un mismo nivel a todas las sesiones de cinta de un año
+    tall_ = all_df[all_df["sport"].isin(CINTA)] if len(all_df) else all_df
+    yrs_ = sorted({int(y_) for y_ in tall_["ts"].dt.year}, reverse=True) if len(tall_) else []
+    if yrs_:
+        with st.expander("Aplicar un nivel a todas las sesiones de cinta de un año", key="cinta_bulk_x"):
+            b1, b2, b3 = st.columns([1, 1, 2], vertical_alignment="bottom")
+            y_b = b1.selectbox("Año", yrs_, index=yrs_.index(2026) if 2026 in yrs_ else 0, key="cinta_bulk_y")
+            l_b = b2.number_input("Nivel de cinta", min_value=0.0, max_value=CINTA_MAX_LEVEL, value=5.0, step=0.5, format="%.1f",
+                                  key="cinta_bulk_l")
+            tb_ = tall_[tall_["ts"].dt.year == y_b]
+            b3.markdown(f'<div class="note">{len(tb_)} sesiones de cinta en {y_b} · nivel {fnum(l_b, 1)} = '
+                        f'{fnum(level_to_pct(l_b), 2)} % real · D+ resultante ≈ {fnum(tb_["km"].sum() * 10 * level_to_pct(l_b))} m</div>',
+                        unsafe_allow_html=True)
+            conf = st.checkbox(f"Sí, sustituir el nivel de las {len(tb_)} sesiones de {y_b} (también las que ya tienen uno)",
+                               key="cinta_bulk_ok")
+            if st.button("Aplicar a todas", type="primary", disabled=not conf, key="cinta_bulk_go"):
+                ov = dict(st.session_state.get("incline_overrides", {}))
+                ok, fails = 0, []
+                prog = st.progress(0.0)
+                for j, act_id in enumerate(tb_["id"]):
+                    if demo:
+                        ok += 1
+                        ov[act_id] = float(l_b)
+                    else:
+                        try:
+                            r = requests.put(f"{API}/activity/{act_id}", json={INCLINE_FIELD: float(l_b)}, auth=("API_KEY", key),
+                                             headers={"Accept": "application/json", "User-Agent": "LlibretaD+ (Streamlit)"}, timeout=30)
+                            if r.status_code >= 400:
+                                fails.append(f"{act_id}: error {r.status_code} {r.text[:120]}")
+                            else:
+                                ok += 1
+                                ov[act_id] = float(l_b)
+                        except Exception as e:  # noqa: BLE001
+                            fails.append(f"{act_id}: {e}")
+                    prog.progress((j + 1) / max(1, len(tb_)))
+                st.session_state["incline_overrides"] = ov
+                if fails:
+                    st.error(f"No se pudo guardar el nivel en {len(fails)} sesiones:\n\n" + "\n\n".join(fails[:10]))
+                if ok:
+                    st.cache_data.clear()
+                    for k_ in [k_ for k_ in st.session_state if str(k_).startswith("lvl_")]:   # que las casillas muestren el nivel nuevo
+                        del st.session_state[k_]
+                    st.session_state["cinta_msg"] = f"Nivel {fnum(l_b, 1)} ({fnum(level_to_pct(l_b), 2)} % real) guardado en {ok} sesiones de cinta de {y_b}."
+                    st.rerun()
 
 st.caption("Datos leídos en directo de la API de intervals.icu con tu clave personal. Duplicados (misma hora, deporte y duración) se cuentan una vez.")
 
