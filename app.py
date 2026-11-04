@@ -2096,6 +2096,12 @@ SESS = {
         "45 min de marcha rápida al 15–20 % en Z2–Z3 (FC 135–150), manos en las rodillas si hace falta",
         "Con la mochila de carrera cargada al menos una vez al mes",
         "5 min suaves al 3 %"]),
+    "C-PZ": dict(kind="cinta", name="Marcha empinada Z2", min=60, km=4.5, dp=650,
+                 focus="Marcha de ultra para las subidas largas de Cavalls, en Z2 (la intensidad ya va el miércoles)", ex=[
+        "10 min andando al 8 %",
+        "45 min de marcha rápida al 15–20 % en Z2 (FC 134–142), manos en las rodillas si hace falta",
+        "Con la mochila de carrera cargada al menos una vez al mes",
+        "5 min suaves al 3 %"]),
     "C-D": dict(kind="cinta", name="Cinta suave", min=35, km=4, dp=300, focus="Moverse sin fatiga (solo si llueve; si no, por fuera)", ex=[
         "35 min en Z1–Z2 al 6–8 %"]),
     # Sesiones de calidad (carrera, el miércoles). Si llueve, se hacen en cinta con la variante indicada.
@@ -2127,12 +2133,13 @@ def sess(sid: str) -> dict:
     return SESS.get(sid) or CAL_SESS[sid]
 DIAS_L = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
 # Semana tipo: (día de la semana 0 = lunes, sesión). Las tiradas largas van en fin de semana.
-# El miércoles es la sesión de calidad (fuera; si llueve, en cinta). La cinta como sesión aparte solo queda en descarga y taper.
+# El miércoles es la sesión de calidad (fuera; si llueve, en cinta). La cinta en subida va en Z2: martes en Base y Específico,
+# jueves en el Pico (el martes es la fuerza). En descarga y taper, cinta suave el jueves.
 WEEK_TPL = {
-    "base 1": [(0, "F-B1"), (2, "Q-B1"), (3, "F-B1")],
-    "base 2": [(0, "F-B2"), (2, "Q-B2F"), (3, "F-B2")],         # fartlek y subidas 5×5' en semanas alternas
-    "espec": [(0, "F-EA"), (2, "Q-EU"), (3, "F-EB")],
-    "pico": [(1, "F-P"), (2, "Q-P")],
+    "base 1": [(0, "F-B1"), (1, "C-B1"), (2, "Q-B1"), (3, "F-B1")],
+    "base 2": [(0, "F-B2"), (1, "C-B1"), (2, "Q-B2F"), (3, "F-B2")],         # fartlek y subidas 5×5' en semanas alternas
+    "espec": [(0, "F-EA"), (1, "C-B1"), (2, "Q-EU"), (3, "F-EB")],
+    "pico": [(1, "F-P"), (2, "Q-P"), (3, "C-PZ")],
     "r": [(1, "F-D"), (3, "C-D")],                               # descarga y recuperación
     "t": [(1, "F-D"), (2, "Q-T1"), (3, "C-D")],                  # taper: toque de intensidad el miércoles
     "R": [(0, "F-R")],                                           # semana de carrera
