@@ -2336,10 +2336,23 @@ def plan_weeks(P: dict) -> list[dict]:
             ses = sorted([x for x in ses if SESS[x[1]]["kind"] != "calidad"]
                          + [(_d(d_), sid) for d_, sid in P["qual"].get(i, [])], key=lambda x: x[0])
         q_ = [sess(sid) for _d_, sid in ses if sess(sid)["kind"] == "calidad"]
+        ci_min = sum(sess(sid)["min"] for _d_, sid in ses if sess(sid)["kind"] == "cinta")
+        run_h = max(0.0, float(p[2]) - fz_min / 60 - ci_min / 60)   # horas de carrera por fuera (rodajes, larga y calidad)
         out.append(dict(i=i, frm=frm, to=frm + dt.timedelta(days=6), ph=p[0], load=float(p[1]), h=float(p[2]), dp=float(p[3]), k=p[4],
-                        fz_n=fz_n, fz_min=float(fz_min), ci_n=ci_n, ci_km=float(ci_km), ci_dp=float(ci_dp),
+                        fz_n=fz_n, fz_min=float(fz_min), ci_n=ci_n, ci_km=float(ci_km), ci_dp=float(ci_dp), ci_min=float(ci_min),
+                        run_h=run_h, km=run_h * run_speed(),
                         q_n=len(q_), q_min=float(sum(s_["min"] for s_ in q_)), ses=ses))
     return out
+
+
+def run_speed() -> float:
+    """Velocidad media (km/h en movimiento) de tus salidas de carrera por fuera de los últimos 120 días.
+    Sirve para pasar las horas objetivo a km orientativos; si no hay datos, 5,5 km/h."""
+    if not len(all_df):
+        return 5.5
+    d_ = all_df[(all_df["sport"].isin(OUT)) & (all_df["date"] >= today - dt.timedelta(days=120)) & (all_df["date"] <= today)]
+    h_ = float(d_["hours"].sum()) if len(d_) else 0.0
+    return float(d_["km"].sum()) / h_ if h_ >= 3 else 5.5
 
 
 def plan_phases(P: dict, W: list[dict]) -> list[dict]:
@@ -2362,7 +2375,8 @@ def plan_actual(W: list[dict]) -> list[dict]:
         fz = d_[d_["sport"].isin(["WeightTraining", "Workout"])] if len(d_) else d_
         ci = d_[d_["sport"].isin(CINTA)] if len(d_) else d_
         A.append(dict(load=float(d_["load"].sum()) if len(d_) else 0.0, h=float(d_["hours"].sum()) if len(d_) else 0.0,
-                      dp=float(d_["out_dp"].sum()) if len(d_) else 0.0, km=float(d_["out_km"].sum()) if len(d_) else 0.0, n=len(d_),
+                      dp=float((d_["out_dp"] - d_["dp_cinta"]).sum()) if len(d_) else 0.0,   # D+ por fuera (sin la cinta)
+                      km=float(d_["out_km"].sum()) if len(d_) else 0.0, n=len(d_),
                       fz_n=len(fz), fz_min=float(fz["secs"].sum()) / 60 if len(fz) else 0.0,
                       ci_n=len(ci), ci_km=float(ci["km"].sum()) if len(ci) else 0.0, ci_dp=float(ci["dp"].sum()) if len(ci) else 0.0))
     return A
@@ -2525,6 +2539,39 @@ def week_note(S, wi: int) -> str:
     return txt
 
 
+def global_row(S, wi: int) -> tuple[str, str]:
+    """Fila «actividad global» de la semana: km y D+ de carrera por fuera (objetivo, hecho, falta) y la cinta aparte."""
+    w, a = S["W"][wi], S["A"][wi]
+    fut = w["frm"] > today
+    t_ = (f'<span style="color:{GOLD}">◆</span> <b>Carrera por fuera · toda la semana</b> (rodajes, tirada larga y calidad, '
+          f'sin día fijo): objetivo ≈ <b>{fnum(w["km"])} km · {fnum(w["dp"])} m+</b>')
+    if fut:
+        s_ = f'{fnum(w["run_h"], 1)} h de carrera'
+    else:
+        fk, fd = max(0.0, w["km"] - a["km"]), max(0.0, w["dp"] - a["dp"])
+        s_ = (f'llevas {fnum(a["km"], 1)} km · {fnum(a["dp"])} m+ · '
+              + (f'<span style="color:{GREEN}">objetivo cumplido</span>' if fk <= 0 and fd <= 0
+                 else f'faltan ≈ {fnum(fk)} km · {fnum(fd)} m+'))
+    if w["ci_n"]:
+        s_ += f' · aparte, cinta: {fnum(w["ci_km"], 1)} km · {fnum(w["ci_dp"])} m+'
+        if not fut:
+            s_ += f' (llevas {fnum(a["ci_km"], 1)} km · {fnum(a["ci_dp"])} m+)'
+    return t_, s_
+
+
+def phase_global(S, key: str) -> str:
+    """Actividad global de una semana tipo de la fase: rango de km y D+ por fuera de sus semanas (y la cinta aparte)."""
+    ws = [w for w in S["W"] if (w["k"] == key if key in ("r", "t", "R") else (not w["k"] and phase_key(w["ph"]) == key))]
+    if not ws:
+        return "—"
+    rng = lambda xs, d=0: fnum(min(xs), d) if fnum(min(xs), d) == fnum(max(xs), d) else f"{fnum(min(xs), d)}–{fnum(max(xs), d)}"  # noqa: E731
+    txt = f'≈ {rng([w["km"] for w in ws])} km · {rng([w["dp"] for w in ws])} m+ por fuera'
+    ci_ = [w for w in ws if w["ci_n"]]
+    if ci_:
+        txt += f' (+ cinta {rng([w["ci_km"] for w in ci_], 1)} km · {rng([w["ci_dp"] for w in ci_])} m+)'
+    return txt
+
+
 def todo_rows(S, wi: int) -> list[tuple[str, str]]:
     rows = []
     for t in week_todo(S, wi):
@@ -2590,7 +2637,7 @@ def plan_tab():
         st.info("No hay objetivos semanales en el calendario de intervals.icu.")
         return
     st.markdown(f'<div class="eyebrow">{_html.escape(S["week_txt"])}</div><div class="note">{_html.escape(S["src_txt"])}. '
-                'Carga = training load de todas las actividades; D+ y km = Run y TrailRun (más Hike si lo sumas).</div>',
+                'Carga = training load de todas las actividades; D+ y km = Run y TrailRun (más Hike si lo sumas), sin la cinta.</div>',
                 unsafe_allow_html=True)
     cards(plan_cards(S, ("races", "week", "compl")))
     if S["ci"] >= 0:
@@ -2613,10 +2660,14 @@ def plan_tab():
         st.subheader("Fuerza, calidad y cinta · " + ("esta semana" if S["ci"] >= 0 else "primera semana"))
         if week_note(S, wi_):
             st.markdown(f'<div class="note">{_html.escape(week_note(S, wi_))}</div>', unsafe_allow_html=True)
-        st.markdown(_rows(todo_rows(S, wi_)), unsafe_allow_html=True)
+        st.markdown(_rows(todo_rows(S, wi_) + [global_row(S, wi_)]), unsafe_allow_html=True)
+        st.markdown(f'<span class="note">Km orientativos: horas de carrera del objetivo × tu velocidad media en carrera por fuera '
+                    f'de los últimos 120 días ({fnum(run_speed(), 1)} km/h). El D+ de la cinta va aparte y no cuenta para el D+ por fuera.</span>',
+                    unsafe_allow_html=True)
     st.subheader("Objetivos por fase · fuerza, calidad y cinta")
     TP = pd.DataFrame([{"Fase": lab_, "Fuerza": tpl_summary(key_, "fuerza"), "Calidad (carrera)": tpl_summary(key_, "calidad"),
-                        "Cinta (inclinada)": tpl_summary(key_, "cinta")} for lab_, key_ in PHASE_ROWS])
+                        "Cinta (inclinada)": tpl_summary(key_, "cinta"),
+                        "Carrera por fuera · semana (km y D+)": phase_global(S, key_)} for lab_, key_ in PHASE_ROWS])
     st.markdown('<div class="tblw"><table class="tbl objt"><thead><tr>' + "".join(f'<th class="l">{c}</th>' for c in TP.columns)
                 + "</tr></thead><tbody>" + "".join("<tr>" + "".join(f'<td class="l">{_html.escape(str(v))}</td>' for v in r_) + "</tr>"
                                                     for r_ in TP.itertuples(index=False)) + "</tbody></table></div>", unsafe_allow_html=True)
@@ -2647,14 +2698,18 @@ def plan_tab():
                      "Carga|Obj.": w["load"], "Carga|Real": None if fut else a["load"],
                      "%": None if fut or w["k"] == "R" or not w["load"] else a["load"] / w["load"] * 100,
                      "Horas|Obj.": w["h"], "Horas|Real": None if fut else a["h"],
-                     "D+|Obj.": w["dp"], "D+|Real": None if fut else a["dp"], "Km real": None if fut else a["km"],
+                     "D+|Obj.": w["dp"], "D+|Real": None if fut else a["dp"],
+                     "Km|Obj.": w["km"], "Km|Real": None if fut else a["km"],
+                     "D+ cinta|Obj.": w["ci_dp"] if w["ci_n"] else None, "D+ cinta|Real": None if fut else a["ci_dp"],
                      "Fuerza|Obj.": f"{w['fz_n']} × {fnum(w['fz_min'] / max(1, w['fz_n']))}′" if w["fz_n"] else "—",
                      "Fuerza|Real": "" if fut else f"{a['fz_n']} · {fnum(a['fz_min'])}′",
-                     "Cinta|Obj.": f"{fnum(w['ci_km'])} km · {fnum(w['ci_dp'])} m" if w["ci_n"] else "—",
-                     "Cinta|Real": "" if fut else (f"{fnum(a['ci_km'], 1)} km · {fnum(a['ci_dp'])} m" if a["ci_n"] else "0")})
+                     "Cinta|Obj.": f"{w['ci_n']} · {fnum(w['ci_km'], 1)} km" if w["ci_n"] else "—",
+                     "Cinta|Real": "" if fut else (f"{a['ci_n']} · {fnum(a['ci_km'], 1)} km" if a["ci_n"] else "0")})
     rows.append({"Semana": "Total", "Fase": "", "Carga|Obj.": sum(w["load"] for w in W), "Carga|Real": sum(a["load"] for a in A),
                  "%": None, "Horas|Obj.": sum(w["h"] for w in W), "Horas|Real": sum(a["h"] for a in A),
-                 "D+|Obj.": sum(w["dp"] for w in W), "D+|Real": sum(a["dp"] for a in A), "Km real": sum(a["km"] for a in A),
+                 "D+|Obj.": sum(w["dp"] for w in W), "D+|Real": sum(a["dp"] for a in A),
+                 "Km|Obj.": sum(w["km"] for w in W), "Km|Real": sum(a["km"] for a in A),
+                 "D+ cinta|Obj.": sum(w["ci_dp"] for w in W), "D+ cinta|Real": sum(a["ci_dp"] for a in A),
                  "Fuerza|Obj.": f"{sum(w['fz_n'] for w in W)} ses.", "Fuerza|Real": f"{sum(a['fz_n'] for a in A)} ses.",
                  "Cinta|Obj.": f"{fnum(sum(w['ci_km'] for w in W))} km", "Cinta|Real": f"{fnum(sum(a['ci_km'] for a in A), 1)} km"})
     TB = pd.DataFrame(rows)
@@ -2662,14 +2717,16 @@ def plan_tab():
     pc_ = lambda v: "" if v is None or pd.isna(v) else f'<span style="color:{GREEN if v >= 85 else ORANGE if v >= 60 else RED}">{fnum(v)} %</span>'  # noqa: E731
     cls = ["hl" if i == ci else "" for i in range(len(W))] + [""]
     html_table(TB, left={"Semana", "Fase"}, total_last=True, row_classes=cls,
-               group_start={"Carga|Obj.", "Horas|Obj.", "D+|Obj.", "Km real", "Fuerza|Obj.", "Cinta|Obj."},
-               groups=[("", 2, ""), ("Carga", 3, "g"), ("Horas", 2, "g"), ("D+ m", 2, "g"), ("", 1, "g"),
-                       ("Fuerza (ses. × min)", 2, "g"), ("Cinta", 2, "g")], max_height=560,
+               group_start={"Carga|Obj.", "Horas|Obj.", "D+|Obj.", "Km|Obj.", "D+ cinta|Obj.", "Fuerza|Obj.", "Cinta|Obj."},
+               groups=[("", 2, ""), ("Carga", 3, "g"), ("Horas", 2, "g"), ("D+ por fuera (m)", 2, "g"), ("Km por fuera", 2, "g"),
+                       ("D+ cinta (m)", 2, "g"), ("Fuerza (ses. × min)", 2, "g"), ("Cinta (ses. · km)", 2, "g")], max_height=560,
                fmt={"Carga|Obj.": nf_(0), "Carga|Real": nf_(0), "%": pc_, "Horas|Obj.": nf_(1), "Horas|Real": nf_(1),
-                    "D+|Obj.": nf_(0), "D+|Real": nf_(0), "Km real": nf_(1)})
-    st.markdown('<span class="note">En dorado, la semana en curso. Las semanas futuras solo muestran el objetivo. Fuerza real = '
-                'actividades WeightTraining y Workout; cinta real = VirtualRun (su D+ sale de la pendiente apuntada en la '
-                'pestaña Cinta y ya cuenta en el D+ total si lo sumas).</span>', unsafe_allow_html=True)
+                    "D+|Obj.": nf_(0), "D+|Real": nf_(0), "Km|Obj.": lambda v: "" if v is None or pd.isna(v) else "≈ " + fnum(v),
+                    "Km|Real": nf_(1), "D+ cinta|Obj.": nf_(0), "D+ cinta|Real": nf_(0)})
+    st.markdown('<span class="note">En dorado, la semana en curso. Las semanas futuras solo muestran el objetivo. D+ y km por fuera = '
+                'Run y TrailRun (más Hike si lo sumas), sin la cinta; los km objetivo son orientativos (horas de carrera × tu velocidad '
+                'media). D+ cinta = VirtualRun, con la pendiente apuntada en la pestaña Cinta; va aparte y no cuenta para el D+ por fuera. '
+                'Fuerza real = WeightTraining y Workout.</span>', unsafe_allow_html=True)
 
 
 def mobile_view():
@@ -2797,7 +2854,7 @@ def mobile_view():
                             + ("esta semana" if SP["ci"] >= 0 else "primera semana") + "</div>", unsafe_allow_html=True)
                 if week_note(SP, wi_m):
                     st.markdown(f'<div class="note">{_html.escape(week_note(SP, wi_m))}</div>', unsafe_allow_html=True)
-                st.markdown(_rows(todo_rows(SP, wi_m)), unsafe_allow_html=True)
+                st.markdown(_rows(todo_rows(SP, wi_m) + [global_row(SP, wi_m)]), unsafe_allow_html=True)
                 if st.toggle("Ver los ejercicios de esta semana", value=False, key="mob_plan_ej"):
                     ids_m = list(dict.fromkeys(sid for _d, sid in SP["W"][wi_m]["ses"]))
                     st.markdown('<div class="phases">' + "".join(sess_html(sid) for sid in ids_m) + "</div>", unsafe_allow_html=True)
