@@ -1138,17 +1138,34 @@ def _ua_is_mobile() -> bool:
         ua = st.context.headers.get("User-Agent", "") or ""
     except Exception:  # noqa: BLE001
         ua = ""
-    return bool(re.search(r"Mobi|Android|iPhone", ua))
+    # Los móviles Android llevan «Mobile» en el User-Agent; las tablets Android no, y abren la vista completa
+    return bool(re.search(r"Mobi|iPhone", ua))
 
 
-# Vista móvil: ?vista=movil / ?vista=completa en la URL; si no hay parámetro, según el navegador
+# Los interruptores de la barra lateral se guardan también en la URL (?vista=…&caminatas=…&dcinta=…). En Android, al
+# cambiar de app o bloquear la tablet, Chrome corta la conexión y Streamlit abre una sesión nueva: sin la URL, los
+# interruptores volverían a su valor por defecto y parecería que no responden.
+def _qp_bool(name: str, default: bool) -> bool:
+    v = str(st.query_params.get(name, "")).strip().lower()
+    return default if not v else v in ("1", "si", "sí", "true", "on", "movil", "móvil")
+
+
 if "mob_view" not in st.session_state:
     _qv = str(st.query_params.get("vista", "")).strip().lower()
     st.session_state["mob_view"] = _qv in ("movil", "móvil") if _qv else _ua_is_mobile()
+if "sb_hike" not in st.session_state:
+    st.session_state["sb_hike"] = _qp_bool("caminatas", False)
+if "sb_cinta_dp" not in st.session_state:
+    st.session_state["sb_cinta_dp"] = _qp_bool("dcinta", True)
 
 
 def _sync_view():
     st.query_params["vista"] = "movil" if st.session_state.get("mob_view") else "completa"
+
+
+def _sync_flags():
+    st.query_params["caminatas"] = "1" if st.session_state.get("sb_hike") else "0"
+    st.query_params["dcinta"] = "1" if st.session_state.get("sb_cinta_dp") else "0"
 
 
 def _full_view():
@@ -1162,8 +1179,8 @@ with st.sidebar:
               help="Resumen de todas las pestañas en una sola página para el móvil. Guarda la dirección con ?vista=movil "
                    "como marcador para abrirla directamente.")
     year = st.selectbox("Temporada", list(range(now_y, 2022, -1)), index=0)
-    hike = st.toggle("Sumar caminatas a D+ y Km", value=False)
-    cinta_dp = st.toggle("Sumar D+ de cinta (según pendiente)", value=True,
+    hike = st.toggle("Sumar caminatas a D+ y Km", key="sb_hike", on_change=_sync_flags)
+    cinta_dp = st.toggle("Sumar D+ de cinta (según pendiente)", key="sb_cinta_dp", on_change=_sync_flags,
                          help="El D+ de cinta se calcula como km × pendiente media. Se edita en la pestaña Cinta.")
     if st.button("Actualizar datos", type="primary", width="stretch"):
         st.cache_data.clear()
