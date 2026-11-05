@@ -76,6 +76,8 @@ st.markdown(
 .stApp, .stMarkdown p, .stMarkdown li, .stCaption, label {{ font-family: "IBM Plex Sans", system-ui, sans-serif; }}
 h1, h2, h3 {{ font-family: "Barlow Condensed", "Arial Narrow", sans-serif !important; font-weight: 600 !important; letter-spacing: .01em; }}
 .block-container {{ padding-top: 2.2rem; max-width: 1240px; }}
+.sechead {{ margin: 6px 0 22px; padding-bottom: 12px; border-bottom: 1px solid {LINE}; }}
+.sechead h1 {{ font: 600 34px/1.15 "IBM Plex Sans", system-ui, sans-serif; color: {INK}; margin: 4px 0 0; padding: 0; }}
 .eyebrow {{ font: 500 11px "IBM Plex Sans", sans-serif; letter-spacing: .08em; text-transform: uppercase; color: {GOLD}; }}
 .note {{ font-size: 12.5px; color: {MUTED}; }}
 .cards {{ display: grid; grid-template-columns: repeat(var(--n), minmax(0,1fr)); gap: 1px; background: {LINE};
@@ -1223,22 +1225,24 @@ with st.sidebar:
                 for k_, t_ in its_:
                     st.button(t_, key="nav_" + k_, type="tertiary", width="stretch", on_click=_go, args=(k_,))
         st.divider()
-        st.markdown('<div class="navg">Ajustes</div>', unsafe_allow_html=True)
-    year = st.selectbox("Temporada", list(range(now_y, 2022, -1)), index=0)
-    hike = st.toggle("Sumar caminatas a D+ y Km", key="sb_hike", on_change=_sync_flags)
-    cinta_dp = st.toggle("Sumar D+ de cinta (según pendiente)", key="sb_cinta_dp", on_change=_sync_flags,
-                         help="El D+ de cinta se calcula como km × pendiente real (el nivel de la cinta convertido a %). "
-                              "Se edita en la sección Cinta.")
-    if st.button("Actualizar datos", type="primary", width="stretch"):
-        st.cache_data.clear()
-    demo = str(get_secret("DEMO", "")).strip() == "1"
-    athlete = str(get_secret("ATHLETE_ID", "")).strip()
-    key = str(get_secret("INTERVALS_API_KEY", "")).strip()
-    if not demo and (not athlete or not key):
-        st.info("Configura ATHLETE_ID e INTERVALS_API_KEY en los secretos de la app, o introdúcelos aquí para esta sesión.")
-        athlete = st.text_input("Athlete ID", value=athlete, placeholder="i123456").strip()
-        key = st.text_input("API key", value=key, type="password").strip()
-    with st.expander("Objetivos de la semana"):
+    _cfg_ok = str(get_secret("DEMO", "")).strip() == "1" or (str(get_secret("ATHLETE_ID", "")).strip()
+                                                            and str(get_secret("INTERVALS_API_KEY", "")).strip())
+    with st.expander("⚙️ Ajustes", expanded=not _cfg_ok, key="sb_x_ajustes"):
+        year = st.selectbox("Temporada", list(range(now_y, 2022, -1)), index=0)
+        hike = st.toggle("Sumar caminatas a D+ y Km", key="sb_hike", on_change=_sync_flags)
+        cinta_dp = st.toggle("Sumar D+ de cinta (según pendiente)", key="sb_cinta_dp", on_change=_sync_flags,
+                             help="El D+ de cinta se calcula como km × pendiente real (el nivel de la cinta convertido a %). "
+                                  "Se edita en la sección Cinta.")
+        if st.button("Actualizar datos", type="primary", width="stretch"):
+            st.cache_data.clear()
+        demo = str(get_secret("DEMO", "")).strip() == "1"
+        athlete = str(get_secret("ATHLETE_ID", "")).strip()
+        key = str(get_secret("INTERVALS_API_KEY", "")).strip()
+        if not demo and (not athlete or not key):
+            st.info("Configura ATHLETE_ID e INTERVALS_API_KEY en los secretos de la app, o introdúcelos aquí para esta sesión.")
+            athlete = st.text_input("Athlete ID", value=athlete, placeholder="i123456").strip()
+            key = st.text_input("API key", value=key, type="password").strip()
+        st.markdown('<div class="navg">Objetivos de la semana</div>', unsafe_allow_html=True)
         st.caption("Déjalos vacíos para usar tu media de las 8 últimas semanas.")
         TARGETS = {
             "dp": st.number_input("D+ (m)", min_value=0, step=100, value=None, placeholder="media 8 sem"),
@@ -1248,10 +1252,10 @@ with st.sidebar:
             "load": st.number_input("Carga", min_value=0, step=25, value=None, placeholder="media 8 sem"),
             "n": st.number_input("Sesiones", min_value=0, step=1, value=None, placeholder="media 8 sem"),
         }
-    st.caption("D+ y Km = Run y TrailRun (más Hike si lo activas; D+ de cinta si lo activas) · Km Cinta = VirtualRun · min Gim = Workout, WeightTraining y Elliptical.")
-    st.markdown("<div style='height:18px'></div>", unsafe_allow_html=True)
-    st.segmented_control("Tema", ["🌙", "☀️"], default="🌙", key="theme_icon", label_visibility="collapsed",
-                         help="Tema oscuro / claro")
+        st.caption("D+ y Km = Run y TrailRun (más Hike si lo activas; D+ de cinta si lo activas) · Km Cinta = VirtualRun · min Gim = Workout, WeightTraining y Elliptical.")
+        st.markdown("<div style='height:18px'></div>", unsafe_allow_html=True)
+        st.segmented_control("Tema", ["🌙", "☀️"], default="🌙", key="theme_icon", label_visibility="collapsed",
+                             help="Tema oscuro / claro")
 MOBILE = bool(st.session_state.get("mob_view"))
 SEC = st.session_state.get("sec", "temp")
 
@@ -1305,7 +1309,8 @@ def prev_line(v, d, u=""):
     return f"{year - 1}: {fnum(v, d)} {u}".strip() if len(df_p) else "&nbsp;"
 
 if not MOBILE:
-    st.markdown(f'<div class="eyebrow">{NAV_T[SEC][0]} · {NAV_T[SEC][1]}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="sechead"><div class="eyebrow">{NAV_T[SEC][0]}</div><h1>{NAV_T[SEC][1]}</h1></div>',
+                unsafe_allow_html=True)
 if not MOBILE and NAV_T[SEC][0] == "Actividad":
     cards([
         ("D+", GOLD, fnum(T["dp"]), "m", [prev_line(P["dp"], 0, "m")] + ([dp_split_line(T)] if dp_split_line(T) else [])),
@@ -1885,7 +1890,6 @@ def mini_layout(f, h=130):
 
 
 def health_tab():
-    st.subheader("Salud")
     st.markdown('<span class="note">Bienestar diario de intervals.icu: HRV, FC en reposo, sueño, SpO2 y pasos del reloj; tensión, '
                 'peso y grasa corporal de Omron (vía Apple Salud y el Atajo de iOS).</span>', unsafe_allow_html=True)
     H = summary_health()
@@ -4325,7 +4329,6 @@ if SEC == "cw":
     st.markdown(f'<div class="eyebrow" style="margin-top:18px">{cur_mon.day} {MES[cur_mon.month-1].lower()} – '
                 f'{(cur_mon + dt.timedelta(days=6)).day} {MES[(cur_mon + dt.timedelta(days=6)).month-1].lower()} · '
                 f'día {dow + 1} de 7</div>', unsafe_allow_html=True)
-    st.subheader("Semana en curso")
     st.markdown('<span class="note">De lunes a hoy, comparada con la semana pasada y con tu media de 8 semanas <b>a esta misma altura</b>. '
                 'El objetivo es tu media semanal salvo que fijes otro en la barra lateral; la proyección suma a lo hecho tu media diaria en los días que quedan.</span>',
                 unsafe_allow_html=True)
@@ -4501,7 +4504,6 @@ if SEC == "lw":
     st.markdown(f'<div class="eyebrow" style="margin-top:18px">{last_mon.day} {MES[last_mon.month-1].lower()} – '
                 f'{(last_mon + dt.timedelta(days=6)).day} {MES[(last_mon + dt.timedelta(days=6)).month-1].lower()} '
                 f'{(last_mon + dt.timedelta(days=6)).year}</div>', unsafe_allow_html=True)
-    st.subheader("Última semana")
     st.markdown('<span class="note">Semana completa de lunes a domingo, comparada con la semana anterior y con la media de las 8 semanas previas.</span>', unsafe_allow_html=True)
     cards([(lab, col, fnum(LW[k], d), u, [delta_html(LW[k], PW[k], "sem. anterior"), delta_html(LW[k], AVG[k], "media 8 sem")]
             + ([dp_split_line(LW)] if k == "dp" and dp_split_line(LW) else []))
@@ -4580,7 +4582,6 @@ if SEC == "lw":
 if SEC == "fat":
     # ─────────────────────────── Esfuerzo y fatiga ───────────────────────────
     st.markdown(f'<div class="eyebrow" style="margin-top:18px">A {today.day} {MES[today.month-1].lower()} {today.year}</div>', unsafe_allow_html=True)
-    st.subheader("Esfuerzo y fatiga")
     st.markdown('<span class="note">Calculado con la carga de entrenamiento de cada actividad de intervals.icu (todas las disciplinas).</span>', unsafe_allow_html=True)
 
 
@@ -4761,7 +4762,6 @@ if SEC == "sets":
 
 if SEC == "long":
     # ─────────────────────────── Entrenamientos largos ───────────────────────────
-    st.subheader("Entrenamientos largos")
     all_runs = all_df[all_df["sport"].isin(OUT)] if len(all_df) else all_df
     PER = ["30 días", "90 días", "6 meses", f"Temporada {year}", "Todo", "Personalizado"]
     pc1 = pc2 = st.container()
@@ -5508,7 +5508,6 @@ if SEC == "cmp":
         hist = load_hist(shoes)
     # ─────────────────────────── Comparar dos actividades ───────────────────────────
     # (usa `hist`, el histórico completo cargado en la pestaña Material)
-    st.subheader("Comparar dos actividades")
     CMP_SPORTS = {"Trail": ["TrailRun"], "Carrera": ["Run"], "Caminata": ["Hike", "Walk"]}
     hms = lambda s_: "—" if s_ is None or pd.isna(s_) else f"{int(s_ // 3600)}:{int(s_ % 3600 // 60):02d}:{int(s_ % 60):02d}"  # noqa: E731
     mmss = lambda s_: "—" if s_ is None or pd.isna(s_) or s_ <= 0 else f"{int(s_ // 60)}:{int(round(s_ % 60)) % 60:02d}"  # noqa: E731
