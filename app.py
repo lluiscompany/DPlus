@@ -3342,7 +3342,7 @@ from pathlib import Path
 RACE_DIR = Path(__file__).parent / "races"
 RACES = {
     "mv": dict(
-        name="Ultra Montseny 35K", short="Montseny 35K", date="2027-04-10", start="10:00", gpx="mv26.gpx", cat="RACE_B",
+        name="Ultra Montseny 35K", short="Montseny 35K", date="2027-04-10", start="10:00", gpx="mv26.gpx", gpx_alt=["mv26-reducido.gpx"], cat="RACE_B",
         stop_min=3, dark=("20:45", "07:15"), legs_h=100, dp_off=None,
         src="Reglamento Ultra Montseny (ultramontseny.com): salida en Montseny a las 10:00; cortes al salir de Santa Fe "
             "(6 h 30, 16:30), Sant Marçal (9 h 30, 19:30) y Viladrau (12 h, 22:00). La web de Viladrau habla de 9 h de límite: "
@@ -3354,7 +3354,7 @@ RACES = {
             ("Sant Marçal", 41.8013, 2.4285, "avit", "19:30"),
             ("Meta · Viladrau", None, None, "meta", "22:00")]),
     "cv": dict(
-        name="Cavalls del Vent 84K", short="Cavalls 84K", date="2027-06-19", start="05:00", gpx="cavalls.gpx", cat="RACE_A",
+        name="Cavalls del Vent 84K", short="Cavalls 84K", date="2027-06-19", start="05:00", gpx="cavalls.gpx", gpx_alt=["festival-cavalls-de-vent-2026-reducido.gpx"], cat="RACE_A",
         stop_min=8, dark=("21:45", "06:15"), legs_h=150, dp_off=5600,
         src="Web de Cavalls del Vent (cavallsdelvent.com/festival): salida a las 5:00 del Refugi del Rebost, 84,2 km y 5.600 m+, "
             "límite de 24 h; avituallamientos en los refugios. No publica cortes intermedios: puedes añadirlos abajo. "
@@ -3402,10 +3402,32 @@ def _clock(min_: float) -> str:
     return f"{m_ // 60:02d}:{m_ % 60:02d}" + (f" (+{d_})" if d_ else "")
 
 
+def race_gpx(rk: str) -> Path | None:
+    """Fichero GPX de la carrera: nombre configurado o alternativos, sin distinguir mayúsculas, en races/ o junto a app.py."""
+    R = RACES[rk]
+    names = [n_.lower() for n_ in [R["gpx"]] + list(R.get("gpx_alt", []))]
+    for d_ in (RACE_DIR, RACE_DIR.parent):
+        if d_.is_dir():
+            for f_ in sorted(d_.iterdir()):
+                if f_.is_file() and f_.name.lower() in names:
+                    return f_
+    return None
+
+
+def races_ok() -> list[str]:
+    return [rk for rk in RACES if race_gpx(rk) is not None]
+
+
+def races_missing_msg() -> str:
+    miss = [rk for rk in RACES if race_gpx(rk) is None]
+    return ("Falta el recorrido de " + " y ".join(f'{RACES[rk]["name"]} (races/{RACES[rk]["gpx"]})' for rk in miss)
+            + ". Sube el GPX a la carpeta «races» del repositorio, junto a app.py, con ese nombre en minúsculas.")
+
+
 @st.cache_data(show_spinner=False)
 def race_track(fn: str) -> pd.DataFrame:
     """Track del GPX remuestreado cada 50 m, con la altitud suavizada."""
-    txt = (RACE_DIR / fn).read_text(encoding="utf-8")
+    txt = Path(fn).read_text(encoding="utf-8", errors="replace")
     pts = re.findall(r'<trkpt lat="([\d.\-]+)" lon="([\d.\-]+)"[^>]*>\s*<ele>([\d.\-]+)</ele>', txt)
     a = np.array(pts, dtype=float)
     if len(a) < 10:
@@ -3526,7 +3548,7 @@ def ctl_on(race_d: dt.date, W: list[dict]) -> tuple[float | None, float | None]:
 def race_model(rk: str, prof: dict, b: float, effort: float, speed: float, stop_min: float, stop_ratio: float, E_ref: float) -> dict:
     """Tiempo por tramos de 100 m: ritmo propio por pendiente × fatiga progresiva (Riegel) × noche + paradas."""
     R = RACES[rk]
-    T = race_track(R["gpx"])
+    T = race_track(str(race_gpx(rk)))
     S = race_stations(rk, T)
     d, e = T["d"].to_numpy(), T["ele"].to_numpy()
     idx = np.append(np.arange(0, len(d) - 1, 2), len(d) - 1)          # tramos de 100 m (2 × 50 m)
@@ -3590,7 +3612,8 @@ def race_ctx() -> dict:
 def race_results(C: dict, b: float, effort: float, k_ctl: float, stops: dict) -> dict:
     """Modelo de las dos carreras en los dos escenarios (hoy y con la forma prevista por el plan)."""
     res = {}
-    for rk, R in RACES.items():
+    for rk in races_ok():
+        R = RACES[rk]
         rd = _d(R["date"])
         c0, c1 = ctl_on(rd, C["W"]) if C["W"] else (None, None)
         sp = min(1.0, max(0.85, (c0 / c1) ** k_ctl)) if c0 and c1 and c1 > 0 else 1.0
@@ -3616,9 +3639,11 @@ def race_section(compact: bool = False):
     except Exception as e:  # noqa: BLE001
         st.error(f"No se pudo preparar la comparativa: {e}")
         return
-    if not (RACE_DIR / RACES["mv"]["gpx"]).exists():
-        st.error("Faltan los GPX de las carreras en la carpeta races/ del repositorio.")
+    if not races_ok():
+        st.error(races_missing_msg())
         return
+    if len(races_ok()) < len(RACES):
+        st.warning(races_missing_msg())
     b, effort, k_ctl, stop_mv, stop_cv = 1.10, 1.00, 0.20, RACES["mv"]["stop_min"], RACES["cv"]["stop_min"]
     # Ajustes del modelo (en la vista móvil, los valores por defecto)
     if not compact:
@@ -3698,9 +3723,10 @@ def race_section(compact: bool = False):
                 unsafe_allow_html=True)
 
     # 2 · Detalle por carrera
-    pick = st.segmented_control("Carrera", [RACES[k]["name"] for k in RACES], default=RACES["cv"]["name"], key="rc_pick",
-                                label_visibility="collapsed") or RACES["cv"]["name"]
-    rk = next(k for k in RACES if RACES[k]["name"] == pick)
+    _rn = [RACES[k]["name"] for k in res]
+    pick = st.segmented_control("Carrera", _rn, default=_rn[-1], key="rc_pick",
+                                label_visibility="collapsed") or _rn[-1]
+    rk = next(k for k in res if RACES[k]["name"] == pick)
     x_ = res[rk]
     R, n_, p_ = x_["R"], x_["now"], x_["plan"]
     st.subheader(f'{R["name"]} · {x_["rd"]:%d/%m/%y} · salida {R["start"]}')
@@ -4142,14 +4168,18 @@ def nut_section(compact: bool = False):
     except Exception as e:  # noqa: BLE001
         st.info(f"No se pudo calcular la alimentación en carrera: {e}")
         return
+    if not res:
+        st.info(races_missing_msg())
+        return
     if not compact:
         st.subheader("Carreras 2027 · alimentación por tramo")
         r1, r2 = st.columns([3, 2])
-        pick = r1.segmented_control("Carrera nutrición", [RACES[x]["name"] for x in RACES], default=RACES["cv"]["name"],
-                                    key="nut_race", label_visibility="collapsed") or RACES["cv"]["name"]
+        _rn = [RACES[x]["name"] for x in res]
+        pick = r1.segmented_control("Carrera nutrición", _rn, default=_rn[-1],
+                                    key="nut_race", label_visibility="collapsed") or _rn[-1]
         sc_l = r2.segmented_control("Escenario nutrición", ["Hoy", "Con el plan"], default="Con el plan", key="nut_sc",
                                     label_visibility="collapsed") or "Con el plan"
-        rk = next(x for x in RACES if RACES[x]["name"] == pick)
+        rk = next(x for x in res if RACES[x]["name"] == pick)
         x_ = res[rk]
         sc = "plan" if sc_l == "Con el plan" else "now"
         tot_h = x_[sc]["total"] / 3600
