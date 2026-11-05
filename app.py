@@ -76,8 +76,6 @@ st.markdown(
 .stApp, .stMarkdown p, .stMarkdown li, .stCaption, label {{ font-family: "IBM Plex Sans", system-ui, sans-serif; }}
 h1, h2, h3 {{ font-family: "Barlow Condensed", "Arial Narrow", sans-serif !important; font-weight: 600 !important; letter-spacing: .01em; }}
 .block-container {{ padding-top: 2.2rem; max-width: 1240px; }}
-.sechead {{ margin: 6px 0 22px; padding-bottom: 12px; border-bottom: 1px solid {LINE}; }}
-.sechead h1 {{ font: 600 34px/1.15 "IBM Plex Sans", system-ui, sans-serif; color: {INK}; margin: 4px 0 0; padding: 0; }}
 .eyebrow {{ font: 500 11px "IBM Plex Sans", sans-serif; letter-spacing: .08em; text-transform: uppercase; color: {GOLD}; }}
 .note {{ font-size: 12.5px; color: {MUTED}; }}
 .cards {{ display: grid; grid-template-columns: repeat(var(--n), minmax(0,1fr)); gap: 1px; background: {LINE};
@@ -373,7 +371,7 @@ def demo_year(year: int) -> list[dict]:
                         incline=rnd.choice([None, None, 3, 5, 8]) if s == "VirtualRun" else None,
                         gear_id=demo_gear_for(s, d, rnd), gear_name=None, device="SUUNTO Suunto Race 2"))
         d += dt.timedelta(days=rnd.choice([1, 1, 2, 3]))
-    # Tres salidas de ejemplo por la misma ruta (para la sección Comparar)
+    # Tres salidas de ejemplo por la misma ruta (para la pestaña Comparar)
     for aid, day, km, dp, dev, secs, el in DEMO_ROUTE:
         if day.year == year and day <= today:
             out.append(dict(id=aid, start=f"{day}T08:15:00", sport="TrailRun", name="Ruta de ejemplo (3 cimas)", km=km, dp=dp, dm=dp * .99,
@@ -1184,65 +1182,26 @@ def _full_view():
     st.query_params["vista"] = "completa"
 
 
-# Navegación de la vista completa: secciones agrupadas por afinidad en la barra lateral (?sec=… en la URL)
-NAV = [("Actividad", [("temp", "Temporada"), ("cw", "Semana en curso"), ("lw", "Última semana"), ("sets", "Hoja por Sets")]),
-       ("Plan 2027", [("plan", "Plan de entrenamiento"), ("race", "Carreras 2027"), ("nut", "Nutrición")]),
-       ("Análisis", [("long", "Entrenamientos largos"), ("cmp", "Comparar")]),
-       ("Forma y salud", [("fat", "Esfuerzo y fatiga"), ("sal", "Salud")]),
-       ("Equipo", [("cinta", "Cinta"), ("mat", "Material")])]
-NAV_T = {k_: (g_, t_) for g_, its_ in NAV for k_, t_ in its_}
-if st.session_state.get("sec") not in NAV_T:
-    _qs = str(st.query_params.get("sec", "")).strip().lower()
-    st.session_state["sec"] = _qs if _qs in NAV_T else "temp"
-
-
-def _go(sec_: str):
-    st.session_state["sec"] = sec_
-    st.query_params["sec"] = sec_
-
-
 with st.sidebar:
     st.markdown("### ⛰️ Llibreta D+")
     st.toggle("📱 Vista móvil", key="mob_view", on_change=_sync_view,
-              help="Resumen de todas las secciones en una sola página para el móvil. Guarda la dirección con ?vista=movil "
+              help="Resumen de todas las pestañas en una sola página para el móvil. Guarda la dirección con ?vista=movil "
                    "como marcador para abrirla directamente.")
-    if not st.session_state.get("mob_view"):
-        _sel = st.session_state["sec"]
-        st.markdown(f"""<style>
-[class*="st-key-nav_"] button {{ justify-content: flex-start; padding: 4px 10px 4px 12px; min-height: 34px;
-  border-radius: 6px; border-left: 3px solid transparent; color: {INK}; }}
-[class*="st-key-nav_"] button > div, [class*="st-key-nav_"] button [data-testid="stMarkdownContainer"] {{
-  justify-content: flex-start; width: 100%; text-align: left; }}
-[class*="st-key-nav_"] button p {{ font-size: 14.5px; text-align: left; }}
-[class*="st-key-nav_"] button:hover {{ background: {HOVER}; color: {INK}; }}
-.st-key-nav_{_sel} button {{ background: {SURFACE2}; border-left-color: {GOLD}; }}
-.st-key-nav_{_sel} button p {{ font-weight: 600; color: {INK}; }}
-.navg {{ font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: {MUTED}; margin: 12px 0 12px 2px; line-height: 1.2; }}
-</style>""", unsafe_allow_html=True)
-        for g_, its_ in NAV:
-            with st.container(gap=None):
-                st.markdown(f'<div class="navg">{g_}</div>', unsafe_allow_html=True)
-                for k_, t_ in its_:
-                    st.button(t_, key="nav_" + k_, type="tertiary", width="stretch", on_click=_go, args=(k_,))
-        st.divider()
-    _cfg_ok = str(get_secret("DEMO", "")).strip() == "1" or (str(get_secret("ATHLETE_ID", "")).strip()
-                                                            and str(get_secret("INTERVALS_API_KEY", "")).strip())
-    with st.expander("⚙️ Ajustes", expanded=not _cfg_ok, key="sb_x_ajustes"):
-        year = st.selectbox("Temporada", list(range(now_y, 2022, -1)), index=0)
-        hike = st.toggle("Sumar caminatas a D+ y Km", key="sb_hike", on_change=_sync_flags)
-        cinta_dp = st.toggle("Sumar D+ de cinta (según pendiente)", key="sb_cinta_dp", on_change=_sync_flags,
-                             help="El D+ de cinta se calcula como km × pendiente real (el nivel de la cinta convertido a %). "
-                                  "Se edita en la sección Cinta.")
-        if st.button("Actualizar datos", type="primary", width="stretch"):
-            st.cache_data.clear()
-        demo = str(get_secret("DEMO", "")).strip() == "1"
-        athlete = str(get_secret("ATHLETE_ID", "")).strip()
-        key = str(get_secret("INTERVALS_API_KEY", "")).strip()
-        if not demo and (not athlete or not key):
-            st.info("Configura ATHLETE_ID e INTERVALS_API_KEY en los secretos de la app, o introdúcelos aquí para esta sesión.")
-            athlete = st.text_input("Athlete ID", value=athlete, placeholder="i123456").strip()
-            key = st.text_input("API key", value=key, type="password").strip()
-        st.markdown('<div class="navg">Objetivos de la semana</div>', unsafe_allow_html=True)
+    year = st.selectbox("Temporada", list(range(now_y, 2022, -1)), index=0)
+    hike = st.toggle("Sumar caminatas a D+ y Km", key="sb_hike", on_change=_sync_flags)
+    cinta_dp = st.toggle("Sumar D+ de cinta (según pendiente)", key="sb_cinta_dp", on_change=_sync_flags,
+                         help="El D+ de cinta se calcula como km × pendiente real (el nivel de la cinta convertido a %). "
+                              "Se edita en la pestaña Cinta.")
+    if st.button("Actualizar datos", type="primary", width="stretch"):
+        st.cache_data.clear()
+    demo = str(get_secret("DEMO", "")).strip() == "1"
+    athlete = str(get_secret("ATHLETE_ID", "")).strip()
+    key = str(get_secret("INTERVALS_API_KEY", "")).strip()
+    if not demo and (not athlete or not key):
+        st.info("Configura ATHLETE_ID e INTERVALS_API_KEY en los secretos de la app, o introdúcelos aquí para esta sesión.")
+        athlete = st.text_input("Athlete ID", value=athlete, placeholder="i123456").strip()
+        key = st.text_input("API key", value=key, type="password").strip()
+    with st.expander("Objetivos de la semana"):
         st.caption("Déjalos vacíos para usar tu media de las 8 últimas semanas.")
         TARGETS = {
             "dp": st.number_input("D+ (m)", min_value=0, step=100, value=None, placeholder="media 8 sem"),
@@ -1252,12 +1211,11 @@ with st.sidebar:
             "load": st.number_input("Carga", min_value=0, step=25, value=None, placeholder="media 8 sem"),
             "n": st.number_input("Sesiones", min_value=0, step=1, value=None, placeholder="media 8 sem"),
         }
-        st.caption("D+ y Km = Run y TrailRun (más Hike si lo activas; D+ de cinta si lo activas) · Km Cinta = VirtualRun · min Gim = Workout, WeightTraining y Elliptical.")
-        st.markdown("<div style='height:18px'></div>", unsafe_allow_html=True)
-        st.segmented_control("Tema", ["🌙", "☀️"], default="🌙", key="theme_icon", label_visibility="collapsed",
-                             help="Tema oscuro / claro")
+    st.caption("D+ y Km = Run y TrailRun (más Hike si lo activas; D+ de cinta si lo activas) · Km Cinta = VirtualRun · min Gim = Workout, WeightTraining y Elliptical.")
+    st.markdown("<div style='height:18px'></div>", unsafe_allow_html=True)
+    st.segmented_control("Tema", ["🌙", "☀️"], default="🌙", key="theme_icon", label_visibility="collapsed",
+                         help="Tema oscuro / claro")
 MOBILE = bool(st.session_state.get("mob_view"))
-SEC = st.session_state.get("sec", "temp")
 
 # Contraseña opcional para la app
 pwd = str(get_secret("APP_PASSWORD", ""))
@@ -1309,9 +1267,6 @@ def prev_line(v, d, u=""):
     return f"{year - 1}: {fnum(v, d)} {u}".strip() if len(df_p) else "&nbsp;"
 
 if not MOBILE:
-    st.markdown(f'<div class="sechead"><div class="eyebrow">{NAV_T[SEC][0]}</div><h1>{NAV_T[SEC][1]}</h1></div>',
-                unsafe_allow_html=True)
-if not MOBILE and NAV_T[SEC][0] == "Actividad":
     cards([
         ("D+", GOLD, fnum(T["dp"]), "m", [prev_line(P["dp"], 0, "m")] + ([dp_split_line(T)] if dp_split_line(T) else [])),
         ("Km", INK, fnum(T["km"], 1), "km", [prev_line(P["km"], 1, "km")]),
@@ -1890,6 +1845,7 @@ def mini_layout(f, h=130):
 
 
 def health_tab():
+    st.subheader("Salud")
     st.markdown('<span class="note">Bienestar diario de intervals.icu: HRV, FC en reposo, sueño, SpO2 y pasos del reloj; tensión, '
                 'peso y grasa corporal de Omron (vía Apple Salud y el Atajo de iOS).</span>', unsafe_allow_html=True)
     H = summary_health()
@@ -2797,7 +2753,7 @@ def plan_tab():
                     "Km|Real": nf_(1), "D+ cinta|Obj.": nf_(0), "D+ cinta|Real": nf_(0)})
     st.markdown('<span class="note">En dorado, la semana en curso. Las semanas futuras solo muestran el objetivo. D+ y km por fuera = '
                 'Run y TrailRun (más Hike si lo sumas), sin la cinta; los km objetivo son orientativos (horas de carrera × tu velocidad '
-                'media). D+ cinta = VirtualRun, con la pendiente apuntada en la sección Cinta; va aparte y no cuenta para el D+ por fuera. '
+                'media). D+ cinta = VirtualRun, con la pendiente apuntada en la pestaña Cinta; va aparte y no cuenta para el D+ por fuera. '
                 'Fuerza real = WeightTraining y Workout.</span>', unsafe_allow_html=True)
 
 
@@ -3177,7 +3133,7 @@ def mobile_view():
                     drow("Carga", ra["load"], rb["load"], lambda v: fnum(v)),
                 ]), unsafe_allow_html=True)
                 st.markdown('<div class="note">Diferencia = comparada − actual; en verde, la carrera actual fue mejor. '
-                            'El análisis por tramos está en la sección Comparar de la vista completa.</div>', unsafe_allow_html=True)
+                            'El análisis por tramos está en la pestaña Comparar de la vista completa.</div>', unsafe_allow_html=True)
 
     # 7b · Esfuerzo y fatiga (mismo orden que las pestañas: después de Comparar)
     SF = summary_fatigue()
@@ -3293,15 +3249,13 @@ def mobile_view():
         else:
             if pend_:
                 st.markdown(f'<div class="reading" style="--c:{ORANGE}"><b>{pend_} {"sesiones" if pend_ != 1 else "sesión"} sin nivel de cinta</b>: '
-                            'su D+ cuenta como 0. Añádela en la sección Cinta de la vista completa.</div>', unsafe_allow_html=True)
+                            'su D+ cuenta como 0. Añádela en la pestaña Cinta de la vista completa.</div>', unsafe_allow_html=True)
             cards([("Sesiones", GLACIER, fnum(len(tm_)), "", [f"{fnum(tm_['km'].sum(), 1)} km en {year}"]),
                    ("D+ cinta", GOLD, fnum(tm_["dp"].sum()), "m", ["sumado al D+ total" if cinta_dp else "no se suma (desactivado)"])])
 
     # 8b · Carreras 2027
     with st.expander("**Carreras 2027** · tiempos de paso y cortes", key="mob_x_race"):
         race_section(compact=True)
-    with st.expander("**Nutrición** · macros de la semana y alimentación por tramo", key="mob_x_nut"):
-        nut_section(compact=True)
 
     # 9 · Material
     SB = shoe_table(shoes, hist)
@@ -3585,27 +3539,6 @@ def race_ctx() -> dict:
     return dict(refs=refs, prof=prof, E_ref=E_ref, stop_ratio=stop_ratio, W=W)
 
 
-def race_results(C: dict, b: float, effort: float, k_ctl: float, stops: dict) -> dict:
-    """Modelo de las dos carreras en los dos escenarios (hoy y con la forma prevista por el plan)."""
-    res = {}
-    for rk, R in RACES.items():
-        rd = _d(R["date"])
-        c0, c1 = ctl_on(rd, C["W"]) if C["W"] else (None, None)
-        sp = min(1.0, max(0.85, (c0 / c1) ** k_ctl)) if c0 and c1 and c1 > 0 else 1.0
-        now_ = race_model(rk, C["prof"], b, effort, 1.0, stops[rk], C["stop_ratio"], C["E_ref"])
-        plan_ = race_model(rk, C["prof"], b, effort, sp, stops[rk], C["stop_ratio"], C["E_ref"])
-        res[rk] = dict(R=R, now=now_, plan=plan_, c0=c0, c1=c1, sp=sp, rd=rd)
-    return res
-
-
-def race_results_default() -> tuple[dict, dict]:
-    """Resultados con los ajustes elegidos en la pestaña Carreras (o los de por defecto)."""
-    C = race_ctx()
-    ss = st.session_state
-    stops = {"mv": ss.get("rc_s_mv", RACES["mv"]["stop_min"]), "cv": ss.get("rc_s_cv", RACES["cv"]["stop_min"])}
-    return C, race_results(C, ss.get("rc_b", 1.10), ss.get("rc_eff", 1.00), ss.get("rc_k", 0.20), stops)
-
-
 def race_section(compact: bool = False):
     """Sección «Carreras 2027»: comparativa de esfuerzo y tiempos de paso (hoy vs con el plan)."""
     try:
@@ -3632,7 +3565,15 @@ def race_section(compact: bool = False):
             stop_mv = s1.number_input("Parada por avituallamiento · Montseny (min)", 0, 20, RACES["mv"]["stop_min"], key="rc_s_mv")
             stop_cv = s2.number_input("Parada por avituallamiento · Cavalls (min)", 0, 30, RACES["cv"]["stop_min"], key="rc_s_cv")
     stops = {"mv": stop_mv, "cv": stop_cv}
-    res = race_results(C, b, effort, k_ctl, stops)
+
+    res = {}
+    for rk, R in RACES.items():
+        rd = _d(R["date"])
+        c0, c1 = ctl_on(rd, C["W"]) if C["W"] else (None, None)
+        sp = min(1.0, max(0.85, (c0 / c1) ** k_ctl)) if c0 and c1 and c1 > 0 else 1.0
+        now_ = race_model(rk, C["prof"], b, effort, 1.0, stops[rk], C["stop_ratio"], C["E_ref"])
+        plan_ = race_model(rk, C["prof"], b, effort, sp, stops[rk], C["stop_ratio"], C["E_ref"])
+        res[rk] = dict(R=R, now=now_, plan=plan_, c0=c0, c1=c1, sp=sp, rd=rd)
 
     # 1 · Comparativa de esfuerzo de las dos carreras
     longest = max(C["prof"]["used"], key=lambda u: u["E"]) if C["prof"]["used"] else None
@@ -3839,380 +3780,16 @@ def race_section(compact: bool = False):
             unsafe_allow_html=True)
 
 
-# ─────────────────────────── Nutrición · macros según el esfuerzo real y el del plan ───────────────────────────
-# Gasto = metabolismo basal (Mifflin-St Jeor, o Katch-McArdle si hay % de grasa) × actividad diaria sin entrenar
-#         + gasto neto del ejercicio (reloj si lo da; si no, km-esfuerzo × peso × 1 kcal, o MET para la fuerza).
-# Macros: proteína en g/kg, grasa en % del gasto (mínimo 0,8 g/kg) y el resto hidratos; se contrastan con las guías de
-# hidratos por volumen de entrenamiento (ACSM / COI) y, en carrera, con 60–90 g de hidratos por hora.
-NUT_MET_GYM = 5.0           # MET de la fuerza
-NUT_MET_OTHER = 7.0         # MET de otras actividades sin km (bici, etc.)
-NUT_FLD_DEF = {"mv": 450, "cv": 600}   # ml/h por defecto (abril fresco en el Montseny, junio en el Pirineo)
-
-
-def nut_defaults() -> dict:
-    """Datos personales por defecto: secretos ATHLETE_* y wellness de intervals.icu (peso y grasa medios de 14 días)."""
-    w_, bf_ = None, None
-    try:
-        H_ = summary_health()
-        if H_.get("ok"):
-            D_ = H_["df"]
-            for n_ in (14, 60, 400):
-                ww = D_["weight"].loc[pd.Timestamp(today) - pd.Timedelta(days=n_ - 1):].dropna()
-                if len(ww):
-                    w_ = float(ww.mean())
-                    bb = D_["bodyFat"].loc[pd.Timestamp(today) - pd.Timedelta(days=n_ - 1):].dropna()
-                    bf_ = float(bb.mean()) if len(bb) else None
-                    break
-    except Exception:  # noqa: BLE001
-        pass
-    by = int(float(get_secret("ATHLETE_BIRTH_YEAR", 1978) or 1978))
-    return dict(sex=str(get_secret("ATHLETE_SEX", "M") or "M").upper()[:1], age=today.year - by,
-                h=float(get_secret("ATHLETE_HEIGHT", 178) or 178), w=w_ or float(get_secret("ATHLETE_WEIGHT", 75) or 75),
-                w_src="media de 14 días de Salud" if w_ else "valor por defecto", bf=bf_)
-
-
-def nut_bmr(P: dict) -> float:
-    if P.get("use_bf") and P.get("bf"):
-        return 370 + 21.6 * P["w"] * (1 - P["bf"] / 100)
-    return 10 * P["w"] + 6.25 * P["h"] - 5 * P["age"] + (5 if P["sex"] == "M" else -161)
-
-
-def nut_formula(sport: str, km: float, dp: float, hours: float, w: float) -> float:
-    """Gasto neto estimado de una actividad (kcal por encima del reposo)."""
-    if sport in OUT or sport in CINTA or sport in ("Hike", "Walk"):
-        return w * (km + dp / 100) * (0.8 if sport in ("Hike", "Walk") else 1.0)
-    met = NUT_MET_GYM if sport in GIM else NUT_MET_OTHER
-    return max(0.0, met - 1.3) * w * hours
-
-
-def nut_calib(P: dict) -> float:
-    """Ajuste personal: gasto neto del reloj / fórmula en tus salidas de carrera de los últimos 120 días (0,7–1,3)."""
-    if not len(all_df):
-        return 1.0
-    d_ = all_df[all_df["sport"].isin(OUT) & (all_df["date"] >= today - dt.timedelta(days=120)) & (all_df["kcal"] > 0)]
-    rest_h = nut_bmr(P) / 24
-    r_ = [(float(a["kcal"]) - rest_h * a["hours"]) / f for _, a in d_.iterrows()
-          if (f := nut_formula(a["sport"], a["km"], a["dp"], a["hours"], P["w"])) > 50]
-    return float(min(1.3, max(0.7, np.median(r_)))) if len(r_) >= 3 else 1.0
-
-
-def nut_ex_real(d_: pd.DataFrame, P: dict, k: float) -> float:
-    """Gasto neto real de un conjunto de actividades: kcal del reloj menos el reposo; si no hay kcal, la fórmula."""
-    rest_h = nut_bmr(P) / 24
-    tot = 0.0
-    for _, a in d_.iterrows():
-        if pd.notna(a["kcal"]) and a["kcal"] > 0:
-            tot += max(0.0, float(a["kcal"]) - rest_h * a["hours"])
-        else:
-            tot += nut_formula(a["sport"], a["km"], a["dp"], a["hours"], P["w"]) * (k if a["sport"] in OUT else 1.0)
-    return tot
-
-
-def nut_macros(total: float, P: dict) -> dict:
-    p_ = P["prot"] * P["w"]
-    f_ = max(0.8 * P["w"], P["fat"] / 100 * total / 9)
-    c_ = max(0.0, (total - 4 * p_ - 9 * f_) / 4)
-    return dict(kcal=total, ch=c_, p=p_, f=f_, chkg=c_ / P["w"])
-
-
-def nut_ch_band(h_day: float) -> tuple[float, float, str]:
-    """Hidratos recomendados (g/kg/día) según las horas de entrenamiento al día."""
-    if h_day < 0.75:
-        return 3, 5, "ligero"
-    if h_day < 1.5:
-        return 5, 7, "moderado (≈ 1 h/día)"
-    if h_day < 3:
-        return 6, 10, "alto (1–3 h/día)"
-    return 8, 12, "muy alto (> 3 h/día)"
-
-
-def nut_intra(minutes: float) -> str:
-    """Hidratos durante la sesión según su duración."""
-    if minutes < 60:
-        return "agua"
-    if minutes < 90:
-        return "0–30 g/h"
-    if minutes < 150:
-        return "30–60 g/h"
-    return "60–90 g/h"
-
-
-def nut_week_plan(w_: dict, P: dict, k: float) -> dict:
-    """Gasto neto del ejercicio previsto en una semana del plan y reparto orientativo por días."""
-    spd = run_speed()
-    days = {i: dict(kcal=0.0, min=0.0, txt=[]) for i in range(7)}
-    q_min = 0.0
-    for d_, sid in w_["ses"]:
-        s_ = sess(sid)
-        i = (d_ - w_["frm"]).days
-        if not 0 <= i < 7:
-            continue
-        if s_["kind"] == "fuerza":
-            kc = nut_formula("WeightTraining", 0, 0, s_["min"] / 60, P["w"])
-        elif s_["kind"] == "cinta":
-            kc = nut_formula("VirtualRun", s_.get("km", 0), s_.get("dp", 0), s_["min"] / 60, P["w"]) * k
-        else:   # calidad: carrera por fuera
-            q_min += s_["min"]
-            kc = nut_formula("Run", s_["min"] / 60 * spd, 0, s_["min"] / 60, P["w"]) * k
-        days[i]["kcal"] += kc
-        days[i]["min"] += s_["min"]
-        days[i]["txt"].append(f'{s_["name"]} {s_["min"]}′')
-    # Resto de la carrera por fuera (rodajes y tirada larga): reparto orientativo 60 % sábado / 40 % domingo
-    rest_h = max(0.0, w_["run_h"] - q_min / 60)
-    if rest_h > 0.2 and w_["k"] != "R":
-        for i, sh in ((5, .6), (6, .4)):
-            h_ = rest_h * sh
-            km_ = h_ * spd
-            dp_ = w_["dp"] * sh
-            days[i]["kcal"] += nut_formula("TrailRun", km_, dp_, h_, P["w"]) * k
-            days[i]["min"] += h_ * 60
-            days[i]["txt"].append(f'{"Tirada larga" if i == 5 else "Rodaje"} ≈ {fnum(h_, 1)} h · {fnum(km_)} km · {fnum(dp_)} m+')
-    return dict(days=days, ex=sum(d["kcal"] for d in days.values()), h=sum(d["min"] for d in days.values()) / 60)
-
-
-def nut_race_tramos(x_: dict, sc: str, P: dict, k: float, rate: float, fluid: float, na: float) -> pd.DataFrame:
-    """Gasto e ingesta por tramo entre avituallamientos."""
-    m_ = x_[sc]
-    T, S = m_["T"], [s_ for s_ in m_["S"] if s_["kind"] != "cima"]
-    e = T["ele"].to_numpy()
-    rest_h = nut_bmr(P) / 24
-    long_ = m_["total"] / 3600
-    rows = []
-    for a, b_ in zip(S[:-1], S[1:]):
-        h_ = (b_["t_in"] - a["t_out"]) / 3600
-        t_mid = (a["t_out"] + b_["t_in"]) / 2 / 3600
-        km_ = b_["km"] - a["km"]
-        de = np.diff(e[a["i"]:b_["i"] + 1])
-        dp_ = float(np.clip(de, 0, None).sum()) * m_["f_dp"]
-        dm_ = float(-np.clip(de, None, 0).sum()) * m_["f_dp"]
-        spend = nut_formula("TrailRun", km_, dp_, h_, P["w"]) * k + rest_h * h_
-        ch = rate * h_
-        pr = (6 * h_ if long_ > 8 and t_mid > 3 else 0.0)            # ultras: algo de proteína a partir de la 3.ª hora
-        ft = (4 * h_ if long_ > 12 and t_mid > 6 else 0.0)           # y comida real (algo de grasa) a partir de la 6.ª
-        fl = fluid * h_
-        rows.append({"Tramo": f'{a["name"].split(" · ")[-1]} → {b_["name"].split(" · ")[-1]}', "Km": km_, "D+": dp_, "D−": dm_,
-                     "Tiempo": _dur(h_ * 3600), "Gasto": spend, "CH": ch, "Prot.": pr, "Grasa": ft,
-                     "Ingesta": 4 * ch + 4 * pr + 9 * ft, "Líquido": fl, "Sodio": na * fl / 1000, "Geles": ch / 25})
-    D = pd.DataFrame(rows)
-    if len(D):
-        tot = {c: D[c].sum() for c in D.columns if c not in ("Tramo", "Tiempo")}
-        tot.update(Tramo="Total", Tiempo=_dur(m_["total"]))
-        D = pd.concat([D, pd.DataFrame([tot])], ignore_index=True)
-    return D
-
-
-def nut_section(compact: bool = False):
-    """Pestaña Nutrición: gasto y macros por semana y día (plan vs real) y alimentación por tramo en las carreras."""
-    D0 = nut_defaults()
-    P = dict(D0)
-    if not compact:
-        with st.expander(f'Tus datos · {"hombre" if D0["sex"] == "M" else "mujer"}, {D0["age"]} años, {fnum(D0["h"])} cm, '
-                         f'{fnum(D0["w"], 1)} kg', key="nut_x_data"):
-            c1, c2, c3, c4 = st.columns(4)
-            P["sex"] = "M" if c1.selectbox("Sexo", ["Hombre", "Mujer"], index=0 if D0["sex"] == "M" else 1, key="nut_sex") == "Hombre" else "F"
-            P["age"] = c2.number_input("Edad", 15, 90, int(D0["age"]), key="nut_age")
-            P["h"] = c3.number_input("Estatura (cm)", 130, 220, int(round(D0["h"])), key="nut_h")
-            P["w"] = c4.number_input("Peso (kg)", 40.0, 150.0, round(float(D0["w"]), 1), 0.1, key="nut_w",
-                                     help=f'Por defecto: {D0["w_src"]}.')
-            c5, c6, c7, c8 = st.columns(4)
-            P["neat"] = c5.select_slider("Actividad diaria sin entrenar", [1.2, 1.3, 1.4, 1.5], value=1.3, key="nut_neat",
-                                         format_func=lambda v: {1.2: "1,2 · sentado", 1.3: "1,3 · oficina + paseos",
-                                                                1.4: "1,4 · de pie", 1.5: "1,5 · trabajo físico"}[v])
-            P["prot"] = c6.slider("Proteína (g/kg/día)", 1.2, 2.4, 1.8 if D0["age"] >= 40 else 1.6, 0.1, key="nut_prot",
-                                  help="1,6–2,0 g/kg en deportistas de resistencia; a partir de los 40 años, mejor la parte alta.")
-            P["fat"] = c7.slider("Grasa (% del gasto)", 20, 35, 28, 1, key="nut_fat", help="Con un mínimo de 0,8 g/kg.")
-            P["use_bf"] = c8.toggle("Basal con % de grasa", value=bool(D0["bf"]), disabled=not D0["bf"], key="nut_bf",
-                                    help=(f'Katch-McArdle con {fnum(D0["bf"], 1)} % de grasa (media de Salud)' if D0["bf"]
-                                          else "Sin % de grasa en Salud: Mifflin-St Jeor"))
-    else:
-        P.update(neat=1.3, prot=1.8 if D0["age"] >= 40 else 1.6, fat=28, use_bf=bool(D0["bf"]))
-    bmr = nut_bmr(P)
-    base = bmr * P["neat"]
-    k = nut_calib(P)
-    try:
-        S = summary_plan()
-        W = S.get("W") or []
-    except Exception:  # noqa: BLE001
-        S, W = {}, []
-    ci = next((i for i, w_ in enumerate(W) if w_["frm"] <= today <= w_["to"]), -1)
-    wi = ci if ci >= 0 else (0 if W and today < W[0]["frm"] else -1)
-
-    # Hoy
-    d_today = all_df[all_df["date"] == today] if len(all_df) else all_df
-    ex_today = nut_ex_real(d_today, P, k) if len(d_today) else 0.0
-    plan_today = None
-    if wi >= 0 and W[wi]["frm"] <= today <= W[wi]["to"]:
-        plan_today = nut_week_plan(W[wi], P, k)["days"][(today - W[wi]["frm"]).days]
-    ex_t = max(ex_today, plan_today["kcal"] if plan_today else 0.0)
-    M_t = nut_macros(base + ex_t, P)
-    lo, hi, lab = nut_ch_band(max(sum(d_today["hours"]) if len(d_today) else 0.0, (plan_today or {}).get("min", 0) / 60))
-    if not compact:
-        st.subheader("Nutrición · gasto y macros según el esfuerzo")
-        st.markdown(f'<div class="note">Basal {fnum(bmr)} kcal ({"Katch-McArdle, con tu % de grasa" if P.get("use_bf") and P.get("bf") else "Mifflin-St Jeor: peso, estatura, edad y sexo"}) '
-                    f'× {fnum(P["neat"], 1)} de actividad diaria = <b>{fnum(base)} kcal</b> sin entrenar. El ejercicio suma su gasto neto: '
-                    f'el del reloj si lo da y, si no, km-esfuerzo × peso (fuerza y otras por MET). Ajuste personal según tu reloj: '
-                    f'× {fnum(k, 2)}. Orientativo: no sustituye a un dietista-nutricionista.</div>', unsafe_allow_html=True)
-    cards([("Hoy · gasto", GOLD, fnum(M_t["kcal"]), " kcal",
-            [f'basal y día {fnum(base)} + ejercicio {fnum(ex_t)}',
-             ("hecho: " + ", ".join(d_today["name"].fillna("").astype(str).str[:28].tolist())) if len(d_today) else
-             ("plan: " + ", ".join(plan_today["txt"])) if plan_today and plan_today["txt"] else "día de descanso"]),
-           ("Hidratos", ORANGE, fnum(M_t["ch"]), " g", [f'{fnum(M_t["chkg"], 1)} g/kg · guía {fnum(lo)}–{fnum(hi)} g/kg ({lab})']),
-           ("Proteína", TEAL, fnum(M_t["p"]), " g", [f'{fnum(P["prot"], 1)} g/kg · 4–5 tomas de {fnum(0.4 * P["w"])} g']),
-           ("Grasa", VIOLET, fnum(M_t["f"]), " g", [f'{fnum(9 * M_t["f"] / max(M_t["kcal"], 1) * 100)} % del gasto'])])
-
-    # Esta semana, día a día
-    if wi >= 0:
-        w_ = W[wi]
-        wp = nut_week_plan(w_, P, k)
-        rows = []
-        for i in range(7):
-            d_ = w_["frm"] + dt.timedelta(days=i)
-            dd_ = all_df[all_df["date"] == d_] if len(all_df) else all_df
-            pl = wp["days"][i]
-            real = nut_ex_real(dd_, P, k) if len(dd_) and d_ <= today else None
-            Mp = nut_macros(base + pl["kcal"], P)
-            Mr = nut_macros(base + real, P) if real is not None else None
-            mins = max(pl["min"], float(dd_["hours"].sum()) * 60 if len(dd_) else 0.0)
-            rows.append({"Día": f'{DIAS_L[i][:3]} {d_:%d/%m}', "Plan": " · ".join(pl["txt"]) or "descanso",
-                         "Hecho": (", ".join(dd_["name"].fillna("").astype(str).str[:24]) or "—") if d_ <= today else "",
-                         "Plan|kcal": Mp["kcal"], "Plan|CH": Mp["ch"], "Plan|P": Mp["p"], "Plan|G": Mp["f"],
-                         "Real|kcal": Mr["kcal"] if Mr else np.nan, "Real|CH": Mr["ch"] if Mr else np.nan,
-                         "Durante": nut_intra(max(pl["min"], mins)) if mins > 0 else "—"})
-        DT = pd.DataFrame(rows)
-        if compact:
-            st.markdown(_rows([(f'{r_["Día"]} · {fnum(r_["Plan|kcal"])} kcal',
-                                f'CH {fnum(r_["Plan|CH"])} g · P {fnum(r_["Plan|P"])} g · G {fnum(r_["Plan|G"])} g'
-                                + (f' · durante {r_["Durante"]}' if r_["Durante"] not in ("—", "agua") else ""))
-                               for _, r_ in DT.iterrows()]), unsafe_allow_html=True)
-        else:
-            st.subheader(("Esta semana" if ci >= 0 else "Primera semana del plan") + f' · {w_["ph"]} · día a día')
-            f0 = lambda v: fnum(v) if pd.notna(v) else "—"  # noqa: E731
-            html_table(DT, left={"Día", "Plan", "Hecho", "Durante"},
-                       fmt={c: f0 for c in DT.columns if "|" in c},
-                       groups=[("", 3, ""), ("Plan (g/día)", 4, "g"), ("Real", 2, "g"), ("", 1, "g")],
-                       group_start={"Plan|kcal", "Real|kcal", "Durante"},
-                       sub={"kcal": "kcal", "CH": "Hidratos", "P": "Proteína", "G": "Grasa"},
-                       row_classes=["cur" if w_["frm"] + dt.timedelta(days=i) == today else "" for i in range(7)])
-            st.markdown('<span class="note">Rodajes y tirada larga sin día fijo en el plan: reparto orientativo 60 % sábado y 40 % '
-                        'domingo (horas de carrera de la semana menos la calidad). «Durante» = hidratos por hora en la sesión '
-                        'según su duración. Real = basal y día + lo que has hecho.</span>', unsafe_allow_html=True)
-
-    # Semana a semana: plan vs real
-    def _ckg(v, lo_, hi_):
-        c_ = ORANGE if v < lo_ else GLACIER if v > hi_ else GREEN
-        return f'<span style="color:{c_};font-weight:600">{fnum(v, 1)}</span>'
-
-    if W and not compact:
-        st.subheader("Semana a semana · media diaria, plan vs real")
-        rows = []
-        for w_ in W:
-            wp = nut_week_plan(w_, P, k)
-            Mp = nut_macros(base + wp["ex"] / 7, P)
-            lo_, hi_, _l = nut_ch_band(wp["h"] / 7)
-            Mr, lr, hr_ = None, lo_, hi_
-            if w_["frm"] <= today:
-                n_d = min(7, (today - w_["frm"]).days + 1)
-                dd_ = all_df[(all_df["date"] >= w_["frm"]) & (all_df["date"] <= min(today, w_["to"]))] if len(all_df) else all_df
-                Mr = nut_macros(base + (nut_ex_real(dd_, P, k) if len(dd_) else 0.0) / n_d, P)
-                lr, hr_, _l = nut_ch_band((float(dd_["hours"].sum()) if len(dd_) else 0.0) / n_d)
-            rows.append({"Semana": f'{w_["frm"]:%d/%m}', "Fase": w_["ph"] + {"r": " · descarga", "t": " · taper", "R": " · carrera"}.get(w_["k"], ""),
-                         "Plan|kcal": Mp["kcal"], "Plan|CH": Mp["ch"], "Plan|CHkg": _ckg(Mp["chkg"], lo_, hi_), "Plan|P": Mp["p"], "Plan|G": Mp["f"],
-                         "Plan|Guía": f"{fnum(lo_)}–{fnum(hi_)}",
-                         "Real|kcal": Mr["kcal"] if Mr else np.nan, "Real|CH": Mr["ch"] if Mr else np.nan,
-                         "Real|CHkg": _ckg(Mr["chkg"], lr, hr_) if Mr else "—"})
-        WT = pd.DataFrame(rows)
-        f0 = lambda v: fnum(v) if pd.notna(v) else "—"  # noqa: E731
-        html_table(WT, left={"Semana", "Fase"},
-                   fmt={"Plan|kcal": f0, "Plan|CH": f0, "Plan|P": f0, "Plan|G": f0, "Real|kcal": f0, "Real|CH": f0},
-                   groups=[("", 2, ""), ("Plan · por día", 6, "g"), ("Real · por día", 3, "g")],
-                   group_start={"Plan|kcal", "Real|kcal"},
-                   sub={"kcal": "kcal", "CH": "Hidratos g", "CHkg": "g/kg", "P": "Proteína g", "G": "Grasa g", "Guía": "guía g/kg"},
-                   row_classes=["cur" if w_["frm"] <= today <= w_["to"] else "" for w_ in W], max_height=520)
-        st.markdown('<span class="note">Plan: gasto del ejercicio previsto (fuerza, calidad, cinta y carrera por fuera con los km y '
-                    'el D+ objetivo). Real: media de los días ya pasados de la semana. Guía de hidratos (ACSM / COI) según las '
-                    'horas de entrenamiento al día: g/kg en '
-                    f'<span style="color:{GREEN}">verde</span> dentro de la guía, en <span style="color:{ORANGE}">naranja</span> por debajo (baja la grasa o come algo más en los días de más '
-                    f'carga) y en <span style="color:{GLACIER}">azul</span> por encima.</span>', unsafe_allow_html=True)
-
-    # Carreras: alimentación por tramo
-    try:
-        C_, res = race_results_default()
-    except Exception as e:  # noqa: BLE001
-        st.info(f"No se pudo calcular la alimentación en carrera: {e}")
-        return
-    if not compact:
-        st.subheader("Carreras 2027 · alimentación por tramo")
-        r1, r2 = st.columns([3, 2])
-        pick = r1.segmented_control("Carrera nutrición", [RACES[x]["name"] for x in RACES], default=RACES["cv"]["name"],
-                                    key="nut_race", label_visibility="collapsed") or RACES["cv"]["name"]
-        sc_l = r2.segmented_control("Escenario nutrición", ["Hoy", "Con el plan"], default="Con el plan", key="nut_sc",
-                                    label_visibility="collapsed") or "Con el plan"
-        rk = next(x for x in RACES if RACES[x]["name"] == pick)
-        x_ = res[rk]
-        sc = "plan" if sc_l == "Con el plan" else "now"
-        tot_h = x_[sc]["total"] / 3600
-        q1, q2, q3 = st.columns(3)
-        rate = q1.slider("Hidratos por hora (g/h)", 30, 100, 60 if tot_h < 10 else 70, 5, key="nut_rate_" + rk,
-                         help="60 g/h con glucosa sola; hasta 90 g/h con mezcla glucosa:fructosa y el intestino entrenado.")
-        fluid = q2.slider("Líquido por hora (ml/h)", 300, 900, NUT_FLD_DEF[rk], 50, key="nut_fl_" + rk,
-                          help="Ajústalo con tu tasa de sudor: pésate antes y después de una salida larga con calor parecido.")
-        na = q3.slider("Sodio (mg por litro)", 300, 1200, 600, 50, key="nut_na_" + rk)
-        R_ = nut_race_tramos(x_, sc, P, k, rate, fluid, na)
-        tot = R_.iloc[-1]
-        cards([("Gasto en carrera", RED, fnum(tot["Gasto"]), " kcal", [f'{x_["R"]["short"]} · {_dur(x_[sc]["total"])} h ({sc_l.lower()})']),
-               ("Ingesta prevista", GOLD, fnum(tot["Ingesta"]), " kcal",
-                [f'{fnum(tot["CH"])} g de hidratos ≈ {fnum(tot["Geles"])} geles de 25 g', f'cubre el {fnum(100 * tot["Ingesta"] / max(tot["Gasto"], 1))} % del gasto']),
-               ("Líquido y sodio", GLACIER, fnum(tot["Líquido"] / 1000, 1), " l", [f'{fnum(tot["Sodio"])} mg de sodio']),
-               ("Los días antes", TEAL, fnum(9 * P["w"]), " g/día", ["hidratos 36–48 h antes (8–10 g/kg)",
-                                                                       f'desayuno 3 h antes: {fnum(2 * P["w"])} g de hidratos'])])
-        f0 = lambda v: fnum(v) if pd.notna(v) else "—"  # noqa: E731
-        html_table(R_, left={"Tramo"}, total_last=True,
-                   fmt={"Km": lambda v: fnum(v, 1), "D+": f0, "D−": f0, "Gasto": f0, "CH": f0, "Prot.": f0, "Grasa": f0,
-                        "Ingesta": f0, "Líquido": f0, "Sodio": f0, "Geles": lambda v: fnum(v, 1)},
-                   group_start={"Gasto", "CH", "Líquido"})
-        lg_ = [r_ for _, r_ in R_.iloc[:-1].iterrows() if _hhmm_min(r_["Tiempo"]) is not None and _hhmm_min(r_["Tiempo"]) >= 180]
-        if lg_:
-            st.markdown('<div class="reading" style="--c:' + ORANGE + '">Tramos de más de 3 h sin avituallamiento: '
-                        + "; ".join(f'<b>{_html.escape(r_["Tramo"])}</b> ({r_["Tiempo"]} h: {fnum(r_["CH"])} g de hidratos y '
-                                    f'{fnum(r_["Líquido"] / 1000, 1)} l)' for r_ in lg_)
-                        + '. Si no hay puntos de agua intermedios, sal con la comida del tramo y repón líquido en fuentes o '
-                        'refugios.</div>', unsafe_allow_html=True)
-        st.markdown('<span class="note">Tramos entre avituallamientos con los tiempos de la sección Carreras 2027. Gasto = '
-                    'km-esfuerzo × peso (con tu ajuste) + basal del tiempo en carrera. Hidratos (g), proteína a partir de la 3.ª '
-                    'hora en carreras de más de 8 h y algo de grasa (comida real) a partir de la 6.ª en las de más de 12 h; líquido '
-                    'en ml y sodio en mg. Es normal no cubrir todo el gasto: el resto sale de las reservas. Al acabar: '
-                    f'{fnum(1.1 * P["w"])} g de hidratos y {fnum(0.3 * P["w"])} g de proteína en la primera hora. Prueba la '
-                    'estrategia en las tiradas largas antes de la carrera.</span>', unsafe_allow_html=True)
-    else:
-        for rk, x_ in res.items():
-            R_ = nut_race_tramos(x_, "plan", P, k, 60 if x_["plan"]["total"] < 36000 else 70, NUT_FLD_DEF[rk], 600)
-            st.markdown(f'<div class="eyebrow">{_html.escape(x_["R"]["name"])} · con el plan</div>' + _rows(
-                [(f'{_html.escape(r_["Tramo"])} · {r_["Tiempo"]} h',
-                  f'{fnum(r_["CH"])} g CH ({fnum(r_["Geles"], 1)} geles) · {fnum(r_["Líquido"])} ml · {fnum(r_["Sodio"])} mg Na'
-                  + (f' · {fnum(r_["Prot."])} g prot.' if r_["Prot."] > 0 else "") + f' · gasto {fnum(r_["Gasto"])} kcal')
-                 for _, r_ in R_.iterrows()]), unsafe_allow_html=True)
-
-
 if MOBILE:
     mobile_view()
     st.stop()
 
 
-# Solo se dibuja la sección elegida en la barra lateral
+tab_temp, tab_cw, tab_lw, tab_plan, tab_race, tab_sets, tab_long, tab_cmp, tab_fat, tab_sal, tab_cinta, tab_mat = st.tabs(
+    ["Temporada", "Semana en curso", "Última semana", "Plan 2027", "Carreras 2027", "Hoja por Sets", "Entrenamientos largos",
+     "Comparar", "Esfuerzo y fatiga", "Salud", "Cinta", "Material"])
 
-# Resumen mensual (Temporada y Hoja por Sets)
-def monthly(d: pd.DataFrame) -> pd.DataFrame:
-    m = d.groupby(d["ts"].dt.month)[["out_dp", "out_km", "ukm", "cinta_km", "gim_min", "dp_run", "dp_hike", "dp_cinta"]].sum().reindex(range(1, 13), fill_value=0)
-    m["ultra"] = np.where(m["ukm"] > 0, 1.7 * m["out_dp"] / m["ukm"].replace(0, np.nan), 0)
-    prev = m["out_dp"].shift(1)
-    m["incr"] = np.where((m["out_dp"] > 0) & (m.index > 1), (m["out_dp"] - prev) / m["out_dp"].replace(0, np.nan), 0)
-    return m.fillna(0)
-
-
-My, Mp = monthly(df_y), monthly(df_p)
-
-
-if SEC == "temp":
+with tab_temp:
     # Hero
     doy = (today - dt.date(year, 1, 1)).days if year == now_y else 366
     prev_same = df_p[df_p["ts"].dt.dayofyear <= doy + 1]["out_dp"].sum() if len(df_p) else 0
@@ -4269,6 +3846,15 @@ if SEC == "temp":
     st.plotly_chart(plot_layout(fig, 320), width="stretch", theme=None)
 
     # Mensual
+    def monthly(d: pd.DataFrame) -> pd.DataFrame:
+        m = d.groupby(d["ts"].dt.month)[["out_dp", "out_km", "ukm", "cinta_km", "gim_min", "dp_run", "dp_hike", "dp_cinta"]].sum().reindex(range(1, 13), fill_value=0)
+        m["ultra"] = np.where(m["ukm"] > 0, 1.7 * m["out_dp"] / m["ukm"].replace(0, np.nan), 0)
+        prev = m["out_dp"].shift(1)
+        m["incr"] = np.where((m["out_dp"] > 0) & (m.index > 1), (m["out_dp"] - prev) / m["out_dp"].replace(0, np.nan), 0)
+        return m.fillna(0)
+
+
+    My, Mp = monthly(df_y), monthly(df_p)
     c1, c2 = st.columns([3, 2])
     for col, key_, title, color, dec in [(c1, "out_dp", "D+ por mes", GOLD, 0), (c2, "ultra", "Ultra Ind por mes", RED, 1)]:
         with col:
@@ -4311,7 +3897,7 @@ if SEC == "temp":
             st.plotly_chart(plot_layout(f2, 250), width="stretch", theme=None)
 
 
-if SEC == "cw":
+with tab_cw:
     # ─────────────────────────── Semana en curso ───────────────────────────
     dow = today.weekday()                      # 0 = lunes
     remaining = 6 - dow                        # días que quedan después de hoy
@@ -4329,6 +3915,7 @@ if SEC == "cw":
     st.markdown(f'<div class="eyebrow" style="margin-top:18px">{cur_mon.day} {MES[cur_mon.month-1].lower()} – '
                 f'{(cur_mon + dt.timedelta(days=6)).day} {MES[(cur_mon + dt.timedelta(days=6)).month-1].lower()} · '
                 f'día {dow + 1} de 7</div>', unsafe_allow_html=True)
+    st.subheader("Semana en curso")
     st.markdown('<span class="note">De lunes a hoy, comparada con la semana pasada y con tu media de 8 semanas <b>a esta misma altura</b>. '
                 'El objetivo es tu media semanal salvo que fijes otro en la barra lateral; la proyección suma a lo hecho tu media diaria en los días que quedan.</span>',
                 unsafe_allow_html=True)
@@ -4500,10 +4087,11 @@ if SEC == "cw":
         st.markdown("".join(html), unsafe_allow_html=True)
 
 
-if SEC == "lw":
+with tab_lw:
     st.markdown(f'<div class="eyebrow" style="margin-top:18px">{last_mon.day} {MES[last_mon.month-1].lower()} – '
                 f'{(last_mon + dt.timedelta(days=6)).day} {MES[(last_mon + dt.timedelta(days=6)).month-1].lower()} '
                 f'{(last_mon + dt.timedelta(days=6)).year}</div>', unsafe_allow_html=True)
+    st.subheader("Última semana")
     st.markdown('<span class="note">Semana completa de lunes a domingo, comparada con la semana anterior y con la media de las 8 semanas previas.</span>', unsafe_allow_html=True)
     cards([(lab, col, fnum(LW[k], d), u, [delta_html(LW[k], PW[k], "sem. anterior"), delta_html(LW[k], AVG[k], "media 8 sem")]
             + ([dp_split_line(LW)] if k == "dp" and dp_split_line(LW) else []))
@@ -4579,9 +4167,10 @@ if SEC == "lw":
                row_classes=["cur"] + ["hl"] + [""] * (len(WT) - 3) + [""], total_last=True, group_start={"Sesiones"})
 
 
-if SEC == "fat":
+with tab_fat:
     # ─────────────────────────── Esfuerzo y fatiga ───────────────────────────
     st.markdown(f'<div class="eyebrow" style="margin-top:18px">A {today.day} {MES[today.month-1].lower()} {today.year}</div>', unsafe_allow_html=True)
+    st.subheader("Esfuerzo y fatiga")
     st.markdown('<span class="note">Calculado con la carga de entrenamiento de cada actividad de intervals.icu (todas las disciplinas).</span>', unsafe_allow_html=True)
 
 
@@ -4701,15 +4290,15 @@ if SEC == "fat":
         st.info("Sin actividades todavía.")
 
 
-if SEC == "sal":
+with tab_sal:
     health_tab()
 
 
-if SEC == "plan":
+with tab_plan:
     plan_tab()
 
 
-if SEC == "sets":
+with tab_sets:
     # ─────────────────────────── Hoja por Sets ───────────────────────────
     st.subheader(f"D+ {year} por Sets")
     st.markdown('<span class="note">Set = bloque de 7 días del mes (1–7, 8–14, 15–21, 22–28, 29–31). Ultra Ind = 1,7 × D+/Km. '
@@ -4760,8 +4349,9 @@ if SEC == "sets":
         st.caption(f"{met} de cada bloque de 7 días; cuanto más intenso el color, más volumen en ese Set.")
 
 
-if SEC == "long":
+with tab_long:
     # ─────────────────────────── Entrenamientos largos ───────────────────────────
+    st.subheader("Entrenamientos largos")
     all_runs = all_df[all_df["sport"].isin(OUT)] if len(all_df) else all_df
     PER = ["30 días", "90 días", "6 meses", f"Temporada {year}", "Todo", "Personalizado"]
     pc1 = pc2 = st.container()
@@ -4865,13 +4455,10 @@ if SEC == "long":
         else:
             st.info("Ninguna carrera cumple los filtros. Amplía los rangos para ver más.")
 
-if SEC == "race":
+with tab_race:
     race_section()
 
-if SEC == "nut":
-    nut_section()
-
-if SEC == "cinta":
+with tab_cinta:
     st.subheader("Pendiente de las sesiones de cinta")
     if st.session_state.get("cinta_msg"):
         st.success(st.session_state.pop("cinta_msg"))
@@ -5041,7 +4628,7 @@ if SEC == "cinta":
 
 st.caption("Datos leídos en directo de la API de intervals.icu con tu clave personal. Duplicados (misma hora, deporte y duración) se cuentan una vez.")
 
-if SEC == "mat":
+with tab_mat:
     # ─────────────────────────── Material ───────────────────────────
     st.subheader("Material · zapatillas")
     if st.session_state.get("mat_msg"):
@@ -5502,12 +5089,10 @@ if SEC == "mat":
                             st.session_state.pop("mat_pending", None)
                             st.rerun()
 
-if SEC == "cmp":
-    if "hist" not in globals():
-        shoes, gear_err = load_gear()
-        hist = load_hist(shoes)
+with tab_cmp:
     # ─────────────────────────── Comparar dos actividades ───────────────────────────
     # (usa `hist`, el histórico completo cargado en la pestaña Material)
+    st.subheader("Comparar dos actividades")
     CMP_SPORTS = {"Trail": ["TrailRun"], "Carrera": ["Run"], "Caminata": ["Hike", "Walk"]}
     hms = lambda s_: "—" if s_ is None or pd.isna(s_) else f"{int(s_ // 3600)}:{int(s_ % 3600 // 60):02d}:{int(s_ % 60):02d}"  # noqa: E731
     mmss = lambda s_: "—" if s_ is None or pd.isna(s_) or s_ <= 0 else f"{int(s_ // 60)}:{int(round(s_ % 60)) % 60:02d}"  # noqa: E731
