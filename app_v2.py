@@ -246,15 +246,15 @@ _ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 @st.cache_data(show_spinner=False)
 def _bg_svg(kind: str, ink: str, gold: str, light: bool) -> str:
     """SVG del fondo con el color del tema y transparencia muy baja, como data URI."""
-    a = 0.75 if light else 1.0          # en claro, algo menos de contraste
+    k_ = {"dark": 1.0, "light": 1.0}["light" if light else "dark"]
     svg = ""
     try:
         if kind == "curvas":
             svg = open(os.path.join(_ASSETS, "topo.svg"), encoding="utf-8").read()
-            svg = svg.replace('stroke="#000"', f'stroke="{ink}" stroke-opacity="{0.10 * a:.3f}"')
+            svg = svg.replace('stroke="#000"', f'stroke="{ink}" stroke-opacity="{(0.17 if light else 0.20):.3f}"')
         elif kind == "crestas":
             svg = open(os.path.join(_ASSETS, "crestas.svg"), encoding="utf-8").read()
-            svg = svg.replace("<svg ", f'<svg fill="{ink}" fill-opacity="{0.05 * a:.3f}" ', 1)
+            svg = svg.replace("<svg ", f'<svg fill="{ink}" fill-opacity="{(0.13 if light else 0.15):.3f}" ', 1)
         elif kind == "perfil":
             # Perfil real de Cavalls del Vent (races/cavalls.gpx): silueta muy suave y la línea en amarillo
             txt = open(os.path.join(os.path.dirname(_ASSETS), "races", "cavalls.gpx"), encoding="utf-8", errors="replace").read()
@@ -268,8 +268,8 @@ def _bg_svg(kind: str, ink: str, gold: str, light: bool) -> str:
             ys = H - 30 - (e - e.min()) / (e.max() - e.min()) * 260
             line = " L".join(f"{x_:.0f},{y_:.0f}" for x_, y_ in zip(xs, ys))
             svg = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" preserveAspectRatio="xMidYMax slice">'
-                   f'<path d="M0,{H} L{line} L{W},{H} Z" fill="{ink}" fill-opacity="{0.045 * a:.3f}"/>'
-                   f'<path d="M{line}" fill="none" stroke="{gold}" stroke-opacity="{0.14 * a:.2f}" stroke-width="1.6"/></svg>')
+                   f'<path d="M0,{H} L{line} L{W},{H} Z" fill="{ink}" fill-opacity="{(0.10 if light else 0.12):.3f}"/>'
+                   f'<path d="M{line}" fill="none" stroke="{gold}" stroke-opacity="{(0.45 if light else 0.40):.2f}" stroke-width="2"/></svg>')
     except Exception:  # noqa: BLE001
         return ""
     return "data:image/svg+xml;base64," + base64.b64encode(svg.encode("utf-8")).decode("ascii") if svg else ""
@@ -1421,6 +1421,7 @@ def top_nav(sec_: str, mobile: bool):
   background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.05) 0 1px, transparent 1px 6px),
                     repeating-linear-gradient(-45deg, rgba(255,255,255,.035) 0 1px, transparent 1px 6px);
   box-shadow: 0 2px 14px rgba(0,0,0,.35); }}
+#ldp-nav .bar, #ldp-nav .menu, #ldp-nav .g {{ overflow: visible !important; }}
 #ldp-nav .lugs {{ height: 6px; background: repeating-linear-gradient(90deg, {YEL} 0 22px, {CARBON} 22px 30px); }}
 #ldp-nav a {{ text-decoration: none; }}
 #ldp-nav .brand {{ display: flex; align-items: center; gap: 8px; color: #fff; font-weight: 700; font-size: 22px;
@@ -1429,19 +1430,19 @@ def top_nav(sec_: str, mobile: bool):
   border-bottom: 18px solid {YEL}; }}
 #ldp-nav .brand b {{ color: {YEL}; }}
 #ldp-nav .menu {{ display: flex; align-items: stretch; flex: 1; }}
-#ldp-nav .g {{ display: flex; align-items: stretch; }}
+#ldp-nav .g {{ display: flex; align-items: stretch; position: relative; }}
 #ldp-nav .gl {{ display: flex; align-items: center; padding: 0 16px; color: #e9e9e4; font-weight: 600; font-size: 17px;
   letter-spacing: .1em; text-transform: uppercase; border-bottom: 3px solid transparent; transition: color .15s, border-color .15s; }}
 #ldp-nav .g.on .gl {{ color: {YEL}; }}
 #ldp-nav .g:hover .gl {{ color: {YEL}; border-bottom-color: {YEL}; }}
-#ldp-nav .panel {{ position: absolute; left: 0; right: 0; top: 58px; background: {SURFACE}; border-top: 6px solid {YEL};
-  box-shadow: 0 18px 40px rgba(0,0,0,.35); visibility: hidden; opacity: 0; transform: translateY(-8px);
-  transition: opacity .18s ease, transform .18s ease, visibility 0s linear .18s; }}
-#ldp-nav .g:hover .panel {{ visibility: visible; opacity: 1; transform: none; transition: opacity .18s ease, transform .18s ease; }}
+#ldp-nav .panel {{ position: absolute; left: 0; top: 100%; min-width: 300px; background: {SURFACE}; border-top: 4px solid {YEL};
+  box-shadow: 0 16px 34px rgba(0,0,0,.35); border-radius: 0 0 4px 4px; visibility: hidden; opacity: 0; transform: translateY(-6px);
+  transition: opacity .16s ease, transform .16s ease, visibility 0s linear .16s; }}
+#ldp-nav .g:hover .panel {{ visibility: visible; opacity: 1; transform: none; transition: opacity .16s ease, transform .16s ease; }}
 #ldp-nav.closed .g .panel {{ visibility: hidden !important; opacity: 0 !important; }}
-#ldp-nav .pin {{ max-width: 1240px; margin: 0 auto; padding: 22px 26px 26px; display: grid; grid-template-columns: 220px 1fr; gap: 26px; }}
-#ldp-nav .pt span {{ font-size: 34px; font-weight: 700; text-transform: uppercase; color: {INK}; letter-spacing: .02em; line-height: 1; }}
-#ldp-nav .items {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }}
+#ldp-nav .pin {{ padding: 10px; }}
+#ldp-nav .pt {{ display: none; }}
+#ldp-nav .items {{ display: grid; grid-template-columns: 1fr; gap: 6px; }}
 #ldp-nav .it {{ display: grid; gap: 3px; padding: 12px 14px; border: 1px solid {LINE}; border-left: 4px solid {LINE};
   border-radius: 3px; background: {SURFACE2}; transition: border-color .12s, background .12s; }}
 #ldp-nav .it .t {{ font-size: 20px; font-weight: 600; color: {INK}; letter-spacing: .02em; }}
