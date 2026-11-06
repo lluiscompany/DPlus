@@ -650,7 +650,7 @@ st.markdown(f"""<style>
 .st-key-cfgbox {{ position: fixed !important; top: 11px; right: 22px; z-index: 999995; width: auto !important; }}
 .st-key-cfgbox button {{ background: {YEL} !important; border: 0 !important; border-radius: 2px !important; min-height: 36px;
   padding: 4px 14px !important; }}
-.st-key-cfgbox button p {{ color: {CARBON} !important; font: 700 15px "Barlow Condensed", sans-serif !important;
+.st-key-cfgbox button p {{ color: {CARBON} !important; font: 700 13px "Barlow Condensed", sans-serif !important;
   letter-spacing: .08em; text-transform: uppercase; }}
 .st-key-cfgbox button svg {{ color: {CARBON} !important; fill: {CARBON} !important; }}
 .st-key-cfgbox button:hover {{ filter: brightness(.9); }}
@@ -1780,34 +1780,34 @@ def top_nav(sec_: str, mobile: bool):
 #ldp-nav .bar, #ldp-nav .menu, #ldp-nav .g {{ overflow: visible !important; }}
 #ldp-nav .lugs {{ height: 6px; background: repeating-linear-gradient(90deg, {YEL} 0 22px, {CARBON} 22px 30px); }}
 #ldp-nav a {{ text-decoration: none; }}
-#ldp-nav .brand {{ display: flex; align-items: center; gap: 8px; color: #fff; font-weight: 700; font-size: 22px;
+#ldp-nav .brand {{ display: flex; align-items: center; gap: 8px; color: #fff; font-weight: 700; font-size: 19px;
   letter-spacing: .06em; margin-right: 22px; white-space: nowrap; }}
 #ldp-nav .brand .mk {{ width: 0; height: 0; border-left: 11px solid transparent; border-right: 11px solid transparent;
   border-bottom: 18px solid {YEL}; }}
 #ldp-nav .brand b {{ color: {YEL}; }}
 #ldp-nav .menu {{ display: flex; align-items: stretch; flex: 1; }}
 #ldp-nav .g {{ display: flex; align-items: stretch; position: relative; }}
-#ldp-nav .gl {{ display: flex; align-items: center; padding: 0 16px; color: #e9e9e4; font-weight: 600; font-size: 17px;
-  letter-spacing: .1em; text-transform: uppercase; border-bottom: 3px solid transparent; transition: color .15s, border-color .15s; }}
+#ldp-nav .gl {{ display: flex; align-items: center; padding: 0 14px; color: #e9e9e4; font-weight: 600; font-size: 14px;
+  letter-spacing: .09em; text-transform: uppercase; border-bottom: 3px solid transparent; transition: color .15s, border-color .15s; }}
 #ldp-nav .g.on .gl {{ color: {YEL}; }}
 #ldp-nav .g:hover .gl {{ color: {YEL}; border-bottom-color: {YEL}; }}
-#ldp-nav .panel {{ position: absolute; left: 0; top: 100%; min-width: 300px; background: {SURFACE}; border-top: 4px solid {YEL};
+#ldp-nav .panel {{ position: absolute; left: 0; top: 100%; min-width: 260px; background: {SURFACE}; border-top: 4px solid {YEL};
   box-shadow: 0 16px 34px rgba(0,0,0,.35); border-radius: 0 0 4px 4px; visibility: hidden; opacity: 0; transform: translateY(-6px);
   transition: opacity .16s ease, transform .16s ease, visibility 0s linear .16s; }}
 #ldp-nav .g:hover .panel {{ visibility: visible; opacity: 1; transform: none; transition: opacity .16s ease, transform .16s ease; }}
 #ldp-nav.closed .g .panel {{ visibility: hidden !important; opacity: 0 !important; }}
-#ldp-nav .pin {{ padding: 10px; }}
+#ldp-nav .pin {{ padding: 8px; }}
 #ldp-nav .pt {{ display: none; }}
-#ldp-nav .items {{ display: grid; grid-template-columns: 1fr; gap: 6px; }}
-#ldp-nav .it {{ display: grid; gap: 3px; padding: 12px 14px; border: 1px solid {LINE}; border-left: 4px solid {LINE};
+#ldp-nav .items {{ display: grid; grid-template-columns: 1fr; gap: 4px; }}
+#ldp-nav .it {{ display: grid; gap: 2px; padding: 8px 12px; border: 1px solid {LINE}; border-left: 4px solid {LINE};
   border-radius: 3px; background: {SURFACE2}; transition: border-color .12s, background .12s; }}
-#ldp-nav .it .t {{ font-size: 20px; font-weight: 600; color: {INK}; letter-spacing: .02em; }}
-#ldp-nav .it .d {{ font: 400 12.5px "IBM Plex Sans", sans-serif; color: {MUTED}; }}
+#ldp-nav .it .t {{ font: 500 14.5px/1.3 "IBM Plex Sans", system-ui, sans-serif; color: {INK}; }}
+#ldp-nav .it .d {{ font: 400 12px "IBM Plex Sans", sans-serif; color: {MUTED}; }}
 #ldp-nav .it:hover {{ border-left-color: {YEL}; background: {HOVER}; }}
 #ldp-nav .it.sel {{ border-left-color: {GOLD}; }}
-#ldp-nav .it.sel .t {{ color: {GOLD}; }}
+#ldp-nav .it.sel .t {{ color: {GOLD}; font-weight: 600; }}
 #ldp-nav .right {{ display: flex; align-items: center; gap: 10px; margin-left: auto; }}
-#ldp-nav .act {{ color: {CARBON}; background: {YEL}; font-weight: 700; font-size: 15px; letter-spacing: .08em; text-transform: uppercase;
+#ldp-nav .act {{ color: {CARBON}; background: {YEL}; font-weight: 700; font-size: 13px; letter-spacing: .08em; text-transform: uppercase;
   padding: 7px 14px; border-radius: 2px; white-space: nowrap; }}
 #ldp-nav .act:hover {{ filter: brightness(.9); }}
 #ldp-nav .cfgsp {{ display: inline-block; width: 130px; }}
@@ -1821,7 +1821,7 @@ def top_nav(sec_: str, mobile: bool):
     border-top: 6px solid {YEL}; max-height: calc(100vh - 64px); overflow: auto; }}
   #ldp-nav.open .menu {{ display: flex; }}
   #ldp-nav .g {{ flex-direction: column; }}
-  #ldp-nav .gl {{ color: {GOLD}; padding: 14px 16px 4px; border: 0; }}
+  #ldp-nav .gl {{ color: {GOLD}; padding: 12px 14px 4px; border: 0; font-size: 13px; }}
   #ldp-nav .panel {{ position: static; visibility: visible; opacity: 1; transform: none; border: 0; box-shadow: none; background: transparent; }}
   #ldp-nav .pin {{ display: block; padding: 4px 12px 10px; }}
   #ldp-nav .pt {{ display: none; }}
