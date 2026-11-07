@@ -522,6 +522,12 @@ def tr(text):
     if hit is not None:
         return hit
     m, rx = _i18n_tables()[lang]
+    if "<style" in text or "<script" in text:
+        # CSS y scripts no se tocan: solo el texto que hay fuera de esos bloques
+        parts = re.split(r"(<style.*?</style>|<script.*?</script>)", text, flags=re.S)
+        res = "".join(p_ if p_.startswith(("<style", "<script")) else tr(p_) for p_ in parts)
+        _TR_CACHE[ck] = res
+        return res
     res = rx.sub(lambda mo: m.get(mo.group(0), mo.group(0)), text)
     # la «y» entre palabras (frases montadas con variables): i / and
     res = re.sub(r"(?<=[\w)>]) y (?=[\w(<])", " i " if lang == "ca" else " and ", res)
