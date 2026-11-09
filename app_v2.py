@@ -583,74 +583,69 @@ def _tr_fig(fig):
     return fig
 
 
+_I18N_NAMES = ["markdown", "caption", "title", "header", "subheader", "text", "info", "warning", "error", "success", "html",
+               "expander", "popover", "button", "download_button", "link_button", "toggle", "checkbox", "number_input",
+               "text_input", "text_area", "date_input", "time_input", "slider", "metric", "form_submit_button", "radio",
+               "selectbox", "multiselect", "segmented_control", "pills", "select_slider", "spinner"]
+_I18N_OPTS = {"radio", "selectbox", "multiselect", "segmented_control", "pills", "select_slider"}
+
+
 def _install_i18n():
-    """Envuelve las funciones de Streamlit que pintan texto para traducirlo al vuelo (una sola vez por proceso)."""
+    """Envuelve las funciones de Streamlit que pintan texto para traducirlo al vuelo.
+    Se reinstala en cada ejecución a partir de las funciones ORIGINALES de Streamlit (las de sus clases base), para que
+    al actualizar la app en Streamlit Cloud, que reutiliza el mismo proceso, no queden envolturas de una versión anterior."""
     from streamlit.delta_generator import DeltaGenerator as _DG
-    if getattr(_DG, "_ldp_i18n", False):
-        return
-    _DG._ldp_i18n = True
-    first_text = ["markdown", "caption", "title", "header", "subheader", "text", "info", "warning", "error", "success",
-                  "html", "expander", "popover", "button", "download_button", "link_button", "toggle", "checkbox",
-                  "number_input", "text_input", "text_area", "date_input", "time_input", "slider", "metric",
-                  "form_submit_button", "radio", "selectbox", "multiselect", "segmented_control", "pills", "select_slider"]
-    with_opts = {"radio", "selectbox", "multiselect", "segmented_control", "pills", "select_slider"}
+
+    def original(name):
+        for base in _DG.__mro__[1:]:
+            if name in base.__dict__:
+                return base.__dict__[name]
+        return None
 
     def wrap(name):
-        orig = getattr(_DG, name, None)
+        orig = original(name)
         if orig is None:
             return
 
         def f(self, *a, **k):
             if a and isinstance(a[0], str):
                 a = (tr(a[0]),) + a[1:]
-            for kk in ("label", "body", "help", "placeholder"):
+            for kk in ("label", "body", "help", "placeholder", "text"):
                 if isinstance(k.get(kk), str):
                     k[kk] = tr(k[kk])
-            if name in with_opts:
+            if name in _I18N_OPTS:
                 ff = k.get("format_func")
                 k["format_func"] = (lambda v, _f=ff: tr(str(_f(v)))) if ff else (lambda v: tr(str(v)))
             return orig(self, *a, **k)
         f.__name__ = name
         setattr(_DG, name, f)
 
-    for n_ in first_text:
+    for n_ in _I18N_NAMES:
         wrap(n_)
-    _w = getattr(_DG, "write", None)
+    _w = original("write")
     if _w is not None:
         def _write(self, *a, **k):
             return _w(self, *[tr(x_) if isinstance(x_, str) else x_ for x_ in a], **k)
         _DG.write = _write
-    _tb = getattr(_DG, "tabs", None)
+    _tb = original("tabs")
     if _tb is not None:
         def _tabs(self, tabs, *a, **k):
             return _tb(self, [tr(t_) for t_ in tabs], *a, **k)
         _DG.tabs = _tabs
-    _pc = getattr(_DG, "plotly_chart", None)
+    _pc = original("plotly_chart")
     if _pc is not None:
         def _plotly(self, fig, *a, **k):
             return _pc(self, _tr_fig(fig), *a, **k)
         _DG.plotly_chart = _plotly
+    # Las funciones st.* son métodos ya enlazados al contenedor principal: se vuelven a enlazar con las versiones nuevas
+    main_ = getattr(st.markdown, "__self__", None)
+    if main_ is not None:
+        for n_ in _I18N_NAMES + ["write", "tabs", "plotly_chart"]:
+            if n_ in _DG.__dict__:
+                setattr(st, n_, _DG.__dict__[n_].__get__(main_, _DG))
 
 
 _install_i18n()
-# Las funciones st.* son métodos ya enlazados al contenedor principal: se vuelven a enlazar con las versiones traducidas
-from streamlit.delta_generator import DeltaGenerator as _DGc  # noqa: E402
-_main_dg = st.markdown.__self__ if hasattr(st.markdown, "__self__") else None
-if _main_dg is not None:
-    for _n in ["markdown", "caption", "title", "header", "subheader", "text", "info", "warning", "error", "success", "html",
-               "expander", "popover", "button", "download_button", "link_button", "toggle", "checkbox", "number_input",
-               "text_input", "text_area", "date_input", "time_input", "slider", "metric", "form_submit_button", "radio",
-               "selectbox", "multiselect", "segmented_control", "pills", "select_slider", "write", "tabs", "plotly_chart"]:
-        if hasattr(_DGc, _n):
-            setattr(st, _n, getattr(_DGc, _n).__get__(_main_dg, _DGc))
-_spin = st.spinner.__wrapped__ if hasattr(st.spinner, "__wrapped__") else st.spinner
-if not getattr(st, "_ldp_spin", False):
-    _orig_spinner = st.spinner
-
-    def _spinner(text="", *a, **k):
-        return _orig_spinner(tr(text), *a, **k)
-    st.spinner = _spinner
-    st._ldp_spin = True
 
 # Tema: se elige con el interruptor de la barra lateral (clave "light_theme")
 # v2 · diseño «Prodigio»: carbono + amarillo La Sportiva + blanco espuma, con textura de malla. El tema va en la URL
