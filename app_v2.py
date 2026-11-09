@@ -398,93 +398,101 @@ _I18N_Z = (
     "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"
-    "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"
+    "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"
 )
 
 
@@ -586,7 +594,7 @@ def _tr_fig(fig):
 _I18N_NAMES = ["markdown", "caption", "title", "header", "subheader", "text", "info", "warning", "error", "success", "html",
                "expander", "popover", "button", "download_button", "link_button", "toggle", "checkbox", "number_input",
                "text_input", "text_area", "date_input", "time_input", "slider", "metric", "form_submit_button", "radio",
-               "selectbox", "multiselect", "segmented_control", "pills", "select_slider", "spinner"]
+               "selectbox", "multiselect", "segmented_control", "pills", "select_slider", "spinner", "color_picker"]
 _I18N_OPTS = {"radio", "selectbox", "multiselect", "segmented_control", "pills", "select_slider"}
 
 
@@ -661,17 +669,44 @@ PALETTES_V1 = {
                   TEAL="#1f8f81", INK="#1c2420", MUTED="#5f6b66", PREV="#9aa59f", LINE="#d3dad6", GRID="#e7ece9",
                   SURFACE="#ffffff", BG="#f3f5f2", SURFACE2="#eef1ee", ZEBRA="#f5f7f5", HOVER="#e6ece8", ZERO="#bcc6c1"),
 }
+# Color principal (por defecto el amarillo de la zapatilla); se elige en Ajustes y va en la URL (?color=ffe100)
+ACC_DEF = "#ffe100"
+if not re.fullmatch(r"#[0-9a-fA-F]{6}", str(st.session_state.get("sb_accent", ""))):
+    _qc = str(st.query_params.get("color", "")).strip().lstrip("#")
+    st.session_state["sb_accent"] = ("#" + _qc.lower()) if re.fullmatch(r"[0-9a-fA-F]{6}", _qc) else ACC_DEF
+ACC = st.session_state["sb_accent"].lower()
+
+
+def _mix(c1: str, c2: str, w: float) -> str:
+    """Mezcla dos colores hex (w = peso de c2)."""
+    a_, b_ = [int(c1[i:i + 2], 16) for i in (1, 3, 5)], [int(c2[i:i + 2], 16) for i in (1, 3, 5)]
+    return "#" + "".join(f"{round(x * (1 - w) + y * w):02x}" for x, y in zip(a_, b_))
+
+
+def _lum(c: str) -> float:
+    r_, g_, b_ = [int(c[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+    f_ = lambda v: v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4  # noqa: E731
+    return 0.2126 * f_(r_) + 0.7152 * f_(g_) + 0.0722 * f_(b_)
+
+
+# En claro, el acento se oscurece hasta leerse sobre blanco (contraste ≥ 3:1)
+_ACC_L = ACC
+for _i in range(12):
+    if (1.05) / (_lum(_ACC_L) + 0.05) >= 3.0:
+        break
+    _ACC_L = _mix(_ACC_L, "#000000", 0.12)
 PALETTES = {
     # Oscuro «Carbono»: empeine negro de malla técnica con detalles amarillos
-    "dark": dict(GOLD="#ffe100", GLACIER="#6cc4ea", RED="#ff5a3d", GREEN="#9bd62f", VIOLET="#b9a2e6", ORANGE="#ff9b2f",
+    "dark": dict(GOLD=ACC, GLACIER="#6cc4ea", RED="#ff5a3d", GREEN="#9bd62f", VIOLET="#b9a2e6", ORANGE="#ff9b2f",
                  TEAL="#44c9b4", INK="#f4f4ef", MUTED="#9b9d9f", PREV="#5f6265", LINE="#2b2d2f", GRID="#1f2022",
                  SURFACE="#141516", BG="#0b0b0c", SURFACE2="#1b1c1e", ZEBRA="#18191a", HOVER="#26282a", ZERO="#3e4043"),
     # Claro «Espuma»: mediasuela blanca roto con el amarillo como acento (algo más oscuro para leerse sobre blanco)
-    "light": dict(GOLD="#c4a400", GLACIER="#1f7fae", RED="#d63b22", GREEN="#5c9a12", VIOLET="#7656c4", ORANGE="#d9700f",
+    "light": dict(GOLD=_ACC_L if ACC != ACC_DEF else "#c4a400", GLACIER="#1f7fae", RED="#d63b22", GREEN="#5c9a12", VIOLET="#7656c4", ORANGE="#d9700f",
                   TEAL="#16907e", INK="#121314", MUTED="#5d5e5b", PREV="#a3a49e", LINE="#d9d7cd", GRID="#ebe9e0",
                   SURFACE="#ffffff", BG="#f3f2ec", SURFACE2="#ecebe3", ZEBRA="#f8f7f2", HOVER="#e8e6da", ZERO="#c3c1b6"),
 }
-YEL, CARBON = "#ffe100", "#0b0b0c"      # amarillo y negro de la zapatilla: la barra superior es igual en los dos temas
+YEL, CARBON = ACC, "#0b0b0c"
+ACC_ON = CARBON if _lum(ACC) > 0.3 else "#ffffff"      # texto sobre el color principal      # amarillo y negro de la zapatilla: la barra superior es igual en los dos temas
 _P = PALETTES["light" if LIGHT else "dark"]
 GOLD, GLACIER, RED, GREEN = _P["GOLD"], _P["GLACIER"], _P["RED"], _P["GREEN"]
 VIOLET, ORANGE, TEAL, INK = _P["VIOLET"], _P["ORANGE"], _P["TEAL"], _P["INK"]
@@ -1269,9 +1304,9 @@ st.markdown(f"""<style>
 .st-key-cfgbox {{ position: fixed !important; top: 11px; right: 22px; z-index: 999995; width: auto !important; }}
 .st-key-cfgbox button {{ background: {YEL} !important; border: 0 !important; border-radius: 2px !important; min-height: 36px;
   padding: 4px 14px !important; }}
-.st-key-cfgbox button p {{ color: {CARBON} !important; font: 700 13px "Barlow Condensed", sans-serif !important;
+.st-key-cfgbox button p {{ color: {ACC_ON} !important; font: 700 13px "Barlow Condensed", sans-serif !important;
   letter-spacing: .08em; text-transform: uppercase; }}
-.st-key-cfgbox button svg {{ color: {CARBON} !important; fill: {CARBON} !important; }}
+.st-key-cfgbox button svg {{ color: {ACC_ON} !important; fill: {ACC_ON} !important; }}
 .st-key-cfgbox button:hover {{ filter: brightness(.9); }}
 [data-testid="stPopoverBody"] label, [data-testid="stPopoverBody"] p, [data-testid="stPopoverBody"] span,
 [data-testid="stPopoverBody"] [data-testid="stCaptionContainer"] {{ color: {INK} !important; }}
@@ -1283,8 +1318,8 @@ st.markdown(f"""<style>
 h1, h2, h3 {{ text-transform: none; }}
 .stApp h2, .stApp h3 {{ font-family: "Barlow Condensed", sans-serif !important; letter-spacing: .02em; }}
 .sechead {{ border-bottom: 0; padding-bottom: 14px; position: relative; }}
-.sechead::after {{ content: ""; position: absolute; left: 0; bottom: 0; width: 100%; height: 6px;
-  background: repeating-linear-gradient(90deg, {GOLD} 0 18px, transparent 18px 26px); opacity: .9;
+.sechead::after {{ content: ""; position: absolute; left: 0; bottom: 0; width: 100%; height: 3px;
+  background: repeating-linear-gradient(90deg, {GOLD} 0 14px, transparent 14px 20px); opacity: .9;
   -webkit-mask: linear-gradient(90deg, #000 0 140px, transparent 340px); mask: linear-gradient(90deg, #000 0 140px, transparent 340px); }}
 .sechead h1 {{ font: 700 46px/1.05 "Barlow Condensed", "Arial Narrow", sans-serif !important; text-transform: uppercase;
   letter-spacing: .02em; }}
@@ -1297,11 +1332,11 @@ h1, h2, h3 {{ text-transform: none; }}
 table.tbl th {{ letter-spacing: .08em; }}
 a {{ color: {GOLD}; }}
 /* Acentos amarillos en los controles nativos */
-[data-testid="stBaseButton-primary"] {{ background: {YEL} !important; border-color: {YEL} !important; color: {CARBON} !important; }}
-[data-testid="stBaseButton-primary"] p {{ color: {CARBON} !important; font-weight: 600; }}
+[data-testid="stBaseButton-primary"] {{ background: {YEL} !important; border-color: {YEL} !important; color: {ACC_ON} !important; }}
+[data-testid="stBaseButton-primary"] p {{ color: {ACC_ON} !important; font-weight: 600; }}
 [data-testid="stBaseButton-primary"]:hover {{ filter: brightness(.92); }}
 .stCheckbox label[data-selected="true"] > span + div {{ background: {GOLD} !important; }}
-.stCheckbox label[data-selected="true"] > span + div > div {{ background: {CARBON} !important; }}
+.stCheckbox label[data-selected="true"] > span + div > div {{ background: {ACC_ON} !important; }}
 .stCheckbox label:not([data-selected="true"]) > span + div {{ background: {LINE} !important; }}
 [data-testid="stSlider"] [role="slider"] {{ background: {GOLD} !important; border-color: {GOLD} !important; box-shadow: none !important; }}
 [data-testid="stSliderThumbValue"] {{ color: {GOLD} !important; }}
@@ -2332,6 +2367,12 @@ with st.container(key="cfgbox"), st.popover("⚙ Ajustes", key="cfgpop"):
                    "como marcador para abrirla directamente.")
     st.segmented_control("Tema", ["🌙", "☀️"], key="theme_icon", on_change=_sync_theme,
                          format_func=lambda v: {"🌙": "🌙 Carbono", "☀️": "☀️ Espuma"}[v], help="Tema oscuro / claro")
+    _cp1, _cp2 = st.columns([3, 2], vertical_alignment="bottom")
+    _cp1.color_picker("Color principal", key="sb_accent",
+                      on_change=lambda: st.query_params.__setitem__("color", st.session_state["sb_accent"].lstrip("#").lower()),
+                      help="Color de acento de la web: barra superior, títulos, botones y gráficos principales.")
+    _cp2.button("Restablecer", key="sb_accent_reset", width="stretch",
+                on_click=lambda: (st.session_state.__setitem__("sb_accent", ACC_DEF), st.query_params.__setitem__("color", ACC_DEF[1:])))
     st.selectbox("Fondo", list(BG_OPTS), key="sb_bg", format_func=BG_OPTS.get,
                  on_change=lambda: st.query_params.__setitem__("fondo", st.session_state["sb_bg"]),
                  help="Fondo discreto relacionado con la montaña, sobre la textura de malla.")
@@ -2399,7 +2440,7 @@ def top_nav(sec_: str, mobile: bool):
                     repeating-linear-gradient(-45deg, rgba(255,255,255,.035) 0 1px, transparent 1px 6px);
   box-shadow: 0 2px 14px rgba(0,0,0,.35); }}
 #ldp-nav .bar, #ldp-nav .menu, #ldp-nav .g {{ overflow: visible !important; }}
-#ldp-nav .lugs {{ height: 6px; background: repeating-linear-gradient(90deg, {YEL} 0 22px, {CARBON} 22px 30px); }}
+#ldp-nav .lugs {{ height: 3px; background: repeating-linear-gradient(90deg, {YEL} 0 16px, {CARBON} 16px 23px); }}
 #ldp-nav a {{ text-decoration: none; }}
 #ldp-nav .brand {{ display: flex; align-items: center; gap: 8px; color: #fff; font-weight: 700; font-size: 19px;
   letter-spacing: .06em; margin-right: 22px; white-space: nowrap; }}
@@ -2416,10 +2457,10 @@ def top_nav(sec_: str, mobile: bool):
   transform: scaleX(0); transition: transform .15s; }}
 #ldp-nav .g:hover .gl {{ color: {YEL}; }}
 #ldp-nav .g:hover .gl::after {{ transform: scaleX(1); }}
-#ldp-nav .panel {{ position: absolute; left: 0; top: calc(100% + 6px); min-width: 260px; background: {SURFACE}; border-top: 0;
+#ldp-nav .panel {{ position: absolute; left: 0; top: calc(100% + 3px); min-width: 260px; background: {SURFACE}; border-top: 0;
   box-shadow: 0 16px 34px rgba(0,0,0,.35); border-radius: 0 0 4px 4px; visibility: hidden; opacity: 0; transform: translateY(-6px);
   transition: opacity .16s ease, transform .16s ease, visibility 0s linear .16s; }}
-#ldp-nav .panel::before {{ content: ""; position: absolute; left: 0; right: 0; top: -6px; height: 6px; }}
+#ldp-nav .panel::before {{ content: ""; position: absolute; left: 0; right: 0; top: -3px; height: 3px; }}
 #ldp-nav .g:hover .panel {{ visibility: visible; opacity: 1; transform: none; transition: opacity .16s ease, transform .16s ease; }}
 #ldp-nav.closed .g .panel {{ visibility: hidden !important; opacity: 0 !important; }}
 #ldp-nav .pin {{ padding: 8px; }}
@@ -2433,7 +2474,7 @@ def top_nav(sec_: str, mobile: bool):
 #ldp-nav .it.sel {{ border-left-color: {GOLD}; }}
 #ldp-nav .it.sel .t {{ color: {GOLD}; font-weight: 600; }}
 #ldp-nav .right {{ display: flex; align-items: center; gap: 10px; margin-left: auto; }}
-#ldp-nav .act {{ color: {CARBON}; background: {YEL}; font-weight: 700; font-size: 13px; letter-spacing: .08em; text-transform: uppercase;
+#ldp-nav .act {{ color: {ACC_ON}; background: {YEL}; font-weight: 700; font-size: 13px; letter-spacing: .08em; text-transform: uppercase;
   padding: 7px 14px; border-radius: 2px; white-space: nowrap; }}
 #ldp-nav .act:hover {{ filter: brightness(.9); }}
 #ldp-nav .cfgsp {{ display: inline-block; width: 130px; }}
@@ -2443,7 +2484,7 @@ def top_nav(sec_: str, mobile: bool):
 @media (max-width: 980px) {{
   #ldp-nav .bar {{ padding: 0 12px; }}
   #ldp-nav .burger {{ display: flex; align-items: center; color: #fff; font-size: 26px; margin-right: 10px; cursor: pointer; }}
-  #ldp-nav .menu {{ display: none; position: fixed; top: 64px; left: 0; right: 0; bottom: 0; flex-direction: column; background: {SURFACE};
+  #ldp-nav .menu {{ display: none; position: fixed; top: 61px; left: 0; right: 0; bottom: 0; flex-direction: column; background: {SURFACE};
     border-top: 0; max-height: none; overflow-x: hidden !important; overflow-y: auto !important;
     -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding-bottom: 110px; }}
   #ldp-nav .gl::after {{ display: none !important; }}
@@ -4413,8 +4454,8 @@ def mobile_view():
                 def drow(lab_, va, vb, fmt_, better_low=None):
                     if pd.isna(va) or pd.isna(vb):
                         return (f"<b>{lab_}</b>", f"actual {fmt_(va)} · comparada {fmt_(vb)}")
-                    x_ = vb - va                                          # comparada − actual
-                    good = None if better_low is None else (x_ > 0 if better_low else x_ < 0)
+                    x_ = va - vb                                          # actual − comparada
+                    good = None if better_low is None else (x_ < 0 if better_low else x_ > 0)
                     c_ = MUTED if good is None or abs(x_) < 1e-9 else (GREEN if good else RED)
                     return (f"<b>{lab_}</b>", f'actual <b style="color:{INK}">{fmt_(va)}</b> · comparada {fmt_(vb)} · '
                                               f'<span style="color:{c_}">{"+" if x_ > 0 else "−" if x_ < 0 else "±"}{fmt_(abs(x_))}</span>')
@@ -4431,7 +4472,7 @@ def mobile_view():
                     drow("FC media", ra["hr_avg"], rb["hr_avg"], lambda v: "—" if pd.isna(v) else f"{fnum(v)} ppm", better_low=True),
                     drow("Carga", ra["load"], rb["load"], lambda v: fnum(v)),
                 ]), unsafe_allow_html=True)
-                st.markdown('<div class="note">Diferencia = comparada − actual; en verde, la carrera actual fue mejor. '
+                st.markdown('<div class="note">Diferencia = actual − comparada; en verde, la carrera actual fue mejor. '
                             'El análisis por tramos está en la sección Comparar de la vista completa.</div>', unsafe_allow_html=True)
 
     # 7b · Esfuerzo y fatiga (mismo orden que las pestañas: después de Comparar)
@@ -6899,7 +6940,7 @@ if SEC == "cmp":
         def dnum(va, vb, d=0, u="", inv=False):
             if pd.isna(va) or pd.isna(vb):
                 return "—"
-            x = vb - va
+            x = va - vb                                   # actual − comparada
             good = x < 0 if inv else x > 0
             c_ = GREEN if good else RED if abs(x) > 1e-9 else MUTED
             return f'<span style="color:{c_}">{"+" if x > 0 else "−" if x < 0 else ""}{fnum(abs(x), d)}{u}</span>'
@@ -6907,7 +6948,7 @@ if SEC == "cmp":
         def dtime(va, vb):
             if pd.isna(va) or pd.isna(vb):
                 return "—"
-            x = vb - va
+            x = va - vb                                   # actual − comparada: negativo = la actual tardó menos
             return f'<span style="color:{GREEN if x < 0 else RED if x > 0 else MUTED}">{sgn_time(x)}</span>'
 
         pace_a = ra["secs"] / ra["km"] if ra["km"] else np.nan
@@ -6927,7 +6968,7 @@ if SEC == "cmp":
             ("Carga", fnum(ra["load"]), fnum(rb["load"]), dnum(ra["load"], rb["load"], 0, "", inv=True)),
         ], columns=["Métrica", "Actual", "Comparada", "Diferencia"])
         html_table(summ, left={"Métrica"})
-        st.markdown('<span class="note">Diferencia = carrera a comparar − carrera actual.</span>', unsafe_allow_html=True)
+        st.markdown('<span class="note">Diferencia = carrera actual − carrera a comparar; en verde, la carrera actual fue mejor.</span>', unsafe_allow_html=True)
 
         notes_ = []        # «A tener en cuenta»
         if not len(df_a) or not len(df_b):
@@ -6952,7 +6993,7 @@ if SEC == "cmp":
                 "Ritmo|A": ba["pace"], "Ritmo|B": bb["pace"],
                 "VAM / bajada|A": [vv(r_) for _, r_ in ba.iterrows()], "VAM / bajada|B": [vv(r_) for _, r_ in bb.iterrows()],
                 "FC|A": ba["hr"], "FC|B": bb["hr"]})
-            bt["Δ m/h"] = bt["VAM / bajada|B"] - bt["VAM / bajada|A"]
+            bt["Δ m/h"] = bt["VAM / bajada|A"] - bt["VAM / bajada|B"]          # actual − comparada
             bt = bt[["Pendiente", "Km|A", "Km|B", "Tiempo|A", "Tiempo|B", "Ritmo|A", "Ritmo|B", "VAM / bajada|A", "VAM / bajada|B", "Δ m/h", "FC|A", "FC|B"]]
             nf = lambda d, u="": (lambda v: "—" if pd.isna(v) else f"{fnum(v, d)}{u}")  # noqa: E731
             dcol = lambda v: "—" if pd.isna(v) else f'<span style="color:{GREEN if v > 0 else RED if v < 0 else MUTED}">{"+" if v > 0 else "−" if v < 0 else ""}{fnum(abs(v))}</span>'  # noqa: E731
@@ -6962,7 +7003,7 @@ if SEC == "cmp":
                        fmt={"Km|A": nf(1), "Km|B": nf(1), "Tiempo|A": hms, "Tiempo|B": hms, "Ritmo|A": mmss, "Ritmo|B": mmss,
                             "VAM / bajada|A": nf(0), "VAM / bajada|B": nf(0), "Δ m/h": dcol, "FC|A": nf(0), "FC|B": nf(0)})
             st.markdown('<span class="note">En subidas, VAM (metros subidos por hora); en bajadas, metros bajados por hora. '
-                        'Δ en verde: la carrera a comparar sube o baja más rápido que la actual.</span>', unsafe_allow_html=True)
+                        'Δ = actual − comparada; en verde, la carrera actual sube o baja más rápido.</span>', unsafe_allow_html=True)
             g1_, g2_ = st.columns(2)
             with g1_:
                 f_v = go.Figure()
@@ -7017,7 +7058,7 @@ if SEC == "cmp":
                                              grade=100 * (sa_["a1"] - sa_["a0"]) / max(1, d1 - d0), ta=sa_["mt"], tb=sb_["mt"],
                                              ra=rate(sa_), rb=rate(sb_), hra=sa_["hr"], hrb=sb_["hr"], kmb=sb_["km"]))
                     SG = pd.DataFrame(seg_rows)
-                    SG["diff"] = SG["tb"] - SG["ta"]
+                    SG["diff"] = SG["ta"] - SG["tb"]                     # actual − comparada (negativo = la actual más rápida)
                     tbl = pd.DataFrame({
                         "Nº": SG["n"], "Tramo": np.where(SG["up"], "▲ Subida", "▼ Bajada"),
                         "Altitud": [f"{fnum(r_.a0)} → {fnum(r_.a1)} m" for r_ in SG.itertuples()],
@@ -7035,7 +7076,7 @@ if SEC == "cmp":
                                fmt={"Km": nf(1), "Pend.": lambda v: "" if pd.isna(v) else f"{fnum(v)} %", "Tramo": up_c,
                                     "Tiempo|A": hms, "Tiempo|B": hms, "Diferencia": dtf,
                                     "VAM / bajada|A": nf(0), "VAM / bajada|B": nf(0), "FC|A": nf(0), "FC|B": nf(0)})
-                    st.markdown('<span class="note">Diferencia = carrera a comparar − carrera actual; en verde, la carrera a comparar fue más rápida en ese tramo. '
+                    st.markdown('<span class="note">Diferencia = carrera actual − carrera a comparar; en verde, la carrera actual fue más rápida en ese tramo. '
                                 'Los tramos se detectan en la carrera actual y se buscan en la otra por GPS (o por distancia y altitud si no hay GPS).</span>', unsafe_allow_html=True)
 
                     # Perfil de A con tramos
@@ -7065,7 +7106,7 @@ if SEC == "cmp":
                     f_c.add_hline(y=0, line=dict(color=MUTED, width=1))
                     f_c.update_yaxes(ticksuffix=" min")
                     f_c.update_xaxes(ticksuffix=" km")
-                    st.markdown('<span class="note">Diferencia de tiempo (carrera a comparar − actual): por debajo de 0, la carrera a comparar va por delante</span>', unsafe_allow_html=True)
+                    st.markdown('<span class="note">Diferencia de tiempo acumulada (carrera actual − carrera a comparar): por debajo de 0, la carrera actual va por delante</span>', unsafe_allow_html=True)
                     st.plotly_chart(plot_layout(f_c, 260), width="stretch", theme=None)
 
             # FC frente a distancia
@@ -7136,15 +7177,15 @@ if SEC == "cmp":
 
                 # Gráfico de diferencia (+ perfil de A)
                 if y_mode == "Tiempo por distancia":
-                    xk, y_ = R["dA"] / 1000, R["dT"] / 60
+                    xk, y_ = R["dA"] / 1000, -R["dT"] / 60                 # actual − comparada (min)
                     f_r = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[.72, .28], vertical_spacing=.04)
                     f_r.add_scatter(x=xk, y=np.minimum(y_, 0), fill="tozeroy", mode="lines", line=dict(color=GREEN, width=0),
-                                    fillcolor=rgba(GREEN, .45), name="Comparada por delante", hoverinfo="skip", row=1, col=1)
+                                    fillcolor=rgba(GREEN, .45), name="Actual por delante", hoverinfo="skip", row=1, col=1)
                     f_r.add_scatter(x=xk, y=np.maximum(y_, 0), fill="tozeroy", mode="lines", line=dict(color=RED, width=0),
-                                    fillcolor=rgba(RED, .45), name="Comparada por detrás", hoverinfo="skip", row=1, col=1)
+                                    fillcolor=rgba(RED, .45), name="Actual por detrás", hoverinfo="skip", row=1, col=1)
                     f_r.add_scatter(x=xk, y=y_, mode="lines", line=dict(color=INK, width=1.4), showlegend=False,
                                     customdata=np.stack([R["altA"], R["tA"], R["tB"]], axis=-1),
-                                    hovertemplate="km %{x:.2f} · %{customdata[0]:.0f} m<br>Comparada − actual: %{y:+.1f} min<extra></extra>", row=1, col=1)
+                                    hovertemplate="km %{x:.2f} · %{customdata[0]:.0f} m<br>Actual − comparada: %{y:+.1f} min<extra></extra>", row=1, col=1)
                     f_r.add_scatter(x=xk, y=R["altA"], mode="lines", fill="tozeroy", line=dict(color=GOLD, width=1.2),
                                     fillcolor=rgba(GOLD, .14), showlegend=False, hovertemplate="km %{x:.2f} · %{y:.0f} m<extra>perfil actual</extra>",
                                     row=2, col=1)
@@ -7153,23 +7194,23 @@ if SEC == "cmp":
                     f_r.update_yaxes(range=[float(np.nanmin(R["altA"])) - 30, float(np.nanmax(R["altA"])) + 40], ticksuffix=" m", row=2, col=1)
                     f_r.update_xaxes(ticksuffix=" km", row=2, col=1)
                     f_r.add_vline(x=min(R["posA"][k_t], R["posB"][k_t]) / 1000, line=dict(color=INK, width=1, dash="dot"))
-                    st.markdown('<span class="note">Diferencia de tiempo (carrera a comparar − actual) al pasar por cada punto de la ruta (por debajo de 0, '
-                                'va por delante la carrera a comparar) y, debajo, el perfil de la carrera actual. La línea de puntos es el instante elegido.</span>', unsafe_allow_html=True)
+                    st.markdown('<span class="note">Diferencia de tiempo (carrera actual − carrera a comparar) al pasar por cada punto de la ruta (por debajo de 0, '
+                                'va por delante la carrera actual) y, debajo, el perfil de la carrera actual. La línea de puntos es el instante elegido.</span>', unsafe_allow_html=True)
                 else:
                     both = R["T"] <= min(R["endA"], R["endB"]) + 1
-                    xk, y_ = R["T"][both] / 3600, (R["posB"] - R["posA"])[both]
+                    xk, y_ = R["T"][both] / 3600, (R["posA"] - R["posB"])[both]   # actual − comparada (m)
                     f_r = go.Figure()
                     f_r.add_scatter(x=xk, y=np.maximum(y_, 0), fill="tozeroy", mode="lines", line=dict(color=GREEN, width=0),
-                                    fillcolor=rgba(GREEN, .45), name="Comparada por delante", hoverinfo="skip")
+                                    fillcolor=rgba(GREEN, .45), name="Actual por delante", hoverinfo="skip")
                     f_r.add_scatter(x=xk, y=np.minimum(y_, 0), fill="tozeroy", mode="lines", line=dict(color=RED, width=0),
-                                    fillcolor=rgba(RED, .45), name="Comparada por detrás", hoverinfo="skip")
+                                    fillcolor=rgba(RED, .45), name="Actual por detrás", hoverinfo="skip")
                     f_r.add_scatter(x=xk, y=y_, mode="lines", line=dict(color=INK, width=1.4), showlegend=False,
-                                    hovertemplate="%{x:.2f} h · Comparada − actual: %{y:+.0f} m<extra></extra>")
+                                    hovertemplate="%{x:.2f} h · Actual − comparada: %{y:+.0f} m<extra></extra>")
                     plot_layout(f_r, 320)
                     f_r.update_yaxes(ticksuffix=" m", zeroline=True, zerolinecolor=MUTED)
                     f_r.update_xaxes(ticksuffix=" h")
                     f_r.add_vline(x=R["T"][k_t] / 3600, line=dict(color=INK, width=1, dash="dot"))
-                    st.markdown('<span class="note">Distancia que la carrera a comparar saca a la actual en cada momento (por encima de 0, va por delante la carrera a comparar).</span>',
+                    st.markdown('<span class="note">Distancia que la carrera actual saca a la comparada en cada momento (por encima de 0, va por delante la carrera actual).</span>',
                                 unsafe_allow_html=True)
                 st.plotly_chart(f_r, width="stretch", theme=None)
 
@@ -7228,7 +7269,7 @@ if SEC == "cmp":
                         k0 = min(fidx, key=lambda i: abs(i - k_t))
                         if k0 == fidx[-1]:          # con el deslizador en meta, el mapa empieza en la salida para poder reproducir
                             k0 = fidx[0]
-                        xk_m, yk_m = R["dA"] / 1000, R["dT"] / 60
+                        xk_m, yk_m = R["dA"] / 1000, -R["dT"] / 60            # actual − comparada
                         dp_i = np.unique(np.linspace(0, Tn - 1, min(Tn, 400)).astype(int))
 
                         def done(lat, lng, k):
@@ -7252,7 +7293,7 @@ if SEC == "cmp":
                             return [go.Scattermap(lat=la, lon=lo), go.Scattermap(lat=la, lon=lo),          # recorrido A (halo + línea)
                                     go.Scattermap(lat=lb, lon=lob), go.Scattermap(lat=lb, lon=lob),        # recorrido B
                                     go.Scattermap(**pa_), go.Scattermap(**pa_), go.Scattermap(**pb_), go.Scattermap(**pb_),  # bolitas
-                                    go.Scatter(x=[pos_ / 1000], y=[float(np.interp(pos_, R["dA"], R["dT"])) / 60]),
+                                    go.Scatter(x=[pos_ / 1000], y=[-float(np.interp(pos_, R["dA"], R["dT"])) / 60]),
                                     go.Scatter(x=rd(pxa, 3), y=rd(pya, 0)), go.Scatter(x=rd(pxb, 3), y=rd(pyb, 0)),
                                     go.Scatter(x=[pxa[-1]], y=[pya[-1]]), go.Scatter(x=[pxb[-1]], y=[pyb[-1]]),
                                     go.Scatter(x=[th], y=[R["dpA"][k]]), go.Scatter(x=[th], y=[R["dpB"][k]])]
@@ -7288,7 +7329,7 @@ if SEC == "cmp":
                         f_m.add_trace(dot_(d0[6], 27, "#ffffff", mode="markers"), row=1, col=1)                     # 12 borde B
                         f_m.add_trace(dot_(d0[7], 22, TS["B"], mode="markers"), row=1, col=1)               # 13
                         f_m.add_trace(go.Scatter(x=xk_m, y=yk_m, mode="lines", line=dict(color=INK, width=1.3), showlegend=False,
-                                                 hovertemplate="km %{x:.2f} · %{y:+.1f} min<extra>Comparada − actual</extra>"), row=2, col=1)     # 14
+                                                 hovertemplate="km %{x:.2f} · %{y:+.1f} min<extra>Actual − comparada</extra>"), row=2, col=1)     # 14
                         f_m.add_trace(go.Scatter(x=d0[8].x, y=d0[8].y, mode="markers", marker=dict(size=11, color=INK, line=dict(color=BG, width=2)),
                                                  showlegend=False, hoverinfo="skip"), row=2, col=1)                                 # 15
                         f_m.add_trace(go.Scatter(x=rd(prof_x, 3), y=rd(prof_y, 0), mode="lines", line=dict(color=MUTED, width=1.4),
@@ -7355,7 +7396,7 @@ if SEC == "cmp":
                         f_m.update_yaxes(ticksuffix=" m", row=4, col=1)
                         f_m.update_xaxes(ticksuffix=" h", row=4, col=1)
                         st.markdown('<span class="note">Pulsa ▶ (×30, ×60 o ×120 la velocidad real) o arrastra la barra. Debajo del mapa: diferencia '
-                                    'carrera a comparar − actual a lo largo de la ruta, perfil con la posición de cada una y D+ acumulado frente al tiempo. '
+                                    'carrera actual − carrera a comparar a lo largo de la ruta, perfil con la posición de cada una y D+ acumulado frente al tiempo. '
                                     '<b>Si el mapa no carga o ▶ no avanza</b> (red que bloquea los mapas), prueba otro fondo o la vista 3D.</span>',
                                     unsafe_allow_html=True)
                         st.plotly_chart(f_m, width="stretch", theme=None, config={"scrollZoom": True})
@@ -7400,7 +7441,7 @@ if SEC == "cmp":
                 dd_all = (R["posB"] - R["posA"])[both_k]
                 if len(dd_all):
                     pb_, pa_ = float((dd_all > 5).mean() * 100), float((dd_all < -5).mean() * 100)
-                    lec.append(f"La carrera a comparar fue por delante el {fnum(pb_)} % del tiempo y la actual el {fnum(pa_)} %"
+                    lec.append(f"La carrera actual fue por delante el {fnum(pa_)} % del tiempo y la comparada el {fnum(pb_)} %"
                                + (f" (el resto, prácticamente juntas)." if pb_ + pa_ < 97 else "."))
                 iB, iA = int(np.argmin(R["dT"])), int(np.argmax(R["dT"]))
                 if R["dT"][iB] < -5:
@@ -7430,32 +7471,32 @@ if SEC == "cmp":
             # ── Lectura automática ──
             ver = []
             if ra["secs"] and rb["secs"]:
-                dmv = rb["secs"] - ra["secs"]
-                pct = dmv / ra["secs"] * 100
-                txt = (f"En movimiento, la carrera a comparar fue {mmss(abs(dmv))} min {'más rápida' if dmv < 0 else 'más lenta'} que la actual ({fnum(abs(pct), 1)} %)"
+                dmv = ra["secs"] - rb["secs"]                      # actual − comparada
+                pct = dmv / rb["secs"] * 100
+                txt = (f"En movimiento, la carrera actual fue {mmss(abs(dmv))} min {'más rápida' if dmv < 0 else 'más lenta'} que la comparada ({fnum(abs(pct), 1)} %)"
                        if abs(dmv) >= 30 else "En movimiento, las dos tardaron prácticamente lo mismo")
                 if pd.notna(ra["hr_avg"]) and pd.notna(rb["hr_avg"]):
-                    dh = rb["hr_avg"] - ra["hr_avg"]
+                    dh = ra["hr_avg"] - rb["hr_avg"]
                     txt += f", con {fnum(abs(dh))} ppm {'menos' if dh < 0 else 'más'} de FC media" if abs(dh) >= 1 else ", con la misma FC media"
                     va_, vb_ = ra["km"] / ra["secs"], rb["km"] / rb["secs"]
-                    eff = ((vb_ / rb["hr_avg"]) / (va_ / ra["hr_avg"]) - 1) * 100
+                    eff = ((va_ / ra["hr_avg"]) / (vb_ / rb["hr_avg"]) - 1) * 100
                     if abs(eff) >= 1:
-                        txt += f". Velocidad por pulsación {fnum(abs(eff), 1)} % {'mejor' if eff > 0 else 'peor'} en la carrera a comparar"
+                        txt += f". Velocidad por pulsación {fnum(abs(eff), 1)} % {'mejor' if eff > 0 else 'peor'} en la carrera actual"
                 ver.append(txt + ".")
             if seg_rows:
                 big = SG.loc[SG["diff"].abs().idxmax()]
                 ver.append(f"La mayor diferencia está en el tramo {int(big['n'])} ({'subida' if big['up'] else 'bajada'} "
-                           f"{fnum(big['a0'])} → {fnum(big['a1'])} m): la carrera a comparar fue {mmss(abs(big['diff']))} min "
+                           f"{fnum(big['a0'])} → {fnum(big['a1'])} m): la carrera actual fue {mmss(abs(big['diff']))} min "
                            f"{'más rápida' if big['diff'] < 0 else 'más lenta'}.")
                 su, ba_ = SG.loc[SG["up"], "diff"].sum(), SG.loc[~SG["up"], "diff"].sum()
-                ver.append(f"En las subidas la carrera a comparar {'gana' if su < 0 else 'pierde'} {mmss(abs(su))} min y en las bajadas "
+                ver.append(f"En las subidas la carrera actual {'gana' if su < 0 else 'pierde'} {mmss(abs(su))} min y en las bajadas "
                            f"{'gana' if ba_ < 0 else 'pierde'} {mmss(abs(ba_))} min.")
             else:
                 up_b = bt[bt["Pendiente"].isin(["10/20 %", "20/30 %"]) & (bt["Km|A"] >= .3) & (bt["Km|B"] >= .3)]
                 if len(up_b) and up_b["Δ m/h"].notna().any():
                     r_ = up_b.loc[up_b["Δ m/h"].abs().idxmax()]
-                    ver.append(f"En las rampas del {r_['Pendiente']}, la carrera a comparar sube a {fnum(r_['VAM / bajada|B'])} m/h frente a "
-                               f"{fnum(r_['VAM / bajada|A'])} m/h de la actual.")
+                    ver.append(f"En las rampas del {r_['Pendiente']}, la carrera actual sube a {fnum(r_['VAM / bajada|A'])} m/h frente a "
+                               f"{fnum(r_['VAM / bajada|B'])} m/h de la comparada.")
             if abs(stop_b - stop_a) >= 60:
                 ver.append(f"Tiempo parado: {mmss(stop_a)} min en la carrera actual y {mmss(stop_b)} min en la carrera a comparar.")
             st.subheader("Qué se ve")
