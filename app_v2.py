@@ -500,10 +500,14 @@ def _i18n_tables() -> dict:
             t_ = (ca_, en_)[i_]
             if t_ and t_ != es_:
                 m[es_] = t_
-        keys = sorted(m, key=len, reverse=True)
-        pat = "|".join((r"(?<!\w)" if re.match(r"\w", k_) else "") + re.escape(k_) + (r"(?!\w)" if re.search(r"\w$", k_) else "")
-                       for k_ in keys)
-        out[lg] = (m, re.compile(pat))
+        def _rx(keys):
+            keys = sorted(keys, key=len, reverse=True)
+            pat = "|".join((r"(?<!\w)" if re.match(r"\w", k_) else "") + re.escape(k_)
+                           + (r"(?!\w)" if re.search(r"\w$", k_) else "") for k_ in keys)
+            return re.compile(pat) if pat else re.compile(r"(?!x)x")
+        # Frases que incluyen etiquetas HTML (se aplican sobre el texto entero) y el resto (solo fuera de las etiquetas,
+        # para no tocar atributos como data-sec="plan" o href="?sec=…")
+        out[lg] = (m, _rx([k_ for k_ in m if "<" in k_]), _rx([k_ for k_ in m if "<" not in k_]))
     return out
 
 
@@ -521,14 +525,21 @@ def tr(text):
     hit = _TR_CACHE.get(ck)
     if hit is not None:
         return hit
-    m, rx = _i18n_tables()[lang]
+    m, rx_tag, rx = _i18n_tables()[lang]
     if "<style" in text or "<script" in text:
         # CSS y scripts no se tocan: solo el texto que hay fuera de esos bloques
         parts = re.split(r"(<style.*?</style>|<script.*?</script>)", text, flags=re.S)
         res = "".join(p_ if p_.startswith(("<style", "<script")) else tr(p_) for p_ in parts)
         _TR_CACHE[ck] = res
         return res
-    res = rx.sub(lambda mo: m.get(mo.group(0), mo.group(0)), text)
+    if "<" in text:
+        res = rx_tag.sub(lambda mo: "\x02" + m.get(mo.group(0), mo.group(0)) + "\x03", text)
+        parts = re.split(r"(<[^>]*>|\x02.*?\x03)", res, flags=re.S)
+        res = "".join(p_ if (p_.startswith("<") or p_.startswith("\x02")) else
+                      rx.sub(lambda mo: m.get(mo.group(0), mo.group(0)), p_) for p_ in parts)
+        res = res.replace("\x02", "").replace("\x03", "")
+    else:
+        res = rx.sub(lambda mo: m.get(mo.group(0), mo.group(0)), text)
     # la «y» entre palabras (frases montadas con variables): i / and
     res = re.sub(r"(?<=[\w)>]) y (?=[\w(<])", " i " if lang == "ca" else " and ", res)
     if len(_TR_CACHE) < 20000:
@@ -2437,8 +2448,11 @@ def top_nav(sec_: str, mobile: bool):
 @media (max-width: 980px) {{
   #ldp-nav .bar {{ padding: 0 12px; }}
   #ldp-nav .burger {{ display: flex; align-items: center; color: #fff; font-size: 26px; margin-right: 10px; cursor: pointer; }}
-  #ldp-nav .menu {{ display: none; position: absolute; top: 64px; left: 0; right: 0; flex-direction: column; background: {SURFACE};
-    border-top: 6px solid {YEL}; max-height: calc(100vh - 64px); overflow: auto; }}
+  #ldp-nav .menu {{ display: none; position: fixed; top: 64px; left: 0; right: 0; bottom: 0; flex-direction: column; background: {SURFACE};
+    border-top: 0; max-height: none; overflow-x: hidden !important; overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding-bottom: 110px; }}
+  #ldp-nav .gl::after {{ display: none !important; }}
+  #ldp-nav .g:hover .gl {{ color: {GOLD}; }}
   #ldp-nav.open .menu {{ display: flex; }}
   #ldp-nav .g {{ flex-direction: column; }}
   #ldp-nav .gl {{ color: {GOLD}; padding: 12px 14px 4px; border: 0; font-size: 13px; }}
