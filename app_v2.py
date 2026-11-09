@@ -1347,6 +1347,33 @@ a {{ color: {GOLD}; }}
 .stButtonGroup button p {{ color: {INK} !important; }}
 .stExpander details {{ background: {SURFACE} !important; border-color: {LINE} !important; border-radius: 4px !important; }}
 [data-baseweb="select"] > div:focus-within, [data-baseweb="input"]:focus-within {{ border-color: {GOLD} !important; }}
+/* Color principal también donde Streamlit usa su color primario (config.toml): botones de grupo, píldoras, pestañas,
+   radios, casillas, deslizadores, tablas editables, enlaces y foco */
+[data-testid="stButtonGroup"] button {{ background: {SURFACE} !important; border-color: {LINE} !important; color: {INK} !important; }}
+[data-testid="stButtonGroup"] button > div, [data-testid="stButtonGroup"] button p {{ color: {INK} !important; }}
+[data-testid="stButtonGroup"] button[aria-checked="true"], [data-testid="stButtonGroup"] button[data-selected="true"],
+[data-testid="stButtonGroup"] button[aria-pressed="true"] {{ background: {rgba(GOLD, .16)} !important; border-color: {GOLD} !important; }}
+[data-testid="stButtonGroup"] button[aria-checked="true"] > div, [data-testid="stButtonGroup"] button[data-selected="true"] > div,
+[data-testid="stButtonGroup"] button[aria-pressed="true"] > div {{ border-color: {GOLD} !important; color: {INK} !important; }}
+[data-testid="stButtonGroup"] button[aria-checked="true"] p, [data-testid="stButtonGroup"] button[data-selected="true"] p {{ font-weight: 600; }}
+[data-testid="stButtonGroup"] button:hover, [data-testid="stBaseButton-secondary"]:hover, [data-testid="stBaseButton-tertiary"]:hover {{
+  border-color: {GOLD} !important; color: {GOLD} !important; }}
+[data-testid="stBaseButton-secondary"]:focus-visible, [data-testid="stBaseButton-secondary"]:active {{ border-color: {GOLD} !important; color: {GOLD} !important; }}
+[data-testid="stBaseButton-pillsActive"] {{ background: {rgba(GOLD, .16)} !important; border-color: {GOLD} !important; color: {INK} !important; }}
+[data-baseweb="tab-highlight"] {{ background-color: {GOLD} !important; }}
+[data-baseweb="tab"][aria-selected="true"] p {{ color: {GOLD} !important; }}
+[data-baseweb="radio"] input:checked + div, [data-baseweb="radio"] > div:first-child[style*="background"] {{ background-color: {GOLD} !important; border-color: {GOLD} !important; }}
+[data-baseweb="checkbox"] input:checked ~ span, label[data-baseweb="checkbox"] > span[style*="background"] {{ background-color: {GOLD} !important; border-color: {GOLD} !important; }}
+[data-testid="stSlider"] div[style*="translate(-50%"] {{ background: {GOLD} !important; box-shadow: none !important; }}
+[data-testid="stSliderThumbValue"], [data-testid="stSliderThumbValue"] p {{ color: {GOLD} !important; }}
+[data-testid="stDataFrame"] *, [data-testid="stDataFrameResizable"], [data-testid="stDataFrameResizable"] * {{
+  --gdg-accent-color: {GOLD} !important; --gdg-accent-light: {rgba(GOLD, .16)} !important; --gdg-accent-fg: {ACC_ON} !important; }}
+[data-testid="stSpinner"] i {{ border-top-color: {GOLD} !important; }}
+[data-testid="stProgress"] [role="progressbar"] > div > div > div {{ background-color: {GOLD} !important; }}
+.stApp a {{ color: {GOLD}; }}
+[data-testid="stNumberInputStepUp"]:hover, [data-testid="stNumberInputStepDown"]:hover {{ background: {GOLD} !important; color: {ACC_ON} !important; }}
+[data-testid="stTextInputRootElement"]:focus-within, [data-testid="stNumberInputContainer"]:focus-within,
+[data-baseweb="textarea"]:focus-within, [data-testid="stDateInputField"]:focus-within {{ border-color: {GOLD} !important; }}
 </style>""", unsafe_allow_html=True)
 
 
@@ -2510,6 +2537,31 @@ def top_nav(sec_: str, mobile: bool):
 </div>
 <script>
 (function () {{
+  window.__ldpAcc = "{GOLD}";
+  if (!window.__ldpSlider) {{
+    window.__ldpSlider = true;
+    const isY = (r, g, b) => r > 200 && g > 150 && b < 90 && r - b > 140;
+    const hexRgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+    const fix = () => {{
+      const acc = window.__ldpAcc || "#ffe100"; const [ar, ag, ab] = hexRgb(acc);
+      document.querySelectorAll('[data-testid="stSlider"] [data-orientation="horizontal"][style*="touch-action"]').forEach(box => {{
+        const el = box.firstElementChild, th = box.querySelector('div[style*="translate(-50%"]');
+        if (!el || !th) return;
+        if (!el.dataset.rest) {{
+          const bi = getComputedStyle(el).backgroundImage || "";
+          const cols = (bi.match(/rgba?\\([^)]*\\)/g) || []).filter(c => {{ const v = c.match(/\\d+/g).map(Number); return !isY(v[0], v[1], v[2]); }});
+          el.dataset.rest = cols.length ? cols[cols.length - 1] : "rgba(150,150,150,.35)";
+        }}
+        const x = parseFloat(th.style.left) || 0;
+        const g = `linear-gradient(to right, rgb(${{ar}}, ${{ag}}, ${{ab}}) 0%, rgb(${{ar}}, ${{ag}}, ${{ab}}) ${{x}}%, ${{el.dataset.rest}} ${{x}}%, ${{el.dataset.rest}} 100%)`;
+        if (el.style.backgroundImage !== g) el.style.backgroundImage = g;
+      }});
+    }};
+    let tmr = null;
+    new MutationObserver(() => {{ clearTimeout(tmr); tmr = setTimeout(fix, 60); }}).observe(document.body,
+      {{subtree: true, childList: true, attributes: true, attributeFilter: ["style", "class"]}});
+    setTimeout(fix, 300);
+  }}
   if (window.__ldpNav) return;
   window.__ldpNav = true;
   const D = document;
@@ -5071,7 +5123,7 @@ def race_section(compact: bool = False):
     T, idx = p_["T"], p_["idx"]
     fig = go.Figure()
     fig.add_scatter(x=T["d"] / 1000, y=T["ele"], mode="lines", line=dict(color=GOLD, width=2), fill="tozeroy",
-                    fillcolor="rgba(201,162,39,.12)", name="Altitud", hovertemplate="km %{x:.1f}: %{y:.0f} m<extra></extra>")
+                    fillcolor=rgba(GOLD, .12), name="Altitud", hovertemplate="km %{x:.1f}: %{y:.0f} m<extra></extra>")
     for k_, s_ in enumerate(p_["S"]):
         col_ = RED if s_["kind"] == "meta" else GLACIER if s_["kind"] == "avit" else MUTED
         fig.add_scatter(x=[s_["km"]], y=[s_["ele"]], mode="markers+text", marker=dict(size=9 if s_["kind"] != "cima" else 7,
@@ -5141,7 +5193,7 @@ def race_section(compact: bool = False):
 
     html_table(LT, left={"Tramo", "Km"}, fmt={"Dist.": lambda v: fnum(v, 1), "D+": fnum, "D−": fnum, "Pend. media": _pend,
                                               "Máx. 500 m": _pend, "Ritmo plan": lambda v: _pace(v * 60)},
-               heat={"D+": (max(LT["D+"].max(), 1), "201,162,39"), "D−": (max(LT["D−"].max(), 1), "92,160,200")},
+               heat={"D+": (max(LT["D+"].max(), 1), ",".join(str(int(GOLD[i:i + 2], 16)) for i in (1, 3, 5))), "D−": (max(LT["D−"].max(), 1), "92,160,200")},
                max_height=640)
 
     # Ritmos usados
