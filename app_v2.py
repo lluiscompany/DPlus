@@ -391,144 +391,182 @@ _I18N_Z = (
     "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"
-    "Hh+TP5jR9tmTMfM1C7Jq+ZPt96jKAdDYjQMCGj2WW5QQjuVR9cOHUhkdd+pu2/5/zX1dbxtXtuXzqV/Bl4YlmKYdO0kncuc2JMtxMuMPteVxpvut"
-    "RJakiimWmkXakZ/m9f6Bua/phwHSc9Fo9B1gBuiXAaJ/0r9k1lp7n1OnSEr29SQzARKLLJ6qOt8fe6+9FnLVzBL5X8qVs2tlCZWvOHI3+19XyQQn"
-    "beS0Ed3Fiu2p2IB/RP5nW/Mnh4f76EF/k45vF62tyZGcKTLnpLvjHqcPLmUQrrwr7oox3FJUAZbzQxH6PFwcC7VeEgSLGC7jSNkElLwmd+ZMYeYm"
-    "lrvudt/pdIhUZ85S9uSv2Zi3H5g3CgvBslB2OQuOqFQoOKa8lRzRJMFMdCHiiLfyvU3c7Bt2VfAOeWSSK4cITILbXaRyKM61Vg2a3j/AeCZhRxG1"
-    "wZHbMYUbdUg7p3LUoXTYGV9FzBXVQDuB8PvuQR+fxl2psOhKWX1X8hQh8Y95KSkpsFjNZVlMkuOcyC0s0o8CEjyoWoW10YyADV1PgtzyR2Nrl7uF"
-    "547nuV7e5GgHabHnzbDrTKi8VY42PCFBWJe7Kgmic78Q0ezxbCDmDOavsvyBe6bTOKef0hSnTLt0RRIdtWGZ/kra8/ctfjRx3iNLhl735BGhKC6t"
-    "Y0bvzKtMcJ0TqkDwcivpnls0C+sEUbTyEij60TYoiMyej6X7rNMsDLAnJAOGEWZhVOYdntGWSlJ/Dw1tNMSUf6tqaeJ925jrDA28pe80GRqzL0fs"
-    "k4cvsG+20313ECKl0N91YtQLdvCIYHXfZfExYGGWQ8tgNMqSfIMbTOSz1ATag0GaWNiEmlf1SmabOXyplldkld/csjj34ZvltZfVZtZGEEF8j3Lc"
-    "IUZtSUO1KsdtZQdxGm+RS6kXYApYKHgoVwoi+vQ1FmCuqUNjHX7Du6tjZG9xy5yE3vhbHKyzk4WBMZW2pZnSMn0Qs1uKaUTmJJ1NzbDA9zHLxZ4E"
-    "EsgOJfvJOpvWjimg51R0NFYCm46/h+fP7pIUomxzuOv9iHSdDa0fXKyOb7zk2dmcKqevCeLMpxF52HcXPqvXzw7DXi+Hq+f71fyB1Y4IyZlnrpab"
-    "quljY1MGlT+kWRngkxsxd3V/FlFf2sfpQKjIG8zdvuwqpKwTq9N6dKZnsGPGQ/agd3juGZTBGcTL7Ypu1P0VfO0wtrugt3HA6561zNrskVDiyOYA"
-    "PAbzBSJyi06zy/c/KVa0Q9CLbZr7HyV2HroNgfc7/RgHmHfvUIe+dxISn5cdEo2WzEkPnA/ZCb38xfYbzB2hy6YBSVOgaQ67J481p94um+vB+zu9"
-    "uIg8i34u6mWwLiNpQiRWzlnB4ostCbP5nDsivP51m6jvMIxJnI3mvoUfBNdfIQDY8YAJy0raWBFa1ToDWHRIsCs1cm0oQiCRiFEopHKJA4iKI5IK"
-    "/iU8+ODps10V8+tHT1mmhxCjlEzYwxZDRx44nLMa4EyxtT0mAzcS7gyegKOjf/mpqYVNqRE+bbJHEeJQR3WqBGvF1uUf//V/8qsxGWBgGaWDzLnH"
-    "0jNrusPjvf3ATP8w/fF/Id8p29jMMt+l3iVpMst2k+X6e2Tv3ZmOLAfxSZty7UJAWb6xADDjZIpIJt9jGRhWs46eofpmdpV5GmHPS7qtlWUYeCsx"
-    "3o+UZKFclucgybg+33qGFm2a34+TsFeOseX2jJmO18iMQ1Xei2QRzvXZzM57b9+OyC+9DBrimA5rOFO0PUCfhF6QJBqcfPKoWRjtwFx29q1GMYbY"
-    "VzQ4hcpURJYPWHsYaHMCEo256hhV+drCylXVW7NShlLGAdVk8Tp69FgRpXZ6MculEU4xPSM8El7q7n5I+eVY5/StJdezC86S6iSRWiq/ACxhfY15"
-    "xXq7reGfclqv5nS5OavaesTMfid+tC6735quKW5SRIojrZhdr2YzL2nXpToG9QX02E66aJ65ZnJoqC04cbON3nDjTGpy5JgMPlDTMcQJThDkgfja"
-    "ePGwj7mxEBt77BlbR3BB06YTNx+ea+KzsNd4g8O2GTm5+OAG5vikURfhi+7uFw/jfn4TqioyPpk9cS4eAXPf2UqNKU6K9g6eEiTIQfDYOfmSMXUy"
-    "lkTnCdcVaXzWBEmIXX1HICVYi5ZnRiw+jF11fPk/JvVJEx7azn8zUMvZpWiL7BWj9mJou27FMGJ6QevJq2UrSioEr3M/5YUoN5fh6kBNKwFpzIex"
-    "744RaQCzgsf5rsG+OgYryhnet3wbdoY2nHnWAOYZEFKfsq1p3TG6Gl62bGvFRz7Eib4x5HNdmSV1X2T3Cse3tCG2PoLLd50y3wBE1fv6xO/B7Zt7"
-    "0D/evt81JrU3p5UxT5t9/g4l6MoWEdgcqDyMUbArsgR2HvXmCuD2Zi/6anlyRRQV533d6yulWS9OScnXtfIgrqgrENXRIi1h56FvrsaEv8s/35Uu"
-    "1w3IoFbv47ePJYtJWbB+J44L1Vxolqx4bSfXZnxAFpNjHIcJbl4caAbikrd1+S/3gFW6/BeYaHjMZMBODy9hMLKmW8ymJKKfc/+wH01FNt3vOPO3"
-    "7OjXxjGbt5nsUE3G/z10I0LsTuc5UU/idZJWje8xMZHFvXbkXAkHnJLeWTI2c1YyX/e6oh3SzNQvlzsIrgmaHsjZjVJtKpR3qfOOGyijkqqzQi1y"
-    "YT9FarNMVFteLdTcS6XJSy0teTUtjMIDc7Ldq2JoP8oC0QYscNfEZaMIjaOJhfQZdvaUxKmDvTOZAJ12yDDflnO6a33rjnm9oAf2pJnLtNjF0SXy"
-    "k5MlDy9QVIGXyMgh79z92JRbuVlHe/+G8WO3f31nmK7gO32I9z6Hc+/X/PjZ50MKOBDCawfkwT/++b8Bwnjn9ud3BFi2WMxezPI9N5ZS7c2g8yJN"
-    "MSxEBVjQaPAEnnkXPk0ndGlT8OhddiQONDcHL2fdi2GtumLWP3kpe4V82OaF7Kym98zompWSEZk0/amE+nYrlVGn/JLjQKfyHn2ESll3IYJZgdMR"
-    "m8UaPLRikmUcaAJSee0oCMBOX5h9VsrKS5sLexEL2/RblB6te/2IeJOHHcYAWXNaOmEMy6nQ0IEGfLtgO+q1gpwtOvoK9dj9lb5qqL81xjwMT4Oy"
-    "aGqKTKcPtXM64PFDvL/yFbq9zhmCS3GRR6QxcWjzaaLl+/izwWlnE2CL6XWjwR8a126NkSAx9nTVLAKMcJI2G3IdwV9ToBkSb42/+vYZPIxV2w8z"
-    "3cjbp3KSJePcyulsq7sqZV5Is/QZUTHK2EZAM6ZN72F8vhXQNn9i9Z12BazyApqB4saHli4LZiUGZycjDsSC443Ocz5MhoQVWIimUzWXr8xoLzvg"
-    "SWN8aS+Wwp1yeS0trIVYnSaLE1DZIrNweuFoZb8XQ2URVfOWZX7/Qq14zjevrn1v+VWu9O4eudM7r1wZxaPkSqdcVY5dnSC8arywnr/umb9gkqMl"
-    "6co9gbwbtGYRTbrVXIV59dhaMjoh4aovftNim7vfNzrmewQlcs53Hr4yCltNjaTJIEvmplcfZCGr2aBcc/TX/B0l/OPSfr5RJnLvWMIrILWxiKKS"
-    "8kJ2Dv7rVuO5tHj7zv7V9PT3u48w6my5P5/rX4a79bJNOlqaDDVgKF0eL7oEbvq48PLNr4Ts0spuNFYK+mL6D6K34QbKwi/Etij2gOVskW8SLaCg"
-    "x4DzPgEF2/Sr2F1Dk13UpmyyQeywp2VURZoxM8Bg17/QSyrh5ZoPINZh//M4D9MP9EL2y9jn3nln6MI2PTGlbtlQvKwX92SVKuc1E3rzhpcNYwFe"
-    "z38fmY8KxHlN+0MRliXiPFM2fy+yn212qqE5VzcAW3wn6kJOzWKRCTkpMQWQonx08Rwwr2/FVm+Lt7PT02Qmo7mcqlUShSGVKglAmnz1p9/6V4P2"
-    "8k9HtvH7mF+dLcfUPlbIIDKLv4UsT1MMB6yPP/7rvrETSaHjtMZGfZEBKhJoyfax7sCD0zABOCmZjiHyBTVFNeeqJDc7lYrWILyBhWf8J0XRvPRe"
-    "fJnhuA8+lrQlyx6LbqpU3a7ASo8BD/JoYv69+E7eo/KvMlNkBn1FTk+7mJGs/FnxO9BGdJdYkIi7BJNDUoDRleLXKsfNqKLhIGEI0APVrsVesVG+"
-    "Ehv4llsSeYm5mPssZ62f7W5bgEcXVvhDUvNqr4lHqfjGJzTYcrr4PkMGOsYyhabEAuNnFRi95KhNWJDEq+6RKJhaRTHtwFRssmzViYUVahUvvrkJ"
-    "Tvy8OjF62ca3MU9IM4gWGGxpk3bmX0cYcRQiNrkGdLeUzsLyP7qzc+fO/SiZY1ByY8Q5LGlU+bJiiNnpgEfQjz7duXcHlk/+AgM8N4Cwtn8ef/2c"
-    "v6KHvoRBCA0Nol8YPE6J+MQrtjUNOVt+SnEKH626ER/C3mQaPTu0Bxxf/mVuHKEWQ4yMnbj0cSo6TiC/Dqkq3q8mXFai7NVElWrC9H3I791EbqAP"
-    "rIn6ypp4OF2riXPxnazWhFVEjXqgyeqPSwWQIVu9arBaWCn7XDo9m2tgQW2VOu8Ki9QPjG6Y6NRSxNMfWHb23atKz7k8/eaiA5w8fNuiGpA8Xyo9"
-    "dY9n8cj5ay8blxGsNEUXg0tXoAFs1yTONrDvmOLm9tABRFE9p35dxnl4Wnbz8JCykC6NNo1M2mJRkuvezorcJa4wS3NGeNAJkWlaMDsCXdlnZYcp"
-    "nkbBJGp+bbtKopmk1gXYFFK0JHi0zYLrPRokeptDihBONXONSNsqTZCJh67VT6wgn6ttmk6182erHVVOLaOCE52L/7PPi82q2U1aalYzbn3o6iYa"
-    "0a6smr52nOpFoNr6O6+ayACQglO8eoJVSk77u6Y0t1kHdXuYVUYVgV/aKvtc7vXRSvkhkVLZBrqe3Io83qJuZzV8k8u+qSZkoLBqWFSd0yDqXllF"
-    "EAIzdmdFVIWL4k9niBvK3ekeBkOTcPGNTT5OU6IKealA1rFdmdB3CAp71OTtY2bitanZ2yJiC8cnGMy687l4bf3jUUN7y2cfD+8Svooo5NGnrOWb"
-    "w1x+DVYjIDPWONg96Ciy8Y4GCEs8Xx4xrCOuTxnjr+tVtsaFArR9I9GBb3GIJZ8WXMI1YW07OBDN5xa/ys4PV3ZDcoa795C7R2hCRNcuBp98MvxI"
-    "3ATU/jA36pxRziT1kHkmfGiVpdWGL3+fOqvX6mxTlRmv/DTWVr+ybAnrKIulwtmKuYXhAKLa47khr6nrKqq+oqLMf8uKSmQkMvWEtVqKs/y7aksr"
-    "E/KgipKdcWNNjVRTHE2fDGNdsYZs2bjPMRa58tto/CEzsmqpx7ec1jvVHYVipawp4hMSzYgwWKcTqS+oqkSXdmVliTqlq67RR0ZCwfpiAEVrj0xE"
-    "9Dh/w7c9J1B7Is74zdzfj8s2MW4eLzmntgboPFtKjEMLTAwRHCUKyo597sPIKO9HEasUfdgyZiBnbVw/E23kxDNa3fEa4n6YXD+JnqTkEbWcbKYc"
-    "uc+TcWnCcxfCoAjRmkJ3GBMUCw1BXDPFzu0MsRZd4CB6YtEnotLfTIT+uGo76lHVvrihtdqJFI4ZTZGRo8TH2SPh+1ByzvtRNjlFXrasjJzHcvVY"
-    "dh1F4NXtEGVNna7FWmGxgYLFmsAU+owkj6DdFK9Et1ZWcDSCmYo3N0KdGuHBClH8CeQI2ILSvxQTq+FwSYVnvlHFeWJcOinhT8FOej9Gj7L55lV+"
-    "Rty6nhrRnHGjQY+fpl/DaRU3cpop/MOd5W2Ndea+81O2PKmbFN9EXmDnWKIBadFI2THxMu7fTKfIZND+YlOIiFd6EbkOzIBUNxOnL59lgnWRjcDS"
-    "XP6lcTm8WaY+l8So4wlbD7Pzaim1qIL3CwsdbL/miGPemkF5lcxNhxc5ycg0JOfooM4oQKYh8hXQfFUm2ZQuYkL7laAVOEDcr2MT71i/I2ijyIh8"
-    "u5/TR7hQCp/l2sCxhlQSCCt8bg5xmghGHWyX/WqpiwWNPRJrcDtA96HIlByixEJSQTCjZJD5LphAQNG1UdcSqutOYCx0MmD6CeI4ZEGYBf5BwPS0"
-    "Ol4U5rEK5tMJsecUsbWsnfJGEvwiGAgjCLFQ2OYw+IYnaCkvoLccKI4cJGFcKCycuedmLjDMoZwXJPpC8AEqmTxChUDOQVhi5HFRAOp/1gT+W4Vz"
-    "Cj+lhSL4VBU0nAoLXgoWKsReq+CcwsKfgmKN4LdlsE1BGluSy4rxFeudoeQj8rxA/vBs/V+IzEPdERHsra2zGNi+awqi2VCfzOhV+klM0tfJTnDV"
-    "NxH7EGP/ze2jf+K07YsWJO17l6rsEjp5ulT0bukl7iXzNIzW9Yv+UbLqjJHNOQHcyBmygPxo+AtuAuti4vM7sztCliI+b+UhxYEF24YDC3MNB5g9"
-    "Yc5yWYV49qbP5HmSP4gHTl2Vedl9MMXzJbVrXXa0bJNAYO6o2up8UD/+7RNiZlAHP/4NevL3Oz2HxFDrElp61XKhpd/0RtsNHqKtzPlzxbOrnI3W"
-    "hENSMdqkO+qCgz3r91byvKw/WpUgytlIcM7a+IXReYx+KXweo18Yocfo59dr2x793IptfMNPptm2jSpppCBM5DBDOw4xeKrgF6u1i0v5JruLkrrf"
-    "8Wgr9rAuEsvtRSmUahgdNMOEz12n61az2OEnYnTjIWjbvBI7mSRCIku5KOXOnDTtiijuo6Ub8ZITaGv3weET9JMHz77e7kyObcc43u8JpdkBd6LA"
-    "djigHyfGbQn3n0K7vMQxIGuYXDLDhOPdwBNuJ4DWrBBdkXno6IqcwEaRfeXb0pybi3ZVovcRYVCTG9Hts1peWRCrNtKd9/pkKcter6wUSoz2ripG"
-    "hGWbki6WKxb3YpjhJxXftUJf3vXabtMvOPB23EbvrKpDiOElKmqfl5KsrM26BvVT+HsMB5UK+/WzB9uyDCrCKY0OnSG8ePWsEGTjN7cZZsHVn5JI"
-    "OWKO4ODANClJPcuxZvpdeIGYgCXzWUf5oTBNAex+CbmqmCbzqm8pWptPU4iZFsPKzF8yE/T4gKLmqmYsOnzwclRgkz86OrO3LN6aW39FhzWmmNUZ"
-    "jM5M165NwcIWBuozFZ0oeHqjiNv4cHMsw+O+UPQWg6d0Tj2qFxb4Q5Y3ui/kP79ozRuB8pdvl9O88BZzNQpY3Zf9nCPOiZeX6Z2KNRoVM+SJM0C8"
-    "/P9AaBKzrL01ZfFnVJ5ML3ud1fbPpkWJOf+0mTJYBLtxrCkBvY4hmmIOFkVU4L/YQeP4Wrxwsg/RHa/Va5yu4149TkXRduSnNjmQMDNplfhic7yt"
-    "sy6Viq7dhvvV3LHZwbTTdxjBpBCn8xPzC7hCb09cBNE3ox//e3L5xzNkLl9MMNmFDblJ5eNwy5XsDLa88sRP+UTHEeYyyHdpKc6F7s4E1UJwhH07"
-    "EXx0Rn/K1AxoZIkhR44IlLWA7piDkZWEoleREhFXuIy3wgOCBhRo453wwoBUK81i3c8XFDsh9Zpk8EDHZ2+PfV/FvtgUVOyGKQYKq01WmiQK72pB"
-    "i+3Ra46/bmiOsmsMy0im9MymqHMRUp+8tlztb3NzJMxjrhmdN4a3Ra22iE1x+c+9tmi8LYwu0xd344A0KTxqD7pBxlqjagVDja2R4F+RqLtnC+8W"
-    "PB1KE5KXEZjWFh2Q7GG2tH6xOXi6I+PqAqS71kn0aML+SGL0gQARXdNgiVIeBI+4x32yzCmmKGLYWOSeaxFn+i2ZECmAuJ3d9qltr2l8Milt1fnx"
-    "lDVeq8btITyH6sIJ3QA8kiG17GHEBZ729xJ1bBXn7GCYKNdEr7Ou6ncX7pebwXuwUwBCcnL7VLPRyXQ5JlsnOZ3uE6qC5vu8+/msejvmgmupdo7n"
-    "S9A4tM4vz/0yI52buAecNKPgz+Zw6D/7uDa/efc7QxoYYbf29FqoLz4cITH+7EV6tNrT7qkUFgAkIsJKMAt8niWIj63iY9HfiSyic9N2OJj0cegd"
-    "/X9mvMVi9kvjvEWWfhGst1h588UycWlFUQOjaJm3tgfMrFyR4Mq1CDzdrbZK02WIzFI2xUh8WawqlQYyC1xU0ZnlosfaSQbOmdH34td9GxgIF+x4"
-    "w2VGvfdJoujm2R2galuCNtKD50zk4do719m9N91bd/fGefYKdu787uIRLBiod5AxgE1BflK4QdviCXvrrLLgXg8Jirw2EAFbzsbvChgI9og6Bt2u"
-    "PQQEle+A5OMR7MX1LDlFziG0hekRE4AjHJAX9dVr8e/FEzaSSIdnETpi4e9pBN+PDCLptB2eYCZniJFlP97mPjYfbOk2G4SBL0qZjSCMLfmIsqFx"
-    "P2MAiWOHeazjpCP1ijkn3gXJ7qYNHhzlzRSviMmOoMolnMawdn9Vn9tUN3s1rYwfj46DJ0Ba1S2lvRno/hZWO9vJ09iODx4m+KmKDEogBDuHdAvv"
-    "OMG0bdtx3VFldwgyfFaGPcaii1foWyB/ZGNZ4ljUTwmQsiwhiBnVofk7+wN+A8UyWWgjwYcMekOsL6aXRVoy8A4s0Oz5up7fc9Ic0aHdrN+cfume"
-    "8sgvMYh+8/P85nCo65oCZq18DfwQuN4WhyD0uLU8t729pohNtZhS8fVxwlivvMcWCtl66rU6+4O1WHikdkB6Vm2RvSc9Kd6xIXR3U/jr9eGjRYxl"
-    "DSmoNcQg0MKZqY0lmszNhZGLf9Zh1ZzKbY3z2tz4EoZeBGMD/6wDLS3bTTTV0fNc+W3Rl/YZfYmCitVm+Uzs0oozs9TuQ4IQ0ow6pe5LSl/9b/JK"
-    "xuQWrBxdTx7sWwbExa4l1VjULGdnvnhPdp3OIFLx4ovM5ukR1XdjBDIvGO/usVhOdRf4yw/6pXXV6cg1F3BQqfyX48TOBq8bTqoNCd9gDAnxc82P"
-    "F/Zx3JobscwiWXXeC93l5KyHx6S6ZeEY+lGuk+z27J6QpXC9lcjuh5iikC6Zq4uXluDKUNBL3BT84a7fqa4V0uelulfWLT3qvOI8w+FgUdvpK4ZR"
-    "dc5QZ0Z8aiINcdPkHy4KW9TTEi7gmY0I+7d7mZfBI5LcVReDd4Kiqs1vJ3trJJmDY/GkWEG9giIx1vWGX1Tf69dZ+8UaZCl71Mbf9LBNv9jjIrFn"
-    "+kB/RPE1DuGAMSLVY1i0lrArhg2X4gdetJ+L7LAZ8s88jRTao3X7r7jLMpNyMEtrOLoozLMf5LsPdM0XMjUHGWCDTJJFbrQOPXtu9LNr94VhwwNW"
-    "w/EzRRyp/iIsaFK4rlNwmSWO0rMCx0aFaaDdgdajnaOl/7kJQsmcEWkCfhnCRXWdlxtt6OupE3ig80Tze4hG6WBm20JAWGbGkJ9zTAIVHcdVe0LP"
-    "cTvmP3C809BlvdI+xq7JDYu6JyLL2zEmFv7Rv6ew+C0XnMBW/tL/OVlqPIZNH8HT2HBXwaHT/wDlPI/5Db2/MGublisu5H9xGbEaKLhesOkj3mVR"
-    "qQZDDvp2w4C39o0404K2mVHwf+tJYZaWUYh/ccLH8b7Y/erZ892wi/+fPvumKBUHjOeGWfOmmCvAZnAzX3/C3AJPuqtcX2w+YRDGzbh6+DCPiOzg"
-    "7J8Jfxy0gzQ2zJg2Jgqax1DitlieHbEdQB1EysawOGUzASrkmYvZSRko8rzmOYzZ2hPNwUBbppYboLkUAgmtDt/QlI89DCTiuJaIfxFjR18WIpEO"
-    "M3IJvBkonBU2ZvdXzUX9iHyufucuGxsa+q/IUC1bJ0KCg3+u9Qm91+4TZ0vVhcMBR7ljeyxqgchrAx/H5V8WS+wLhmTvUT5IFWesSG33algrPDek"
-    "URlXTjdw5SObaXyikbuJNCp7Hh63a4+x4kQPSasADvQ4PhWPqiEbxyeJp8cidM5UCacMGx71o1zdra5Is0jK/L780CuBpNc+6l2kziuEzO6V755F"
-    "Ft/3I2S+Ioo3y9xa5OIHFrhXnCxqdv25H1Z6lYzPXQnme++aABXuh7TwVYTCo/DuB66X9CoeYH/av7upr6Tv/Zla/srY7Z+hN1wTQ/0Td5Eropk3"
-    "hxRHKpgyCy6+rla3dwZrEcTrtduPKd4c5pu/+V31u70zWInp3VDNXYwv8K+JUGWxGon7rvrFu3rhtr30SYBsN5Mq9lLuZlrCMRvOCrN+C448f2r7"
-    "t7AGq3TPUQWnc7qpNyLDxosPNoy2d4WRX9vSHxROfn1I9zUt/AGB3etR1u9s2/cPtS6uiYv3UPSfJSZ+FK4KV/e3/sSh6qNwZSf/KQPKR9foIfrS"
-    "lLQQOwmJ/ys5RKuv0dViiPbeKIR49XvfXwwxf2WSQuxVWl8HMYpTvFMIcXP7jIr3Gsk/I1/YKLxzZP9ctF569bWj/adk4xpJo319D5F3PlgeH68v"
-    "S+XMpzQvAFK92LRs2yLxq8EqaD/rldPwq0EPub/260b8ftbLijgC0rKxdqFTSsjv27iDCps3O2HTtoRRWVINSifXlQeGXWOqj0fZ/qM7NYm18VBc"
-    "sc0tw8b9ahmu2nfCznN2+zTOpalCrrrmdd2rphMad2BwggUmaKgXNHlPiK+fTwJF7RmZgANHsONBsP08gPjEycMYhz9gSG1FSoBJhNi1RIMOWyCn"
-    "BjdmeoIqsZDnPzsLOP37jI0pSDJ6gegA+AoA63qLw/4eTIavuFWkfY22wX3y0dJWPz4tnlQMicLFvUpc92H3mNq5DeNsZ2RAfFDRXdCcS/YVevLz"
-    "Ytfe3gT/EL7Eu4u9ShEDewBu8xU47+JejAL5i4BdkLj4Qv4hfts9UygOPmapzqa9ZPwa0+Fz8bIcI47GmIA0fYEIQciZsLesF+l6d/khIqwucF2i"
-    "E/It0wp8VFm/nFu1yqB9xGxX2TWYMSYsQ+sBR0UHkSWeL3QIUmEug7md82gPp61NkeirjLNB0lQejL3C5BpIthqRk5zner+uPjp/Uu9O0bQl5lu0"
-    "n8AxsDbvk6ILCSdwLslzDJspKYCJtkik7FbiiwTgJRp8NXFHjh4rpE7oV0T/IiZNiRek2nzdqx+btMwUeVh5Jp1n5qhTBsji+FdYzuSKx+ZoarJk"
-    "7bI1Al/5eGdLuhTUSbAHnhq34jChiHPImSsEbBuGBPt12KYTdsugZK3na6wF2wepZcxcRkeIWCjnkV4GNtlTupeIlCIt8KIhhsc7+Wt24nJDJx4N"
-    "XjKj9P4rVNvAikcOVOPcE5ftnV4s6QgjXc3K5feoV3H1BnI4oRJYbRYJ3VZeb/1q81oTK6IjkXNcmMsWbBvi2erMmRC+Py8VZN1VVsxL5ynz6nI+"
-    "GszUYvwCaJeoVtXYaNDNA0dLnqTXRrfXV+vgaq+vpWPJsvraycM+Rxogkxg5YsM2SSis8g7vxKriD1TQYP1o+yCe4javJtHWdAgtdm+417fT4nxW"
-    "lVZV9TRiAeztyKpxOkevPOqrWljM4QUByScJOk0Jl4WRepDf3ea30qbIlWkOICvHYKMwywjB0jLhdWN4E5pS4djNIKijIgI9I3tSFkZhSqc3uziB"
-    "HQtR7WGdHctvTMTlhXbyi3kVubul6YAgtzjiXOVhTT71tTwvCFWNYdRyWo6lxGXAf9pxNE2BvtU8KMkUlAHCf/zb3U/uDF6NyR/saG6CIkzYmC7W"
-    "E45IFBNIZ/7A/T8Azh28MtIoZbEeLqh6cxCjB2I9RFC2o/udjRkd+0Tx5l091CYagTi/OIpMRqIn0PoaDthYBQpj7lWBLMMSeEqoR68IAEG9IhLq"
-    "Pa8FB56v1IKo+AjrVmj1LNZDH9KYsyxJ1jWGpdxM8QU7cRfWzAzsTzy5nW4kTyGjd2QCJr84W1+xjsM0Wpx/A09Yno8VE6engKaUpfeFgy7maRKY"
-    "yhaXrjtEC1rE9ue1YAB5o8lRBQgv1p5G8VNC2e3XWgxCDIYeFQfILCPb4PI6KO1T+OaUPA1HHKT6nZPICR0uB2X3+Rs4XCrNApZwDz42RgiF9OH5"
-    "skX464PGFzFMVNh7fQmggU1ptfxez1Fk7kHRuYCfqcCJEHp/sGMzbSpflW03aBcVMLK2LxyM9SOG/ZRO1xZwjmkVM4adFbI0X4Lf/E+z8GDekOaM"
-    "Fq/4CUCskwluIDan+7RExOaMu0vAf5jrJ9XUP/2H8qx4gtmTl8JX2EpfGJQLuEJCXPQZ7sW9pbbLu+PK+U+aKf13z6bcAKfP2Os09bR40XDiCvhz"
-    "+T3GwyLoQlPgXcYQh/UGlQBlolk91dfL72lGqxhsfRaTjYkCSakmzRSO2AeQ8PRUv1tKY8y8nV8S50oHnrk9v6Q/jZGFmJE84ZiexCwhvy/CLoPX"
-    "Pd1XwME04dkyPDw5KX7fnMAbNJMDchq+5rdF+gowUk35FV70lCdYdeCo9YTo4+MAAg1suDzV4auLOSJp9M0XJWTbr9Z2l1+OV+PS5U84mF7+aaFq"
-    "m15+z+DnPWz+ZiVb6y0PPweo4yDVn+Kpzarhhc0r4ZlGVvEf6zd1SP8UrCT0riflZEmeIYCQ5uWbIzQGI8T/E2Ocn5eXfz1DOShvURwQReD/IOL5"
-    "CRE3EgYBzTcmVFi7+QPOMPvIZ03H4z7yWUP1bJ8hExiIfBuGIwPOn0vfvUUelgtNnvDyodXYu/mlDU+X6ueV2ZvGMFGdoiPBSptfYtfCO2dLU9BA"
-    "/3xwikxR+wAoP+iehP9sX0t9pUQzNDDGMU2xC6/nWwYosKPhcIN++G+ymdaL7fC8lmFTHW6buRc6Vsik7RC/ImX2LaVdlP3E9v0I6Am7QCkPBixh"
-    "sPCGvQbGQl7QQr0N7J5/x8KyYF4O35AI6dxvA5AAjgbc9ztgf5vsRem7Zav72fL1ADS3l39vuwJ3F1TiB4j8HDP6M93xGOcwuKqreA8iMsPjKS/6"
-    "TfhOTv4qu+clVjnydd8eUKVAc0x3CdizWa0rWC+018FFpSoOuHbAqXVeYhTyS6lDNlGF3M2SxCI8gGwO2I+lZbOcQzO7eIHZgX3yJSC/nK/2quqY"
-    "Uy5MZltTRPSysudjfMYXfX7F6/UMrUSYHpLFxYPBEfnycQwsPASVppyLgv3VHxxZdxfa7dCuAlDMi2Z2URvVCnIA+xkQNTPCxxf4jLlwLhIDwzaw"
-    "I7SINmEDpSscewhTwvsG2KRPaZgoDuq3IDPI/i2+gsluKZCBgR9xR8iv0aJ3zokaS7FpwGBQzNAZVS+9PwUNCHz9MaABGHj5V4AKnmJXOiXSeXle"
-    "fEkKNvxzxn9mxVdcNJrwCH8W4WtacLBUnQETPPWd258XnNe67z/gO6hptJqfAA5IaEKd9nlMXRpcIV37Qdf8Fnjf0y2TqjsmpnvSxb9yCvQZk3cd"
-    "pBMl/RvNlJ0qHZjsUptuOG/eANZSPOLOpiHhxGMGZQElJvqKRxCb5py4i1Nx2K357zelZpvy+PLPojAK/PgDP+L4J4GWxn+VkRegi8qTyPCKNvZe"
-    "NkYsWlVhoI1FqnlGNAeWGaE3CT/tX4J5oL7VvqpxQpnQz/3Kb6SJYJ7umFGUzvY3lsiMQd0exqxC2SbmGffQshH9YXlmrIC+hBwux3aSy1cSYHcx"
-    "OcJSZqsvd+rjUsurX+LQX465wB4uT6jT3TbH8Q3pLgHF317+Hbem++xIynsru/UWrlf57V6WutXao+5jpdGVf9OVQ0Vj+w0PGOSCUaS/rWaIebxo"
-    "eZiOG9RVTBDR53511/5aPo5470v0EchRAVcDu+PXs+OlRW5gF3z55xC/82sVvqrmRzTZw/3EKasq0ZkX9aSJC1iDfrxYLtJ6Frr1Sw0HbD0qdQ9G"
-    "dP4DDGg09hEe44azaPejXdrtZjIB2qFARrNi1+jlBjSI1Iuk3z2ltwQmRlKqScWmWs6r+Jv/OJEMC1ZdOkVSrBV/LMrrnlpe99TymqceSHt+9dHl"
-    "esHz18EzRLvzAcGvKy8u16qnl5ehRMo4iw9WctWvw34upZyFHS1h6RZy9o//8vfBptZBirUEeVP1n7DWcPGJqZVz825rfZ9bLUsuU39s1qy+XStA"
-    "9VtlacosTZ2lUaXDZEB864JIdtbIhCi089oQaOc1yYMoFlU8bbhFwKpxFp4iZrJ47pY02pXtsz4emCFENuaUhDblmIafUyIamLGZNQTr2VHNySV9"
-    "nzEUJ36FdY6wwwPlLegPNzZdzgYGMsQDnirqTYjDsL88J88gd4rMdCI0uJnZIm96CCsNKLNIQXoSIhfAzcwEd9PDK2lnqLK0xp58M23mbyoIEEBT"
-    "6hspSTIfx1a5wjSdWupq6zR/vto8nVq9/7j+7cVLLJWCkKfs2GiBRQpjxPTtuqyIsYE/7bmKHJ+D77AV6Gl7NC1aEHkaG96LhrqsxtWA4bfU7x6a"
-    "UVLWlzSArdsNdVGdoB1YVID10v1Kx+SoYYZeccbE1P4z/C17MSqF9m0zeeIIvTlvnh3PHMhN//chBtq8+W04vBHtpaJRWsud58iyRyED3PZb74+W"
-    "JeXFcvWGgNCjyiyMFYjiDjFh/bY4vPwLZqWsHboW0E+LrhlS/f9e8MTNjfBYTeV+B+4SvOlafatdDW6CHeZFag9Jcbt6H8KFqADhVe5U7JLEo0OV"
-    "U+ycYVx6CBGRdEaMEFoySxWIjQtv8lrBOMyS5c6GjEZ+a//hk2fbmTU9p1mPP5rxeIWS3H/sP7lP3iKuH3q6Z4ZpoVbMlH636Eu489Ft/Hf3zp07"
-    "eQ7WHnLFM6xZ8mckK/cKiQxDAuNtfJB4H7Ib6fy25qL5UWHskpI0t9h81Snym6N/eppcLaTc6rwY9JdrviFhjXd3qoiJQHhK+I1WlG3zfa96Q4Z6"
-    "f+XM+KxrEolFVvMJwnTdsdxzq4yYId97MDc7uWI8khtPs4ezWieXi0X3/U4Lv92G+jeO1h//NVviwDG81VYW7tmNl3PYsOYsmc0g0+7xUnK1ovtA"
-    "B4SGPRRW3UjEa4vNXMP/tVdd5MaJo1CaobHMrayXXmAF/CYBzEjn4BbirY+5XGULjb7nq83nvGDuL1OxSXQ8yRFqLBFiMJj1Mhlf5q3jYxeOB0Ij"
-    "plkfoqVJ0lmxD+V+ol4PyjqQxRX1+89K99FGZNvAESu+Ies9wkB5Jm6w94gKfpJIrv/YdzFZ59FmLus7Qgzd2Nhxlt5xXmjft9Zxsv0QO46GxMLm"
-    "Uus2balu4/N713FudP3Guo31GpztxEhs2xGrxtdWV8Yr5FOz9xYrZeXdhSW0eOykMxp5Jjb0lpXO8te8s9DvZ2JAkcgotuwidZVqlueOL/rjEkdR"
-    "V8rqpnLbQJCbdGaG9qmrP55V7nWL3YObtNQ96M7KuodxG/h0w75he9nO9dZzjA3JKjix15G0mJz9th1xR1pFr5p1hsnEWnUBlbUeq7mCFxyBQ6uS"
-    "kj/XrtXuwINgOUIvyHbC7AWRJlm/ArRQEjtiaoRakx3DpKeX+c5iNPh9ZFietnE5U2r373l2bBnWwp+ke62I6gcqnHOkjiMPWTpp9LpC3El2HUHb"
-    "SXWDY+mU7Oe0Tk7M+ooxblm28JGx5/PK1nzZiUb/B5lN290="
+    "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"
 )
 
 
@@ -1598,6 +1636,25 @@ def to_frame(rows: list[dict], hike: bool, cinta_dp: bool = True, overrides: dic
     df["elapsed"] = df[["elapsed", "secs"]].max(axis=1)
     for c in ["hr_avg", "hr_max", "kcal", "carbs", "feel", "pace"]:
         df[c] = pd.to_numeric(df[c], errors="coerce")
+    df["corr"] = False
+    if ACT_CORR:
+        for c in ("km", "dp", "dm", "secs", "elapsed", "kcal", "pace"):
+            df[c] = df[c].astype(float)
+    for aid, c_ in (ACT_CORR or {}).items():
+        m_ = df["id"] == aid
+        if not m_.any():
+            continue
+        s0, ds = float(df.loc[m_, "secs"].iloc[0]), float(c_.get("secs") or 0)
+        for col, kk in (("dp", "dp"), ("dm", "dm"), ("km", "km")):
+            df.loc[m_, col] = (df.loc[m_, col] + float(c_.get(kk) or 0)).clip(lower=0)
+        df.loc[m_, "secs"] = max(0.0, s0 + ds)
+        df.loc[m_, "elapsed"] = (df.loc[m_, "elapsed"] + ds).clip(lower=0)
+        if s0 > 0:
+            df.loc[m_, "kcal"] = df.loc[m_, "kcal"] * max(0.0, s0 + ds) / s0
+        km_ = float(df.loc[m_, "km"].iloc[0])
+        if km_ > 0 and s0 + ds > 0:
+            df.loc[m_, "pace"] = (s0 + ds) / km_
+        df.loc[m_, "corr"] = True
     df["incline"] = pd.to_numeric(df["incline"], errors="coerce")
     if overrides:  # pendientes guardadas en esta sesión (antes de que la caché se refresque)
         ov = df["id"].map(overrides)
@@ -1754,6 +1811,56 @@ def icu_write(method: str, path: str, body=None):
     if r.status_code >= 400:
         raise RuntimeError(f"{method} {path.split('?')[0]} → HTTP {r.status_code}: {r.text[:160]}")
     return r.json() if r.content else None
+
+
+# Datos propios de la app guardados en intervals.icu: una nota del calendario por tema, en una fecha fija y lejana que no sale
+# en ningún periodo de la app, con un JSON en la descripción. En DEMO se guardan en la sesión.
+APPNOTE_DATE = "2000-01-01"
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def fetch_app_note(athlete: str, key: str, name: str) -> tuple:
+    r = requests.get(f"{API}/athlete/{athlete}/events", params={"oldest": APPNOTE_DATE, "newest": APPNOTE_DATE},
+                     auth=("API_KEY", key), headers={"Accept": "application/json", "User-Agent": "LlibretaD+ (Streamlit)"},
+                     timeout=30)
+    r.raise_for_status()
+    for e in r.json() or []:
+        if e.get("category") == "NOTE" and (e.get("name") or "") == name:
+            try:
+                return e.get("id"), json.loads(e.get("description") or "{}")
+            except Exception:  # noqa: BLE001
+                return e.get("id"), {}
+    return None, {}
+
+
+def app_note_get(name: str, demo_key: str) -> tuple:
+    if demo:
+        return None, st.session_state.get(demo_key, {})
+    try:
+        return fetch_app_note(athlete, key, name)
+    except Exception:  # noqa: BLE001
+        return None, {}
+
+
+def app_note_save(name: str, demo_key: str, data: dict):
+    """Guarda (solo al pulsar el botón correspondiente)."""
+    if demo:
+        st.session_state[demo_key] = data
+        return
+    eid, _d = fetch_app_note(athlete, key, name)
+    body = {"category": "NOTE", "start_date_local": f"{APPNOTE_DATE}T00:00:00", "end_date_local": f"{APPNOTE_DATE}T00:00:00",
+            "name": name, "description": json.dumps(data, ensure_ascii=False, separators=(",", ":"))}
+    if eid:
+        icu_write("PUT", f"/athlete/{athlete}/events/{eid}", body)
+    else:
+        icu_write("POST", f"/athlete/{athlete}/events", body)
+    fetch_app_note.clear()
+
+
+# Correcciones de actividades (p. ej. el reloj se encendió tarde): metros de D+ y D−, segundos y km que se suman o restan
+# a lo que registró el reloj. Se aplican al leer las actividades, en toda la app. Las kcal del reloj se escalan con el tiempo.
+CORR_NAME = "Llibreta D+ · correcciones de actividades"
+ACT_CORR: dict = {}
 
 
 # ─────────────────────────── Comparar: datos por segundo y análisis ───────────────────────────
@@ -2384,7 +2491,8 @@ def _full_view():
 
 
 # Navegación de la vista completa: secciones agrupadas por afinidad en la barra lateral (?sec=… en la URL)
-NAV = [("Actividad", [("temp", "Temporada"), ("cw", "Semana en curso"), ("lw", "Última semana"), ("sets", "Hoja por Sets")]),
+NAV = [("Actividad", [("temp", "Temporada"), ("cw", "Semana en curso"), ("lw", "Última semana"), ("sets", "Hoja por Sets"),
+                      ("fix", "Corregir actividad")]),
        ("Plan 2027", [("plan", "Plan de entrenamiento"), ("race", "Carreras 2027"), ("nut", "Nutrición"), ("food", "Alimentos y bebidas")]),
        ("Análisis", [("long", "Entrenamientos largos"), ("cmp", "Comparar")]),
        ("Forma y salud", [("fat", "Esfuerzo y fatiga"), ("sal", "Salud")]),
@@ -2401,7 +2509,7 @@ def _go(sec_: str):
 
 
 NAV_D = {"temp": "Resumen del año, mes a mes", "cw": "Progreso frente a tus objetivos", "lw": "Balance de la semana pasada",
-         "sets": "La hoja D+ por meses", "plan": "Fases, sesiones y semanas", "race": "Tiempos de paso y cortes",
+         "sets": "La hoja D+ por meses", "fix": "Tramo sin grabar: D+, D− y tiempo", "plan": "Fases, sesiones y semanas", "race": "Tiempos de paso y cortes",
          "nut": "Macros y comida por tramo", "food": "Añadir o quitar de la lista", "long": "Tus salidas largas en detalle", "cmp": "Dos actividades frente a frente",
          "fat": "Carga, forma y fatiga", "sal": "HRV, FC, sueño y peso", "cinta": "Nivel, pendiente y D+",
          "mat": "Zapatillas y kilómetros"}
@@ -2662,6 +2770,7 @@ if athlete and athlete.isdigit():
     athlete = "i" + athlete
 
 years_needed = sorted({year, year - 1, now_y, now_y - 1})
+ACT_CORR = app_note_get(CORR_NAME, "demo_corr")[1].get("a", {})
 raw: dict[int, list[dict]] = {}
 errors = {}
 with st.spinner("Leyendo actividades de intervals.icu…"):
@@ -4688,6 +4797,8 @@ def mobile_view():
         nut_section(compact=True)
     with st.expander("**Alimentos y bebidas** · añadir o quitar de la lista", key="mob_x_food"):
         food_admin_section(compact=True)
+    with st.expander("**Corregir actividad** · tramo sin grabar: D+, D− y tiempo", key="mob_x_fix"):
+        act_fix_section(compact=True)
 
     # 9 · Material
     SB = shoe_table(shoes, hist)
@@ -5452,6 +5563,51 @@ DRINKS = {
     "Infusión o té": (1, 0.2, 0, 0, 250), "Batido de cacao": (70, 11, 3.3, 1.5, 250), "Caldo": (5, 0.5, 0.5, 0.2, 250),
 }
 MEALS = [("d", "Desayuno"), ("c", "Comida"), ("m", "Merienda"), ("n", "Cena")]
+# Nutrición deportiva, por unidad (gel, cápsula, bidón…): tipo, unidad, kcal, hidratos, glucosa, fructosa, proteína, grasa (g),
+# sodio (mg), cafeína (mg), BCAA (g) y líquido (ml). Glucosa = glucosa, maltodextrina y almidón (todo lo que se absorbe como
+# glucosa, máx. ~60 g/h); fructosa = fructosa libre y la mitad de la sacarosa. En sólidos el reparto es aproximado.
+SPORT_TYPES = ["Gel", "Sales", "Cafeína", "BCAA", "Sólido", "Líquido"]
+SPORT = {
+    "Gel 22 g · solo glucosa": ["Gel", "gel", 88, 22, 22, 0, 0, 0, 50, 0, 0, 0],
+    "Gel 25 g · 2:1": ["Gel", "gel", 100, 25, 16.7, 8.3, 0, 0, 50, 0, 0, 0],
+    "Gel 25 g · 2:1 con cafeína": ["Gel", "gel", 100, 25, 16.7, 8.3, 0, 0, 50, 75, 0, 0],
+    "Gel 40 g · 1:0,8": ["Gel", "gel", 160, 40, 22.2, 17.8, 0, 0, 100, 0, 0, 0],
+    "Gel 45 g · 1:0,8 hidrogel": ["Gel", "gel", 180, 45, 25, 20, 0, 0, 20, 0, 0, 0],
+    "Cápsula de sales": ["Sales", "cápsula", 0, 0, 0, 0, 0, 0, 215, 0, 0, 0],
+    "Pastilla de electrolitos": ["Sales", "pastilla", 4, 1, 1, 0, 0, 0, 300, 0, 0, 0],
+    "Sobre de sales": ["Sales", "sobre", 0, 0, 0, 0, 0, 0, 500, 0, 0, 0],
+    "Cápsula de cafeína 100 mg": ["Cafeína", "cápsula", 0, 0, 0, 0, 0, 0, 0, 100, 0, 0],
+    "Chicle con cafeína": ["Cafeína", "chicle", 5, 1, 1, 0, 0, 0, 0, 100, 0, 0],
+    "BCAA 5 g": ["BCAA", "dosis", 20, 0, 0, 0, 5, 0, 0, 0, 5, 0],
+    "Barrita energética (40 g)": ["Sólido", "barrita", 150, 27, 20, 7, 3, 3, 60, 0, 0, 0],
+    "Gominola energética": ["Sólido", "unidad", 32, 8, 5, 3, 0, 0, 17, 0, 0, 0],
+    "Gummies (bolsa de 40 g)": ["Sólido", "bolsa", 130, 32, 20, 12, 0, 0, 20, 0, 0, 0],
+    "Pasta de guayaba (30 g)": ["Sólido", "porción", 85, 22, 11, 11, 0, 0, 5, 0, 0, 0],
+    "Membrillo (30 g)": ["Sólido", "porción", 80, 20, 10, 10, 0, 0, 5, 0, 0, 0],
+    "Plátano": ["Sólido", "unidad", 105, 27, 14, 7, 1.3, 0.4, 1, 0, 0, 0],
+    "Dátil": ["Sólido", "unidad", 23, 6, 3, 3, 0.2, 0, 0, 0, 0, 0],
+    "Patata cocida con sal (50 g)": ["Sólido", "porción", 45, 10, 10, 0, 1, 0, 200, 0, 0, 0],
+    "Agua (bidón 500 ml)": ["Líquido", "bidón", 0, 0, 0, 0, 0, 0, 0, 0, 0, 500],
+    "Bebida isotónica (500 ml)": ["Líquido", "bidón", 120, 30, 20, 10, 0, 0, 250, 0, 0, 500],
+    "Bebida de hidratos 60 g · 1:0,8 (500 ml)": ["Líquido", "bidón", 240, 60, 33, 27, 0, 0, 500, 0, 0, 500],
+    "Refresco de cola (330 ml)": ["Líquido", "lata", 140, 35, 17.5, 17.5, 0, 0, 10, 32, 0, 330],
+    "Caldo (250 ml)": ["Líquido", "taza", 12, 1, 1, 0, 1, 0.5, 600, 0, 0, 250],
+    "Café (taza)": ["Líquido", "taza", 2, 0, 0, 0, 0, 0, 0, 80, 0, 100],
+}
+SP_KEYS = ("kcal", "ch", "glu", "fru", "p", "f", "na", "caf", "bcaa", "ml")
+SPORT_ALL: dict = dict(SPORT)
+
+
+def sport_totals(items: list) -> dict:
+    """Totales de lo tomado durante una actividad: [[producto, unidades], …]."""
+    out = {k_: 0.0 for k_ in SP_KEYS}
+    for name, q in items or []:
+        v = SPORT_ALL.get(name) or SPORT.get(name)
+        if v and q:
+            for i_, k_ in enumerate(SP_KEYS):
+                out[k_] += float(v[2 + i_]) * float(q)
+    return out
+
 _FOOD_TAG = re.compile(r"⟦llibreta-comida⟧(.*?)⟦/llibreta-comida⟧", re.S)
 
 # Lista propia de alimentos y bebidas: los de la app más los añadidos, menos los quitados. Se guarda en intervals.icu como
@@ -5464,28 +5620,8 @@ FOOD_ALL: dict = dict(FOODS)      # catálogo en uso (se rellena en food_cat())
 DRINK_ALL: dict = dict(DRINKS)
 
 
-@st.cache_data(ttl=600, show_spinner=False)
-def fetch_food_cat(athlete: str, key: str) -> tuple:
-    r = requests.get(f"{API}/athlete/{athlete}/events", params={"oldest": FOODCAT_DATE, "newest": FOODCAT_DATE},
-                     auth=("API_KEY", key), headers={"Accept": "application/json", "User-Agent": "LlibretaD+ (Streamlit)"},
-                     timeout=30)
-    r.raise_for_status()
-    for e in r.json() or []:
-        if e.get("category") == "NOTE" and (e.get("name") or "") == FOODCAT_NAME:
-            try:
-                return e.get("id"), json.loads(e.get("description") or "{}")
-            except Exception:  # noqa: BLE001
-                return e.get("id"), {}
-    return None, {}
-
-
 def food_cat_raw() -> tuple:
-    if demo:
-        return None, st.session_state.get("demo_foodcat", {})
-    try:
-        return fetch_food_cat(athlete, key)
-    except Exception:  # noqa: BLE001
-        return None, {}
+    return app_note_get(FOODCAT_NAME, "demo_foodcat")
 
 
 def food_cat() -> dict:
@@ -5505,25 +5641,23 @@ def food_cat() -> dict:
         out[t_] = all_
         out[t_ + "_act"] = {n_: v for n_, v in all_.items() if n_ not in hid}
         out[t_ + "_hide"] = hid
+    all_ = dict(SPORT)
+    for n_, v in (add.get("s") or {}).items():
+        try:
+            all_[str(n_)] = [str(v[0]), str(v[1])] + [float(x) for x in v[2:12]]
+        except Exception:  # noqa: BLE001
+            pass
+    hid = set(hide.get("s") or [])
+    out["s"], out["s_act"], out["s_hide"] = all_, {n_: v for n_, v in all_.items() if n_ not in hid}, hid
     out["add"] = add
-    FOOD_ALL, DRINK_ALL = out["f"], out["b"]
+    global SPORT_ALL
+    FOOD_ALL, DRINK_ALL, SPORT_ALL = out["f"], out["b"], out["s"]
     return out
 
 
 def food_cat_save(add: dict, hide: dict):
     """Guarda la lista propia (solo al pulsar el botón)."""
-    data = {"v": 1, "add": add, "hide": hide}
-    if demo:
-        st.session_state["demo_foodcat"] = data
-        return
-    eid, _d = fetch_food_cat(athlete, key)
-    body = {"category": "NOTE", "start_date_local": f"{FOODCAT_DATE}T00:00:00", "end_date_local": f"{FOODCAT_DATE}T00:00:00",
-            "name": FOODCAT_NAME, "description": json.dumps(data, ensure_ascii=False, separators=(",", ":"))}
-    if eid:
-        icu_write("PUT", f"/athlete/{athlete}/events/{eid}", body)
-    else:
-        icu_write("POST", f"/athlete/{athlete}/events", body)
-    fetch_food_cat.clear()
+    app_note_save(FOODCAT_NAME, "demo_foodcat", {"v": 1, "add": add, "hide": hide})
 
 
 def food_day_get(d_: dt.date) -> tuple[dict, str]:
@@ -5541,9 +5675,9 @@ def food_day_get(d_: dt.date) -> tuple[dict, str]:
         try:
             j_ = json.loads(m_.group(1))
             data = j_.get("m", {})
-            for t_, D_ in (("f", FOOD_ALL), ("b", DRINK_ALL)):     # alimentos que ya no están en la lista: valores del día
+            for t_, D_ in (("f", FOOD_ALL), ("b", DRINK_ALL), ("s", SPORT_ALL)):  # ya no están en la lista: valores del día
                 for n_, v in (j_.get("x", {}).get(t_) or {}).items():
-                    D_.setdefault(n_, tuple(v))
+                    D_.setdefault(n_, list(v) if t_ == "s" else tuple(v))
         except Exception:  # noqa: BLE001
             data = {}
     return data, _FOOD_TAG.sub("", com).strip()
@@ -5568,14 +5702,26 @@ def food_totals(meals: dict) -> dict:
         out["by"][mk] = t_
         for kk in ("kcal", "ch", "p", "f", "ml"):
             out[kk] += t_[kk]
+    t_ = {"kcal": 0.0, "ch": 0.0, "p": 0.0, "f": 0.0, "ml": 0.0}
+    for items in (meals.get("a") or {}).values():
+        st_ = sport_totals(items)
+        for kk in t_:
+            t_[kk] += st_[kk]
+    out["by"]["a"] = t_
+    for kk in t_:
+        out[kk] += t_[kk]
     return out
 
 
 def food_day_save(d_: dt.date, meals: dict, rest: str):
     tot = food_totals(meals)
     # Con el día se guardan los valores de los alimentos propios o cambiados: el día se lee igual aunque luego se quiten
-    x_ = {"f": {}, "b": {}}
-    for mk in meals:
+    x_ = {"f": {}, "b": {}, "s": {}}
+    for items in (meals.get("a") or {}).values():
+        for n_, _q in items:
+            if n_ in SPORT_ALL and list(SPORT_ALL[n_]) != list(SPORT.get(n_, [])):
+                x_["s"][n_] = list(SPORT_ALL[n_])
+    for mk in [m_ for m_, _l in MEALS if m_ in meals]:
         for t_, D_, B_ in (("f", FOOD_ALL, FOODS), ("b", DRINK_ALL, DRINKS)):
             for n_, _q in meals[mk].get(t_, []):
                 if n_ in D_ and tuple(D_[n_]) != tuple(B_.get(n_, ())):
@@ -5588,7 +5734,12 @@ def food_day_save(d_: dt.date, meals: dict, rest: str):
     icu_write("PUT", f"/athlete/{athlete}/wellness/{d_.isoformat()}",
               {"id": d_.isoformat(), "kcalConsumed": round(tot["kcal"]), "carbohydrates": round(tot["ch"]),
                "protein": round(tot["p"]), "fatTotal": round(tot["f"]), "comments": com})
+    for aid, items in (meals.get("a") or {}).items():   # hidratos tomados durante la actividad, en su campo de intervals
+        if str(aid).startswith("i") or str(aid).isdigit():
+            icu_write("PUT", f"/activity/{aid}", {"carbs_ingested": int(round(sport_totals(items)["ch"]))})
     fetch_wellness.clear()
+    if meals.get("a"):
+        fetch_year.clear()
 
 
 def food_week_intake(frm: dt.date, to: dt.date) -> dict:
@@ -5631,6 +5782,99 @@ def food_day_target(d_: dt.date, P: dict, base: float, k: float, W: list) -> tup
     return base + plan, h_plan, "plan"
 
 
+def sport_guide(minutes: float) -> tuple[float, float]:
+    """Hidratos por hora recomendados según la duración (misma guía que el plan)."""
+    if minutes < 60:
+        return 0, 30
+    if minutes < 90:
+        return 0, 30
+    if minutes < 150:
+        return 30, 60
+    return 60, 90
+
+
+def _band_col(v, lo, hi):
+    return GREEN if lo <= v <= hi else (ORANGE if v < lo else GLACIER)
+
+
+def sport_log(d_: dt.date, saved_a: dict, C_: dict, P: dict, compact: bool = False) -> dict:
+    """Lo tomado durante cada actividad del día: geles, sales, cafeína, BCAA, sólidos y líquidos, con su análisis por hora."""
+    da = all_df[all_df["date"] == d_].sort_values("ts") if len(all_df) else all_df
+    if not len(da):
+        st.info(tr("No hay actividades este día."))
+        return {}
+    used = {n_ for v in saved_a.values() for n_, _q in v}
+    opts = [tr(n_) for n_ in SPORT_ALL if n_ in C_["s_act"] or n_ in used]
+    back = {tr(n_): n_ for n_ in SPORT_ALL}
+    out = {}
+    st.markdown('<span class="note">Cantidad en unidades (gel, cápsula, bidón…); se admiten medias (0,5). Para añadir tus geles, '
+                'sales o bebidas con sus valores, ve a <b>Plan 2027 › Alimentos y bebidas › Deporte</b>.</span>', unsafe_allow_html=True)
+    for _, a in da.iterrows():
+        aid = str(a["id"])
+        h_ = float(a["hours"] or 0)
+        mins = h_ * 60
+        hh, mm = divmod(int(round(mins)), 60)
+        st.markdown(f'<div style="margin:14px 0 4px;font-weight:600;color:{INK}">{a["ts"]:%H:%M} · {a["name"] or a["sport"]} · '
+                    f'{fnum(a["km"], 1)} km · {fnum(a["dp"])} m D+ · {hh}:{mm:02d} h'
+                    + (f' <span style="color:{GOLD}">✎ {tr("corregida")}</span>' if a.get("corr") else "") + '</div>',
+                    unsafe_allow_html=True)
+        cur = saved_a.get(aid, [])
+        df0 = pd.DataFrame([{"Producto": tr(n_), "Unidades": q} for n_, q in cur] or
+                           pd.DataFrame({"Producto": [], "Unidades": []})).astype({"Producto": object, "Unidades": float})
+        ed = st.data_editor(df0, key=f"nlog_a_{aid}_{d_}", num_rows="dynamic", hide_index=True, width="stretch",
+                            column_config={"Producto": st.column_config.SelectboxColumn(tr("Producto"), options=opts, width="large"),
+                                           "Unidades": st.column_config.NumberColumn(tr("Unidades"), min_value=0, max_value=100,
+                                                                                     step=0.5, format="%.1f",
+                                                                                     help=tr("Vacío = 1"))})
+        items = []
+        for _, r_ in ed.iterrows():
+            n_ = back.get(r_["Producto"]) if isinstance(r_["Producto"], str) else None
+            if n_:
+                q = r_["Unidades"]
+                items.append([n_, float(q) if pd.notna(q) and q else 1.0])
+        if not items:
+            continue
+        out[aid] = items
+        T_ = sport_totals(items)
+        ph = (lambda v: v / h_) if h_ > 0 else (lambda v: 0.0)  # noqa: E731
+        lo, hi = sport_guide(mins)
+        chh, glh, frh = ph(T_["ch"]), ph(T_["glu"]), ph(T_["fru"])
+        ratio = f'1:{fnum(T_["fru"] / T_["glu"], 2)}' if T_["glu"] > 0 else ("—" if not T_["fru"] else tr("solo fructosa"))
+        warn = []
+        if glh > 60:
+            warn.append(tr("más de 60 g/h de glucosa: el exceso no se absorbe sin fructosa"))
+        if chh > 60 and T_["glu"] > 0 and T_["fru"] / T_["glu"] < 0.5:
+            warn.append(tr("por encima de 60 g/h conviene una proporción glucosa:fructosa de 2:1 a 1:0,8"))
+        caf_kg = T_["caf"] / P["w"]
+        c_caf = GREEN if 3 <= caf_kg <= 6 else (MUTED if caf_kg < 3 else (ORANGE if caf_kg <= 9 else RED))
+        kc_a = float(a["kcal"]) if pd.notna(a["kcal"]) and a["kcal"] else 0.0
+        na_l = T_["na"] / (T_["ml"] / 1000) if T_["ml"] > 0 else 0
+        cards([(tr("Hidratos"), ORANGE, fnum(T_["ch"]), " g",
+                [f'<span style="color:{_band_col(chh, lo, hi)}">{fnum(chh)} g/h</span> · {tr("guía")} {fnum(lo)}–{fnum(hi)} g/h',
+                 (f'{tr("tomadas")} {fnum(T_["kcal"])} kcal · {fnum(100 * T_["kcal"] / kc_a)} % {tr("del gasto")}' if kc_a
+                  else f'{tr("tomadas")} {fnum(T_["kcal"])} kcal')]),
+               (tr("Glucosa : fructosa"), GOLD, ratio, "",
+                [f'{tr("glucosa")} <span style="color:{GREEN if glh <= 60 else ORANGE}">{fnum(glh)} g/h</span> · '
+                 f'{tr("fructosa")} {fnum(frh)} g/h', f'{fnum(T_["glu"])} g + {fnum(T_["fru"])} g']),
+               (tr("Sodio"), TEAL, fnum(T_["na"]), " mg",
+                [f'<span style="color:{_band_col(ph(T_["na"]), 300, 600)}">{fnum(ph(T_["na"]))} mg/h</span> · {tr("guía")} 300–600',
+                 (f'{fnum(na_l)} mg/l {tr("de líquido")}' if T_["ml"] else tr("sin líquido registrado"))]),
+               (tr("Líquido"), GLACIER, fnum(T_["ml"]), " ml",
+                [f'<span style="color:{_band_col(ph(T_["ml"]), 400, 800)}">{fnum(ph(T_["ml"]))} ml/h</span> · {tr("guía")} 400–800',
+                 tr("según sed y calor")]),
+               (tr("Cafeína"), VIOLET, fnum(T_["caf"]), " mg",
+                [f'<span style="color:{c_caf}">{fnum(caf_kg, 1)} mg/kg</span> · {tr("efecto")} 3–6 mg/kg',
+                 f'BCAA {fnum(T_["bcaa"], 1)} g' if T_["bcaa"] else tr("sin BCAA")])])
+        for w_ in warn:
+            st.markdown(f'<span class="note" style="color:{ORANGE}">⚠ {w_}</span>', unsafe_allow_html=True)
+    st.markdown('<span class="note">Guías orientativas para resistencia: hidratos según la duración (hasta 90 g/h en ultras, '
+                'más solo con el intestino entrenado), glucosa hasta ~60 g/h y el resto como fructosa, sodio 300–600 mg/h (más con '
+                'calor o mucha sudoración), líquido 400–800 ml/h según sed, cafeína 3–6 mg/kg. Los BCAA no aportan si la proteína '
+                'del día es suficiente. Lo tomado suma a la ingesta del día, y los hidratos se guardan también en la actividad de '
+                'intervals.icu (hidratos ingeridos).</span>', unsafe_allow_html=True)
+    return out
+
+
 def food_log(P: dict, base: float, k: float, W: list, compact: bool = False):
     """Entrada del registro diario: desayuno, comida, merienda y cena, con alimentos, cantidades y bebida."""
     st.subheader("Registro diario de alimentación")
@@ -5639,13 +5883,13 @@ def food_log(P: dict, base: float, k: float, W: list, compact: bool = False):
     d_ = st.date_input("Día", today, max_value=today + dt.timedelta(days=1), key="nlog_day", format="DD/MM/YYYY")
     C_ = food_cat()
     saved, rest = food_day_get(d_)
-    used = {t_: {n_ for m_ in saved.values() for n_, _q in m_.get(t_, [])} for t_ in ("f", "b")}
+    used = {t_: {n_ for mk_, _l in MEALS for n_, _q in saved.get(mk_, {}).get(t_, [])} for t_ in ("f", "b")}
     f_opts = [tr(n_) for n_ in FOOD_ALL if n_ in C_["f_act"] or n_ in used["f"]]
     b_opts = [tr(n_) for n_ in DRINK_ALL if n_ in C_["b_act"] or n_ in used["b"]]
     f_back = {tr(n_): n_ for n_ in FOOD_ALL}
     b_back = {tr(n_): n_ for n_ in DRINK_ALL}
     meals = {}
-    tabs = st.tabs([lab for _k, lab in MEALS])
+    tabs = st.tabs([lab for _k, lab in MEALS] + ["Durante la actividad"])
     for (mk, lab), tb in zip(MEALS, tabs):
         with tb:
             cur = saved.get(mk, {})
@@ -5684,6 +5928,10 @@ def food_log(P: dict, base: float, k: float, W: list, compact: bool = False):
             st.markdown(f'<span class="note"><b style="color:{INK}">{tr(lab)}</b>: {fnum(t_["kcal"])} kcal · '
                         f'{tr("Hidratos")} {fnum(t_["ch"])} g · {tr("Proteína")} {fnum(t_["p"])} g · {tr("Grasa")} {fnum(t_["f"])} g · '
                         f'{tr("Líquido")} {fnum(t_["ml"])} ml</span>', unsafe_allow_html=True)
+    with tabs[-1]:
+        acts = sport_log(d_, saved.get("a", {}), C_, P, compact)
+        if acts:
+            meals["a"] = acts
     tot = food_totals(meals)
     gasto, h_, src_ = food_day_target(d_, P, base, k, W)
     M_ = nut_macros(gasto, P)
@@ -5758,6 +6006,212 @@ def food_log(P: dict, base: float, k: float, W: list, compact: bool = False):
                 'naranja si falta energía y azul si sobra.</span>', unsafe_allow_html=True)
 
 
+def sport_admin(C_: dict, errs: list, compact: bool) -> tuple[dict, list]:
+    """Lista de nutrición deportiva: valores por unidad."""
+    all_ = C_["s"]
+    disp = {n_: (tr(n_) if n_ in SPORT else n_) for n_ in all_}
+    back = {v: k_ for k_, v in disp.items()}
+    COLS = ["Hidratos g", "Glucosa g", "Fructosa g", "Sodio mg", "Cafeína mg", "BCAA g", "Líquido ml", "kcal", "Proteína g", "Grasa g"]
+    IDX = [3, 4, 5, 8, 9, 10, 11, 2, 6, 7]
+    rows = []
+    for n_, v in sorted(all_.items(), key=lambda kv: (kv[0] not in SPORT, SPORT_TYPES.index(kv[1][0]) if kv[1][0] in SPORT_TYPES else 9,
+                                                      disp[kv[0]].lower())):
+        r_ = {"En la lista": n_ not in C_["s_hide"], "Nombre": disp[n_], "Tipo": tr(v[0]), "Unidad": tr(v[1])}
+        r_.update({c: float(v[i]) for c, i in zip(COLS, IDX)})
+        r_["Glu:Fru"] = f'1:{fnum(float(v[5]) / float(v[4]), 2)}' if float(v[4]) > 0 else ("—" if not float(v[5]) else "0:1")
+        r_["Origen"] = (tr("App · cambiado") if list(v) != list(SPORT[n_]) else tr("App")) if n_ in SPORT else tr("Propio")
+        rows.append(r_)
+    df0 = pd.DataFrame(rows).astype({**{c: float for c in COLS}, "En la lista": bool, "Nombre": object, "Tipo": object,
+                                     "Unidad": object, "Glu:Fru": object, "Origen": object})
+    n_act, n_own = len(C_["s_act"]), sum(1 for n_ in all_ if n_ not in SPORT)
+    st.markdown(f'<span class="note">{fnum(n_act)} {tr("en la lista")} · {fnum(len(all_) - n_act)} {tr("quitados")} · '
+                f'{fnum(n_own)} {tr("propios")} · {tr("valores por unidad (gel, cápsula, bidón…)")}. '
+                f'{tr("Glucosa incluye maltodextrina y almidón; fructosa, la fructosa libre y la mitad de la sacarosa.")}</span>',
+                unsafe_allow_html=True)
+    t_opts = [tr(t_) for t_ in SPORT_TYPES]
+    t_back = {tr(t_): t_ for t_ in SPORT_TYPES}
+    num = lambda lab, mx, stp: st.column_config.NumberColumn(tr(lab), min_value=0, max_value=mx, step=stp, format="%.1f")  # noqa: E731
+    ed = st.data_editor(df0, key="fcat_s", num_rows="dynamic", hide_index=True, width="stretch",
+                        height=min(36 * (len(df0) + 2), 640) if not compact else 420,
+                        column_config={"En la lista": st.column_config.CheckboxColumn(tr("En la lista"), default=True, width="medium"),
+                                       "Nombre": st.column_config.TextColumn(tr("Nombre"), width="large", required=True, max_chars=60),
+                                       "Tipo": st.column_config.SelectboxColumn(tr("Tipo"), options=t_opts, required=True, width="small"),
+                                       "Unidad": st.column_config.TextColumn(tr("Unidad"), width="small", max_chars=20),
+                                       "Hidratos g": num("Hidratos g", 200, 0.5), "Glucosa g": num("Glucosa g", 200, 0.5),
+                                       "Fructosa g": num("Fructosa g", 200, 0.5), "Sodio mg": num("Sodio mg", 5000, 10.0),
+                                       "Cafeína mg": num("Cafeína mg", 500, 5.0), "BCAA g": num("BCAA g", 50, 0.5),
+                                       "Líquido ml": num("Líquido ml", 2000, 50.0), "kcal": num("kcal", 2000, 1.0),
+                                       "Proteína g": num("Proteína g", 100, 0.5), "Grasa g": num("Grasa g", 100, 0.5),
+                                       "Glu:Fru": st.column_config.TextColumn("Glu:Fru", disabled=True, width="small"),
+                                       "Origen": st.column_config.TextColumn(tr("Origen"), disabled=True, width="small")},
+                        column_order=["En la lista", "Nombre", "Tipo", "Unidad", "Hidratos g", "Glucosa g", "Fructosa g", "Glu:Fru",
+                                      "Sodio mg", "Cafeína mg", "BCAA g", "Líquido ml", "kcal", "Proteína g", "Grasa g", "Origen"])
+    add_, hide_, seen = {}, set(), set()
+    for _, r_ in ed.iterrows():
+        nm = str(r_["Nombre"]).strip() if isinstance(r_["Nombre"], str) else ""
+        if not nm:
+            continue
+        n_ = back.get(nm, nm)
+        if n_ in seen:
+            errs.append(f'{tr("Nombre repetido")}: {nm}')
+            continue
+        seen.add(n_)
+        g_ = lambda c: float(r_[c]) if pd.notna(r_[c]) else 0.0  # noqa: E731
+        tipo = t_back.get(r_["Tipo"], "Sólido") if isinstance(r_["Tipo"], str) else "Sólido"
+        un = str(r_["Unidad"]).strip() if isinstance(r_["Unidad"], str) and r_["Unidad"].strip() else "unidad"
+        if n_ in SPORT and un == tr(SPORT[n_][1]):
+            un = SPORT[n_][1]
+        ch, gl, fr, pr, ft = g_("Hidratos g"), g_("Glucosa g"), g_("Fructosa g"), g_("Proteína g"), g_("Grasa g")
+        if not ch and (gl or fr):
+            ch = gl + fr
+        kc = g_("kcal") if pd.notna(r_["kcal"]) else round(4 * ch + 4 * pr + 9 * ft, 1)
+        if gl + fr > ch + 0.5:
+            errs.append(f'{nm}: {tr("glucosa + fructosa pasan de los hidratos")}')
+        v = [tipo, un, kc, ch, gl, fr, pr, ft, g_("Sodio mg"), g_("Cafeína mg"), g_("BCAA g"), g_("Líquido ml")]
+        if n_ not in SPORT or [str(x) if i < 2 else float(x) for i, x in enumerate(SPORT[n_])] != v:
+            add_[n_] = v
+        if r_["En la lista"] is not None and pd.notna(r_["En la lista"]) and not bool(r_["En la lista"]):
+            hide_.add(n_)
+    hide_ |= {n_ for n_ in SPORT if n_ not in seen}
+    return add_, sorted(hide_)
+
+
+def _hms(sec: float) -> str:
+    sg = "−" if sec < 0 else ""
+    sec = int(round(abs(sec)))
+    h, r = divmod(sec, 3600)
+    return f"{sg}{h}:{r // 60:02d}:{r % 60:02d}"
+
+
+def act_fix_section(compact: bool = False):
+    """Corregir una actividad con un tramo sin grabar: sumar o restar D+, D−, tiempo y km."""
+    if not compact:
+        st.subheader("Corregir una actividad")
+        st.markdown('<div class="note">Si el reloj se encendió tarde o se paró antes de tiempo, añade (o resta) el desnivel '
+                    'positivo, el negativo, la distancia y el tiempo del tramo que falta. La corrección se aplica en toda '
+                    'la app (temporada, semanas, nutrición, comparar…); las kcal del reloj se escalan con el tiempo. La actividad '
+                    'original de intervals.icu no se modifica: su API no permite cambiar el tiempo ni el desnivel de una actividad '
+                    'grabada, así que la corrección se guarda aparte y se puede quitar cuando quieras.</div>', unsafe_allow_html=True)
+    raw_c = app_note_get(CORR_NAME, "demo_corr")[1]
+    corr = dict(raw_c.get("a", {}))
+    lim = today - dt.timedelta(days=60)
+    da = all_df[(all_df["date"] >= lim) | all_df["id"].astype(str).isin(list(corr))].sort_values("ts", ascending=False) \
+        if len(all_df) else all_df
+    if not len(da):
+        st.info(tr("No hay actividades recientes."))
+        return
+    ids = da["id"].astype(str).tolist()
+    lab = {str(r_["id"]): f'{r_["ts"]:%d/%m/%Y %H:%M} · {r_["name"] or r_["sport"]} · {fnum(r_["km"], 1)} km · {fnum(r_["dp"])} m D+'
+           + (" ✎" if r_["corr"] else "") for _, r_ in da.iterrows()}
+    aid = st.selectbox("Actividad", ids, format_func=lambda x: lab.get(x, x), key="fix_act")
+    a = da[da["id"].astype(str) == aid].iloc[0]
+    c0 = corr.get(aid, {})
+    o_dp, o_dm = float(a["dp"]) - float(c0.get("dp") or 0), float(a["dm"]) - float(c0.get("dm") or 0)
+    o_s, o_km = float(a["secs"]) - float(c0.get("secs") or 0), float(a["km"]) - float(c0.get("km") or 0)
+    is_cinta = a["sport"] in CINTA
+    if is_cinta:
+        st.markdown('<span class="note">En la cinta el D+ sale de la pendiente (pestaña Cinta); aquí solo cuentan el tiempo y los km '
+                    '(al cambiar los km también cambia el D+ calculado).</span>',
+                    unsafe_allow_html=True)
+    imb = o_dm - o_dp
+    if not is_cinta and abs(imb) >= 20:
+        st.markdown(f'<span class="note">{tr("El reloj registró")} {fnum(o_dp)} m D+ {tr("y")} {fnum(o_dm)} m D− '
+                    f'({tr("diferencia")} {fnum(abs(imb))} m). {tr("Si empezaste y acabaste en el mismo punto, el tramo que falta tiene unos")} '
+                    f'<b>{fnum(abs(imb))} m {"D+" if imb > 0 else "D−"}</b>.</span>', unsafe_allow_html=True)
+    # valores por defecto: la corrección guardada. Cada dato: Sumar/Restar + valor positivo
+    k_ = f"fix_{aid}"
+    if st.session_state.get("fix_loaded") != aid:
+        st.session_state["fix_loaded"] = aid
+        for f_ in ("dp", "dm", "km", "secs"):
+            v0 = float(c0.get(f_, 0))
+            st.session_state[f"{k_}_{f_}_sg"] = "Restar" if v0 < 0 else "Sumar"
+            if f_ == "secs":
+                st.session_state[k_ + "_min"] = int(abs(v0) // 60)
+                st.session_state[k_ + "_sec"] = int(round(abs(v0) % 60))
+            else:
+                st.session_state[f"{k_}_{f_}"] = abs(v0)
+        st.session_state[k_ + "_txt"] = str(c0.get("note", ""))
+    if not is_cinta and abs(imb) >= 20 and not c0:
+        if st.button(f'{tr("Usar la diferencia")}: +{fnum(abs(imb))} m {"D+" if imb > 0 else "D−"}', key=k_ + "_sug"):
+            f_ = "dp" if imb > 0 else "dm"
+            st.session_state[f"{k_}_{f_}"] = float(round(abs(imb)))
+            st.session_state[f"{k_}_{f_}_sg"] = "Sumar"
+            st.rerun()
+
+    def _sgn(f_):
+        return -1.0 if st.session_state.get(f"{k_}_{f_}_sg") == "Restar" else 1.0
+
+    cols = st.columns(2 if compact else 4)
+    vals = {}
+    for i_, (f_, lab_, mx, stp, fmt) in enumerate((("dp", "D+ (m)", 5000.0, 10.0, "%.0f"), ("dm", "D− (m)", 5000.0, 10.0, "%.0f"),
+                                                  ("km", "Distancia (km)", 100.0, 0.1, "%.2f"))):
+        with cols[i_ % len(cols)]:
+            st.segmented_control(lab_, ["Sumar", "Restar"], key=f"{k_}_{f_}_sg", width="stretch", disabled=is_cinta and f_ != "km")
+            v_ = st.number_input(lab_, 0.0, mx, step=stp, format=fmt, key=f"{k_}_{f_}", label_visibility="collapsed",
+                                 disabled=is_cinta and f_ != "km")
+            vals[f_] = v_ * _sgn(f_)
+    with cols[3 % len(cols)]:
+        st.segmented_control("Tiempo", ["Sumar", "Restar"], key=f"{k_}_secs_sg", width="stretch")
+        t1, t2 = st.columns(2)
+        dmin = t1.number_input("Minutos", 0, 1440, step=1, key=k_ + "_min", label_visibility="collapsed", help="Minutos")
+        dsec = t2.number_input("Segundos", 0, 59, step=1, key=k_ + "_sec", label_visibility="collapsed", help="Segundos")
+        st.markdown('<span class="note">min · s</span>', unsafe_allow_html=True)
+    note = st.text_input("Motivo (opcional)", key=k_ + "_txt", max_chars=120, placeholder="Reloj encendido tarde")
+    ddp, ddm, dkm = vals["dp"], vals["dm"], vals["km"]
+    dsecs = (dmin * 60 + dsec) * _sgn("secs")
+    if is_cinta:
+        ddp = ddm = 0.0
+    n_dp, n_dm = max(0.0, o_dp + ddp), max(0.0, o_dm + ddm)
+    n_s, n_km = max(0.0, o_s + dsecs), max(0.0, o_km + dkm)
+    pace = lambda s_, k__: (f'{int(s_ / k__ // 60)}:{int(s_ / k__ % 60):02d} /km' if k__ > 0 and s_ > 0 else "—")  # noqa: E731
+    R_ = pd.DataFrame([
+        {"Dato": "D+ (m)", "Reloj": fnum(o_dp), "Corrección": f'{"+" if ddp >= 0 else "−"}{fnum(abs(ddp))}', "Resultado": fnum(n_dp)},
+        {"Dato": "D− (m)", "Reloj": fnum(o_dm), "Corrección": f'{"+" if ddm >= 0 else "−"}{fnum(abs(ddm))}', "Resultado": fnum(n_dm)},
+        {"Dato": "Tiempo", "Reloj": _hms(o_s), "Corrección": ("+" if dsecs >= 0 else "") + _hms(dsecs), "Resultado": _hms(n_s)},
+        {"Dato": "Km", "Reloj": fnum(o_km, 2), "Corrección": f'{"+" if dkm >= 0 else "−"}{fnum(abs(dkm), 2)}', "Resultado": fnum(n_km, 2)},
+        {"Dato": "Ritmo", "Reloj": pace(o_s, o_km), "Corrección": "", "Resultado": pace(n_s, n_km)},
+        {"Dato": "D+/h", "Reloj": fnum(o_dp / (o_s / 3600)) if o_s else "—", "Corrección": "",
+         "Resultado": fnum(n_dp / (n_s / 3600)) if n_s else "—"},
+    ])
+    html_table(R_, left={"Dato"})
+    new_c = {k2: v for k2, v in {"dp": round(ddp), "dm": round(ddm), "secs": int(dsecs), "km": round(dkm, 3)}.items() if v}
+    b1, b2, b3 = st.columns([1, 1, 2], vertical_alignment="center")
+    if b1.button("Guardar la corrección" + ("" if demo else " en intervals.icu"), type="primary", key="fix_save", width="stretch",
+                 disabled=not new_c or (new_c == {k2: v for k2, v in c0.items() if k2 in ("dp", "dm", "secs", "km")}
+                                         and note == c0.get("note", ""))):
+        corr[aid] = {**new_c, "note": note.strip(), "date": str(a["date"]), "name": str(a["name"] or a["sport"]),
+                     "orig": {"dp": round(o_dp), "dm": round(o_dm), "secs": int(o_s), "km": round(o_km, 3)}}
+        try:
+            app_note_save(CORR_NAME, "demo_corr", {"v": 1, "a": corr})
+            st.session_state.pop("fix_loaded", None)
+            st.toast(tr("Corrección guardada"))
+            st.rerun()
+        except Exception as e:  # noqa: BLE001
+            st.error(f"{tr('No se pudo guardar')}: {e}")
+    if b2.button("Quitar la corrección", key="fix_del", width="stretch", disabled=aid not in corr):
+        corr.pop(aid, None)
+        try:
+            app_note_save(CORR_NAME, "demo_corr", {"v": 1, "a": corr})
+            st.session_state.pop("fix_loaded", None)
+            st.toast(tr("Corrección quitada"))
+            st.rerun()
+        except Exception as e:  # noqa: BLE001
+            st.error(f"{tr('No se pudo guardar')}: {e}")
+    b3.markdown('<span class="note">' + ("Se guarda en la sesión (DEMO)." if demo else
+                "Se guarda en intervals.icu en una nota del calendario del 01/01/2000 («Llibreta D+ · correcciones de actividades»).")
+                + "</span>", unsafe_allow_html=True)
+    if corr and not compact:
+        st.markdown("**" + tr("Correcciones guardadas") + "**")
+        rows = []
+        for i_, c_ in sorted(corr.items(), key=lambda kv: kv[1].get("date", ""), reverse=True):
+            rows.append({"Fecha": dt.date.fromisoformat(c_["date"]).strftime("%d/%m/%Y") if c_.get("date") else "—",
+                         "Actividad": c_.get("name", i_), "D+": f'{"+" if c_.get("dp", 0) >= 0 else "−"}{fnum(abs(c_.get("dp", 0)))}',
+                         "D−": f'{"+" if c_.get("dm", 0) >= 0 else "−"}{fnum(abs(c_.get("dm", 0)))}',
+                         "Tiempo": ("+" if c_.get("secs", 0) >= 0 else "") + _hms(c_.get("secs", 0)),
+                         "Km": f'{"+" if c_.get("km", 0) >= 0 else "−"}{fnum(abs(c_.get("km", 0)), 2)}', "Motivo": c_.get("note") or "—"})
+        html_table(pd.DataFrame(rows), left={"Fecha", "Actividad", "Motivo"})
+
+
 def food_admin_section(compact: bool = False):
     """Alimentos y bebidas: lista de la app más los propios; añadir, cambiar valores o quitar."""
     C_ = food_cat()
@@ -5770,7 +6224,7 @@ def food_admin_section(compact: bool = False):
                     'kcal vacías se calculan con los macros (4 · hidratos + 4 · proteína + 9 · grasa). Los días ya registrados '
                     'conservan los valores con los que se guardaron.</div>', unsafe_allow_html=True)
     st.markdown("&nbsp;", unsafe_allow_html=True)
-    tabs = st.tabs(["Alimentos", "Bebidas"])
+    tabs = st.tabs(["Alimentos", "Bebidas", "Deporte"])
     new_add, new_hide, errs = {}, {}, []
     for (t_, base, unit), tb in zip((("f", FOODS, "g"), ("b", DRINKS, "ml")), tabs):
         with tb:
@@ -5819,23 +6273,27 @@ def food_admin_section(compact: bool = False):
                     hide_.add(n_)
             hide_ |= {n_ for n_ in base if n_ not in seen}         # fila de la app borrada = quitada
             new_add[t_], new_hide[t_] = add_, sorted(hide_)
+    with tabs[2]:
+        new_add["s"], new_hide["s"] = sport_admin(C_, errs, compact)
     for e in errs:
         st.warning(e)
-    changed = (new_add != {t_: {k_: list(map(float, v)) for k_, v in (C_["add"].get(t_) or {}).items()} for t_ in ("f", "b")}
-               or {t_: sorted(C_[t_ + "_hide"]) for t_ in ("f", "b")} != new_hide)
+    old_add = {t_: {k_: list(map(float, v)) for k_, v in (C_["add"].get(t_) or {}).items()} for t_ in ("f", "b")}
+    old_add["s"] = {k_: [str(v[0]), str(v[1])] + [float(x) for x in v[2:12]] for k_, v in (C_["add"].get("s") or {}).items()}
+    changed = new_add != old_add or {t_: sorted(C_[t_ + "_hide"]) for t_ in ("f", "b", "s")} != new_hide
     b1, b2, b3 = st.columns([1, 1, 2], vertical_alignment="center")
     if b1.button("Guardar la lista" + ("" if demo else " en intervals.icu"), type="primary", key="fcat_save", width="stretch",
                  disabled=bool(errs) or not changed):
         try:
             food_cat_save(new_add, new_hide)
-            for k_ in ("fcat_f", "fcat_b"):
+            for k_ in ("fcat_f", "fcat_b", "fcat_s"):
                 st.session_state.pop(k_, None)
             st.toast(tr("Lista guardada"))
             st.rerun()
         except Exception as e:  # noqa: BLE001
             st.error(f"{tr('No se pudo guardar')}: {e}")
     if b2.button("Volver a la lista de la app", key="fcat_reset", width="stretch",
-                 disabled=not (C_["add"].get("f") or C_["add"].get("b") or C_["f_hide"] or C_["b_hide"]),
+                 disabled=not (C_["add"].get("f") or C_["add"].get("b") or C_["add"].get("s") or C_["f_hide"] or C_["b_hide"]
+                               or C_["s_hide"]),
                  help="Borra los alimentos propios, los cambios y los quitados"):
         st.session_state["fcat_confirm"] = True
     if st.session_state.get("fcat_confirm"):
@@ -5843,8 +6301,8 @@ def food_admin_section(compact: bool = False):
         c1, c2 = b3.columns(2)
         if c1.button("Sí, volver a la de la app", key="fcat_reset_ok", width="stretch"):
             try:
-                food_cat_save({"f": {}, "b": {}}, {"f": [], "b": []})
-                for k_ in ("fcat_f", "fcat_b", "fcat_confirm"):
+                food_cat_save({"f": {}, "b": {}, "s": {}}, {"f": [], "b": [], "s": []})
+                for k_ in ("fcat_f", "fcat_b", "fcat_s", "fcat_confirm"):
                     st.session_state.pop(k_, None)
                 st.rerun()
             except Exception as e:  # noqa: BLE001
@@ -6737,6 +7195,9 @@ if SEC == "nut":
 
 if SEC == "food":
     food_admin_section()
+
+if SEC == "fix":
+    act_fix_section()
 
 if SEC == "cinta":
     st.subheader("Pendiente de las sesiones de cinta")
