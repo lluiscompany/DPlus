@@ -751,9 +751,14 @@ _install_i18n()
 # Tema: se elige con el interruptor de la barra lateral (clave "light_theme")
 # v2 · diseño «Prodigio»: carbono + amarillo La Sportiva + blanco espuma, con textura de malla. El tema va en la URL
 # (?tema=claro|oscuro) para que se conserve al recargar.
-if "theme_icon" not in st.session_state:
-    st.session_state["theme_icon"] = "☀️" if str(st.query_params.get("tema", "")).lower() == "claro" else "🌙"
-LIGHT = st.session_state.get("theme_icon") == "☀️"
+# El tema en uso vive en «theme_val» (no es clave de widget), igual que el color: no se pierde si el control se reinicia.
+if st.session_state.get("theme_val") not in ("☀️", "🌙"):
+    st.session_state["theme_val"] = "☀️" if str(st.query_params.get("tema", "")).lower() == "claro" else "🌙"
+if st.session_state.get("theme_icon") != st.session_state["theme_val"]:
+    st.session_state["theme_icon"] = st.session_state["theme_val"]
+LIGHT = st.session_state["theme_val"] == "☀️"
+if str(st.query_params.get("tema", "")).lower() != ("claro" if LIGHT else "oscuro") and (LIGHT or st.query_params.get("tema")):
+    st.query_params["tema"] = "claro" if LIGHT else "oscuro"
 PALETTES_V1 = {
     "dark": dict(GOLD="#f5c400", GLACIER="#4cc0e6", RED="#e8402f", GREEN="#3cb46a", VIOLET="#a58bd6", ORANGE="#f08a3c",
                  TEAL="#3fb8a6", INK="#f3f2ec", MUTED="#8e989f", PREV="#5d676e", LINE="#262d33", GRID="#1d2328",
@@ -764,10 +769,28 @@ PALETTES_V1 = {
 }
 # Color principal (por defecto el amarillo de la zapatilla); se elige en Ajustes y va en la URL (?color=ffe100)
 ACC_DEF = "#ffe100"
-if not re.fullmatch(r"#[0-9a-fA-F]{6}", str(st.session_state.get("sb_accent", ""))):
+# El color en uso vive en «acc_val» (no es la clave de ningún widget): si Streamlit reinicia el selector de color al
+# volver a ejecutar la página por otro control (p. ej. un interruptor de Ajustes), el color no se pierde ni pasa a negro.
+_HEX = re.compile(r"#[0-9a-fA-F]{6}")
+if not _HEX.fullmatch(str(st.session_state.get("acc_val", ""))):
     _qc = str(st.query_params.get("color", "")).strip().lstrip("#")
-    st.session_state["sb_accent"] = ("#" + _qc.lower()) if re.fullmatch(r"[0-9a-fA-F]{6}", _qc) else ACC_DEF
-ACC = st.session_state["sb_accent"].lower()
+    st.session_state["acc_val"] = ("#" + _qc.lower()) if re.fullmatch(r"[0-9a-fA-F]{6}", _qc) else ACC_DEF
+ACC = st.session_state["acc_val"].lower()
+if ACC != ACC_DEF and str(st.query_params.get("color", "")).lower() != ACC[1:]:
+    st.query_params["color"] = ACC[1:]          # siempre en la URL: una sesión nueva (reconexión) lo recupera
+
+
+def _acc_pick():
+    v = str(st.session_state.get("sb_accent_w") or "")
+    if _HEX.fullmatch(v):
+        st.session_state["acc_val"] = v.lower()
+        st.query_params["color"] = v.lstrip("#").lower()
+
+
+def _acc_reset():
+    st.session_state["acc_val"] = ACC_DEF
+    st.session_state.pop("sb_accent_w", None)
+    st.query_params["color"] = ACC_DEF[1:]
 
 
 def _mix(c1: str, c2: str, w: float) -> str:
@@ -2535,7 +2558,12 @@ NAV_D = {"temp": "Resumen del año, mes a mes", "cw": "Progreso frente a tus obj
 
 
 def _sync_theme():
-    st.query_params["tema"] = "claro" if st.session_state.get("theme_icon") == "☀️" else "oscuro"
+    v = st.session_state.get("theme_icon")
+    if v not in ("☀️", "🌙"):          # al pulsar el tema ya elegido se deselecciona: se mantiene el actual
+        st.session_state["theme_icon"] = st.session_state.get("theme_val", "🌙")
+        return
+    st.session_state["theme_val"] = v
+    st.query_params["tema"] = "claro" if v == "☀️" else "oscuro"
 
 
 def _sync_year():
@@ -2558,11 +2586,13 @@ with st.container(key="cfgbox"), st.popover("⚙ Ajustes", key="cfgpop"):
     st.segmented_control("Tema", ["🌙", "☀️"], key="theme_icon", on_change=_sync_theme,
                          format_func=lambda v: {"🌙": "🌙 Carbono", "☀️": "☀️ Espuma"}[v], help="Tema oscuro / claro")
     _cp1, _cp2 = st.columns([3, 2], vertical_alignment="bottom")
-    _cp1.color_picker("Color principal", key="sb_accent",
-                      on_change=lambda: st.query_params.__setitem__("color", st.session_state["sb_accent"].lstrip("#").lower()),
+    if not _HEX.fullmatch(str(st.session_state.get("sb_accent_w", ""))) or \
+            str(st.session_state.get("sb_accent_w")).lower() != ACC:
+        st.session_state["sb_accent_w"] = ACC     # el selector siempre muestra el color en uso
+    _cp1.color_picker("Color principal", key="sb_accent_w", on_change=_acc_pick,
                       help="Color de acento de la web: barra superior, títulos, botones y gráficos principales.")
     _cp2.button("Restablecer", key="sb_accent_reset", width="stretch",
-                on_click=lambda: (st.session_state.__setitem__("sb_accent", ACC_DEF), st.query_params.__setitem__("color", ACC_DEF[1:])))
+                on_click=_acc_reset)
     st.selectbox("Fondo", list(BG_OPTS), key="sb_bg", format_func=BG_OPTS.get,
                  on_change=lambda: st.query_params.__setitem__("fondo", st.session_state["sb_bg"]),
                  help="Fondo discreto relacionado con la montaña, sobre la textura de malla.")
