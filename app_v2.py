@@ -1005,6 +1005,22 @@ table.tbl tr.tot td {{ border-top: 2px solid {GOLD}; color: {GOLD}; font-weight:
 
 
 # Widgets nativos con los colores del tema (en v2 en los dos temas, sea cual sea el tema base de Streamlit)
+# Las tablas editables (st.data_editor) se pintan en un <canvas> con los colores del tema base de Streamlit (config.toml), que el
+# CSS no alcanza. Si el tema elegido en Ajustes es el contrario al tema base, se invierten sus colores (y se rota el tono para
+# que el color principal y los de las celdas no cambien): fondo claro con texto oscuro en el tema claro, y al revés.
+try:
+    _base = str(st.get_option("theme.base") or "").lower()          # el de config.toml, si lo fija
+except Exception:  # noqa: BLE001
+    _base = ""
+if _base not in ("dark", "light"):
+    try:
+        _base = str(getattr(getattr(st.context, "theme", None), "type", "") or "dark").lower()
+    except Exception:  # noqa: BLE001
+        _base = "dark"
+_BASE_LIGHT = _base == "light"
+_GRID_FIX = ("" if LIGHT == _BASE_LIGHT else
+             '[data-testid="stDataFrameResizable"] canvas {{ '
+             'filter: invert(1) hue-rotate(180deg); }}').replace("{{", "{").replace("}}", "}")
 if True:
     st.markdown(f"""<style>
 .stSelectbox [role="group"], .stMultiSelect [role="group"], [data-baseweb="select"] > div,
@@ -1044,8 +1060,41 @@ input::placeholder, textarea::placeholder {{ color: {MUTED} !important; opacity:
 [data-testid="stLinkButton"] a {{ background: {SURFACE} !important; color: {INK} !important; border: 1px solid {LINE} !important; }}
 [data-testid="stLinkButton"] a p, [data-testid="stLinkButton"] a span {{ color: {INK} !important; }}
 [data-testid="stLinkButton"] a:hover {{ border-color: {GOLD} !important; }}
-[data-baseweb="calendar"], [data-baseweb="calendar"] * {{ background-color: {SURFACE}; color: {INK}; }}
+[data-baseweb="calendar"], [data-baseweb="calendar"] * {{ background-color: {SURFACE} !important; color: {INK} !important;
+  border-color: {LINE} !important; }}
+[data-baseweb="calendar"] svg {{ fill: {INK} !important; }}
+[data-baseweb="calendar"] [role="gridcell"]:hover div {{ background-color: {HOVER} !important; }}
 [data-baseweb="calendar"] [aria-selected="true"] div {{ background-color: {GOLD} !important; color: {on(GOLD)} !important; }}
+[data-baseweb="calendar"] [aria-disabled="true"] div {{ color: {MUTED} !important; opacity: .45; }}
+[data-baseweb="popover"] > div:has([data-baseweb="calendar"]) {{ background: {SURFACE} !important; border: 1px solid {LINE} !important; }}
+/* Selector de fecha (Streamlit ≥1.5x, react-aria): campo, calendario desplegable y días */
+[data-testid="stDateInputField"] {{ background: {SURFACE} !important; border-color: {LINE} !important; }}
+[data-testid="stDateInputField"] span[role="spinbutton"], [data-testid="stDateInputField"] span[data-type="literal"] {{ color: {INK} !important; }}
+[data-testid="stDateInputField"] span[role="spinbutton"]:focus {{ background: {GOLD} !important; color: {on(GOLD)} !important; }}
+[data-testid="stDateInputField"] svg {{ color: {MUTED} !important; fill: {MUTED} !important; }}
+[data-testid="stDateInputCalendar"] {{ background: {SURFACE} !important; color: {INK} !important; border: 1px solid {LINE} !important;
+  box-shadow: 0 12px 28px rgba(0,0,0,.18) !important; }}
+[data-testid="stDateInputCalendar"] *:not([data-selected="true"]):not([aria-selected="true"]) {{ color: {INK}; }}
+[data-testid="stDateInputCalendar"] button, [data-testid="stDateInputCalendar"] select {{ background: transparent !important; color: {INK} !important; }}
+[data-testid="stDateInputCalendar"] svg {{ fill: {INK} !important; color: {INK} !important; }}
+[data-testid="stDateInputCalendar"] th {{ color: {MUTED} !important; }}
+[data-testid="stDateInputCalendar"] [data-disabled="true"], [data-testid="stDateInputCalendar"] [data-outside-month="true"] {{
+  color: {MUTED} !important; opacity: .45; }}
+[data-testid="stDateInputCalendar"] [data-today="true"]:not([data-selected="true"]) {{ box-shadow: inset 0 0 0 1.5px {GOLD}; }}
+[data-testid="stDateInputCalendar"] td div:not([data-disabled="true"]):not([data-selected="true"]):hover {{ background: {HOVER} !important; }}
+[data-testid="stDateInputCalendar"] [aria-selected="true"] div, [data-testid="stDateInputCalendar"] [data-selected="true"] {{
+  background: {GOLD} !important; color: {on(GOLD)} !important; }}
+/* Tablas editables: editor de celda, su desplegable y la barra de herramientas */
+.gdg-style, .glide-select [class*="-control"], .glide-select [class*="-menu"] {{ background: {SURFACE} !important; color: {INK} !important; }}
+.gdg-style input, .gdg-style textarea, .glide-select input {{ color: {INK} !important; background: transparent !important; }}
+.glide-select [class*="-singleValue"], .glide-select [class*="-placeholder"] {{ color: {INK} !important; }}
+.glide-select [class*="-option"] {{ background: {SURFACE} !important; color: {INK} !important; }}
+.glide-select [class*="-option"]:hover, .glide-select [class*="-option--is-focused"] {{ background: {HOVER} !important; }}
+.gdg-style {{ border: 1px solid {GOLD} !important; box-shadow: 0 6px 18px rgba(0,0,0,.18) !important; }}
+[data-testid="stElementToolbar"] > div, [data-testid="stElementToolbar"] button {{ background: {SURFACE} !important; color: {INK} !important; }}
+[data-testid="stElementToolbar"] > div {{ border: 1px solid {LINE} !important; }}
+[data-testid="stElementToolbar"] svg {{ fill: {INK} !important; color: {INK} !important; }}
+{_GRID_FIX}
 .stTooltipIcon svg, [data-testid="stTooltipHoverTarget"] svg {{ color: {MUTED}; fill: {MUTED}; }}
 </style>""", unsafe_allow_html=True)
 
