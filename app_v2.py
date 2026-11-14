@@ -1548,9 +1548,9 @@ h1, h2, h3 {{ text-transform: none; }}
 table.tbl th {{ letter-spacing: .08em; }}
 a {{ color: {GOLD}; }}
 /* Acentos amarillos en los controles nativos */
-[data-testid="stBaseButton-primary"] {{ background: {YEL} !important; border-color: {YEL} !important; color: {ACC_ON} !important; }}
-[data-testid="stBaseButton-primary"] p {{ color: {ACC_ON} !important; font-weight: 600; }}
-[data-testid="stBaseButton-primary"]:hover {{ filter: brightness(.92); }}
+[data-testid="stBaseButton-primary"], [data-testid="stBaseButton-primaryFormSubmit"] {{ background: {YEL} !important; border-color: {YEL} !important; color: {ACC_ON} !important; }}
+[data-testid="stBaseButton-primary"] p, [data-testid="stBaseButton-primaryFormSubmit"] p {{ color: {ACC_ON} !important; font-weight: 600; }}
+[data-testid="stBaseButton-primary"]:hover, [data-testid="stBaseButton-primaryFormSubmit"]:hover {{ filter: brightness(.92); }}
 .stCheckbox label[data-selected="true"] > span + div {{ background: {GOLD} !important; }}
 .stCheckbox label[data-selected="true"] > span + div > div {{ background: {ACC_ON} !important; }}
 .stCheckbox label:not([data-selected="true"]) > span + div {{ background: {LINE} !important; }}
