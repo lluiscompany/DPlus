@@ -1676,6 +1676,17 @@ a {{ color: {GOLD}; }}
 .stButtonGroup button {{ background: {SURFACE} !important; border-color: {LINE} !important; }}
 .stButtonGroup button p {{ color: {INK} !important; }}
 .stExpander details {{ background: {SURFACE} !important; border-color: {LINE} !important; border-radius: 4px !important; }}
+/* Cabecera de los desplegables y botones de formulario: con el tema base oscuro de Streamlit salían negros en el tema claro */
+[data-testid="stExpander"] summary, .stExpander summary {{ background: {SURFACE} !important; color: {INK} !important; }}
+[data-testid="stExpander"] summary:hover {{ background: {HOVER} !important; }}
+[data-testid="stExpander"] summary p, [data-testid="stExpander"] summary span, [data-testid="stExpander"] summary svg {{
+  color: {INK} !important; fill: {INK} !important; }}
+[data-testid="stBaseButton-secondaryFormSubmit"], [data-testid="stBaseButton-tertiary"], [data-testid="stBaseButton-tertiaryFormSubmit"],
+[data-testid="stBaseButton-minimal"] {{ background: {SURFACE} !important; color: {INK} !important; border-color: {LINE} !important; }}
+[data-testid="stBaseButton-secondaryFormSubmit"] p, [data-testid="stBaseButton-tertiary"] p, [data-testid="stBaseButton-minimal"] p {{
+  color: {INK} !important; }}
+[data-testid="stBaseButton-secondaryFormSubmit"]:hover {{ border-color: {GOLD} !important; color: {GOLD} !important; }}
+[data-testid="stForm"] {{ background: transparent !important; border-color: {LINE} !important; }}
 [data-baseweb="select"] > div:focus-within, [data-baseweb="input"]:focus-within {{ border-color: {GOLD} !important; }}
 /* Color principal también donde Streamlit usa su color primario (config.toml): botones de grupo, píldoras, pestañas,
    radios, casillas, deslizadores, tablas editables, enlaces y foco */
