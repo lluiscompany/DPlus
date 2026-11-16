@@ -6883,6 +6883,16 @@ def off_search(q: str) -> list[dict]:
         raise
 
 
+def _off_str(v) -> str:
+    """Texto de un campo de Open Food Facts: el buscador nuevo devuelve algunos como lista (marcas) o por idioma (dict)."""
+    if isinstance(v, dict):
+        v = next((v[k] for k in ("es", "ca", "main", "en") if v.get(k)), next((x for x in v.values() if x), ""))
+    if isinstance(v, (list, tuple)):
+        v = next((x for x in v if x), "")
+        return _off_str(v)
+    return str(v or "").strip()
+
+
 def _off_num(n: dict, k: str):
     v = n.get(k)
     try:
@@ -6894,7 +6904,7 @@ def _off_num(n: dict, k: str):
 def off_parse(p: dict, kind: str) -> dict | None:
     """Producto de Open Food Facts → valores de la lista: por 100 g/ml y ración (alimentos y bebidas) o por unidad (deporte)."""
     n = p.get("nutriments") or {}
-    nm = (p.get("product_name_es") or p.get("product_name") or p.get("generic_name_es") or "").strip()
+    nm = next((_off_str(p.get(k)) for k in ("product_name_es", "product_name", "generic_name_es") if _off_str(p.get(k))), "")
     if not nm:
         return None
     kc = _off_num(n, "energy-kcal_100g")
@@ -6905,9 +6915,9 @@ def off_parse(p: dict, kind: str) -> dict | None:
         return None
     ch, pr, ft = ch or 0.0, pr or 0.0, ft or 0.0
     kc = kc if kc is not None else 4 * ch + 4 * pr + 9 * ft
-    brand = str(p.get("brands") or "").split(",")[0].strip()
+    brand = _off_str(p.get("brands")).split(",")[0].strip()
     sq = _off_num(p, "serving_quantity")
-    ss = str(p.get("serving_size") or "").strip()
+    ss = _off_str(p.get("serving_size"))
     unit = ""
     m = re.match(r"^\s*(\d+(?:[.,]\d+)?)?\s*([^\d(]+?)\s*(?:\(|\d|$)", ss.lower())
     if m and m.group(2).strip(" .") and m.group(2).strip(" .") not in _UNIT_WORDS:
@@ -6915,7 +6925,7 @@ def off_parse(p: dict, kind: str) -> dict | None:
         w = "ración" if w in ("portion", "porción", "porcion", "serving", "ración", "racion") else w
         cnt = float(m.group(1).replace(",", ".")) if m.group(1) else 1
         unit = (f"{fnum(cnt, 1)} {w}" if cnt != 1 else w)[:20]
-    out = dict(code=str(p.get("code") or ""), name=nm[:60], brand=brand[:30], kcal=round(kc), ch=round(ch, 1), pr=round(pr, 1),
+    out = dict(code=_off_str(p.get("code")), name=nm[:60], brand=brand[:30], kcal=round(kc), ch=round(ch, 1), pr=round(pr, 1),
                ft=round(ft, 1), serv=round(sq) if sq and 0 < sq <= 3000 else None, unit=unit, ss=ss[:40])
     if kind == "s":
         q_ = out["serv"] or 100
