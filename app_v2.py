@@ -690,8 +690,9 @@ _I18N_Z = (
     "aQw6vGyczhW4083y6yV2tQfucWnWUUx/ztMpu5aMIfxX/0A2OwlsJ1XtpDm+u+WKXU1UDBpD9YrRrprM/pbJBVskn1nhzo8y3LVFSNybhL07tb"
     "PpvzD346Bl4UzKp4gy4J+r7ZhLw9mttsItAwS1HWl5313pm6UPbwYyyutpVxidtZZHnANtVv5SxPBczIx3sKtjWsg6JxDQr35ND/gCAPl/37tf"
     "N+ZzdH2j5bAHH7hf88ZCnkFj6Q4fUTDHmYDRctTXDxIDzloSUcs6oTq0t8rqKyFxuerSbneAX1/9Gj8rUp3197z6VqtEHHt96kCuMNGFFoDtva"
-    "K2E1ZSmBmWhb/cWHiKUKrubOXxo5/NN4pMR728YPXbfjpEAgYQOEFaDqwBNajnbUDRaCLiJKVZwrrTvN3qT+txfxouOqV7RQr7iwldPf3/BTZE"
-    "0O8="
+    "K2E1ZSmBmWhb/cWHiKUKrubOXxo5/NN4pMR728YPXbfjpEAgYQOEFaDqwBNajnbUDRaCLiJKVZwrrTvN3qT+txfxouOqV7RQr7iwndevpoz8Tj"
+    "7Io+tCUrhZRzzum0p6Exp9KeRNAo8hGLB241rmvRjxDGAHgpRgLEwq5KfcL52smUxknzjPmMDnSxznNNfGGBtRJPZQ/zN+x4gR8mvQg8NJqAEC"
+    "YXe48rZdDACgJZX2boZjWukVMQXSvtupv9v3dyNow="
 )
 
 
@@ -6836,22 +6837,50 @@ def cat_view(df0: pd.DataFrame, key: str, sort_cols: list, types: list | None = 
 
 # ─────────────── Búsqueda en línea (Open Food Facts) para añadir a la lista ───────────────
 # Base de datos abierta de productos envasados (sin clave). Solo lectura; lo elegido se guarda en la lista con el botón.
-OFF_URL = "https://world.openfoodfacts.org/cgi/search.pl"
+OFF_SEARCH = "https://search.openfoodfacts.org/search"           # buscador nuevo (Search-a-licious): rápido
+OFF_URL = "https://world.openfoodfacts.org/cgi/search.pl"         # el clásico, de reserva (a menudo saturado: 503)
 OFF_FIELDS = ("code,product_name,product_name_es,product_name_ca,generic_name_es,brands,nutriments,serving_size,"
               "serving_quantity,quantity")
+OFF_UA = {"User-Agent": "LlibretaD+/2 (app personal de entrenamiento)"}
 _UNIT_WORDS = {"g", "gr", "gramos", "grams", "ml", "cl", "l", "kg", "oz", "mg", "dl"}
 
 
+def _off_get(url: str, prm: dict) -> dict:
+    """GET con un reintento si el servidor está saturado (429/502/503/504)."""
+    import time
+    for i in range(2):
+        r = requests.get(url, params=prm, timeout=15, headers=OFF_UA)
+        if r.status_code in (429, 502, 503, 504) and i == 0:
+            time.sleep(1.5)
+            continue
+        r.raise_for_status()
+        return r.json()
+    return {}
+
+
 @st.cache_data(ttl=86400, show_spinner=False)
-def off_search(q: str, cc: str = "es") -> list[dict]:
-    """Productos de Open Food Facts que coinciden con el texto (primero los que se venden en España)."""
-    prm = {"search_terms": q, "search_simple": 1, "action": "process", "json": 1, "page_size": 15, "fields": OFF_FIELDS,
-           "sort_by": "unique_scans_n"}
-    if cc:
-        prm.update({"tagtype_0": "countries", "tag_contains_0": "contains", "tag_0": "spain"})
-    r = requests.get(OFF_URL, params=prm, timeout=20, headers={"User-Agent": "LlibretaD+/2 (app personal de entrenamiento)"})
-    r.raise_for_status()
-    return list(r.json().get("products") or [])
+def off_search(q: str) -> list[dict]:
+    """Productos de Open Food Facts que coinciden con el texto: primero el buscador nuevo (los que se venden en España y, si
+    no hay, todos); si falla, el clásico. Los errores no se guardan en la caché, así que se puede volver a intentar."""
+    q_ = re.sub(r'[\\"+\-!(){}\[\]^~*?:/]', " ", q).strip()
+    errs = []
+    for qq in (f'{q_} countries_tags:"en:spain"', q_):
+        try:
+            d = _off_get(OFF_SEARCH, {"q": qq, "langs": "es,ca,en", "page_size": 20, "fields": OFF_FIELDS})
+            hits = list(d.get("hits") or [])
+            if hits:
+                return hits
+        except Exception as e:  # noqa: BLE001
+            errs.append(e)
+            break
+    try:
+        d = _off_get(OFF_URL, {"search_terms": q_, "search_simple": 1, "action": "process", "json": 1, "page_size": 20,
+                               "fields": OFF_FIELDS})
+        return list(d.get("products") or [])
+    except Exception as e:  # noqa: BLE001
+        if errs:
+            raise RuntimeError(tr("Open Food Facts no responde ahora mismo (servidor saturado). Prueba de nuevo en unos minutos.")) from e
+        raise
 
 
 def _off_num(n: dict, k: str):
@@ -6931,11 +6960,14 @@ def off_lookup_ui(t_: str, C_: dict):
             go_ = c2.form_submit_button(tr("Buscar"), width="stretch")
         if go_ and q.strip():
             try:
-                hits = off_search(q.strip(), "es") or off_search(q.strip(), "")
+                hits = off_search(q.strip())
                 st.session_state[f"off_{t_}_hits"] = [h for h in (off_parse(p, t_) for p in hits) if h]
             except Exception as e:  # noqa: BLE001
                 st.session_state[f"off_{t_}_hits"] = []
-                st.warning(f'{tr("No se pudo buscar en Open Food Facts")}: {e}')
+                msg_ = str(e)
+                if any(c in msg_ for c in ("503", "502", "504", "429", "Timeout", "timed out")):
+                    msg_ = tr("Open Food Facts no responde ahora mismo (servidor saturado). Prueba de nuevo en unos minutos.")
+                st.warning(f'{tr("No se pudo buscar en Open Food Facts")}: {msg_}')
         hits = st.session_state.get(f"off_{t_}_hits")
         if hits is None:
             st.markdown(f'<span class="note">{tr("Busca por nombre o marca. Salen los valores de la etiqueta del producto (por 100 g o 100 ml) y su ración; eliges uno, lo revisas y se añade a la lista. Va mejor con productos envasados; para alimentos frescos usa los de la app o escríbelos en la tabla.")}</span>',
