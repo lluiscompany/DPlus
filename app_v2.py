@@ -692,7 +692,7 @@ _I18N_Z = (
     "N+ZzdH2j5bAHH7hf88ZCnkFj6Q4fUTDHmYDRctTXDxIDzloSUcs6oTq0t8rqKyFxuerSbneAX1/9Gj8rUp3197z6VqtEHHt96kCuMNGFFoDtva"
     "K2E1ZSmBmWhb/cWHiKUKrubOXxo5/NN4pMR728YPXbfjpEAgYQOEFaDqwBNajnbUDRaCLiJKVZwrrTvN3qT+txfxouOqV7RQr7iwndevpoz8Tj"
     "7Io+tCUrhZRzzum0p6Exp9KeRNAo8hGLB241rmvRjxDGAHgpRgLEwq5KfcL52smUxknzjPmMDnSxznNNfGGBtRJPZQ/zN+x4gR8mvQg8NJqAEC"
-    "YXe48rZdDACgJZX2boZjWukVMQXSvtupv9v3dyNow="
+    "YXe48rZdDACgJZX2boZjWukVMQXSttLEHlRw050MGag2D6J1ify6NjE4hMO8Mdm9fHw3vqHRtXfc/3HM1WMv8vCzFg0g=="
 )
 
 
@@ -6839,8 +6839,8 @@ def cat_view(df0: pd.DataFrame, key: str, sort_cols: list, types: list | None = 
 # Base de datos abierta de productos envasados (sin clave). Solo lectura; lo elegido se guarda en la lista con el botón.
 OFF_SEARCH = "https://search.openfoodfacts.org/search"           # buscador nuevo (Search-a-licious): rápido
 OFF_URL = "https://world.openfoodfacts.org/cgi/search.pl"         # el clásico, de reserva (a menudo saturado: 503)
-OFF_FIELDS = ("code,product_name,product_name_es,product_name_ca,generic_name_es,brands,nutriments,serving_size,"
-              "serving_quantity,quantity")
+OFF_FIELDS = ("code,product_name,product_name_es,product_name_ca,product_name_en,abbreviated_product_name,generic_name,"
+              "generic_name_es,brands,nutriments,serving_size,serving_quantity,quantity")
 OFF_UA = {"User-Agent": "LlibretaD+/2 (app personal de entrenamiento)"}
 _UNIT_WORDS = {"g", "gr", "gramos", "grams", "ml", "cl", "l", "kg", "oz", "mg", "dl"}
 
@@ -6864,7 +6864,9 @@ def off_search(q: str) -> list[dict]:
     no hay, todos); si falla, el clásico. Los errores no se guardan en la caché, así que se puede volver a intentar."""
     q_ = re.sub(r'[\\"+\-!(){}\[\]^~*?:/]', " ", q).strip()
     errs = []
-    for qq in (f'{q_} countries_tags:"en:spain"', q_):
+    # todas las palabras tienen que estar (sin AND, el buscador devuelve cualquier producto con alguna de ellas)
+    q_and = " AND ".join(q_.split())
+    for qq in (f'({q_and}) AND countries_tags:"en:spain"', q_and):
         try:
             d = _off_get(OFF_SEARCH, {"q": qq, "langs": "es,ca,en", "page_size": 20, "fields": OFF_FIELDS})
             hits = list(d.get("hits") or [])
@@ -6904,7 +6906,14 @@ def _off_num(n: dict, k: str):
 def off_parse(p: dict, kind: str) -> dict | None:
     """Producto de Open Food Facts → valores de la lista: por 100 g/ml y ración (alimentos y bebidas) o por unidad (deporte)."""
     n = p.get("nutriments") or {}
-    nm = next((_off_str(p.get(k)) for k in ("product_name_es", "product_name", "generic_name_es") if _off_str(p.get(k))), "")
+    br_ = _off_str(p.get("brands")).split(",")[0].strip().lower()
+    cands = [_off_str(p.get(k)) for k in ("product_name_es", "product_name", "product_name_ca", "product_name_en",
+                                          "abbreviated_product_name", "generic_name_es", "generic_name")]
+    cands = [c for c in cands if c]
+    nm = next((c for c in cands if c.lower() != br_), cands[0] if cands else "")   # el nombre, no solo la marca
+    qn = _off_str(p.get("quantity"))
+    if nm and nm.lower() == br_ and qn:
+        nm = f"{nm} {qn}"
     if not nm:
         return None
     kc = _off_num(n, "energy-kcal_100g")
@@ -6971,7 +6980,14 @@ def off_lookup_ui(t_: str, C_: dict):
         if go_ and q.strip():
             try:
                 hits = off_search(q.strip())
-                st.session_state[f"off_{t_}_hits"] = [h for h in (off_parse(p, t_) for p in hits) if h]
+                hs = [h for h in (off_parse(p, t_) for p in hits) if h]
+                # primero los que tienen todas las palabras buscadas en el nombre o la marca
+                ws = [_fold(w) for w in q.split() if len(w) > 1]
+                sc = lambda h: sum(w in _fold(h["name"] + " " + h["brand"]) for w in ws)  # noqa: E731
+                hs = sorted(hs, key=lambda h: -sc(h))
+                if hs and sc(hs[0]) == len(ws):
+                    hs = [h for h in hs if sc(h) == len(ws)]
+                st.session_state[f"off_{t_}_hits"] = hs
             except Exception as e:  # noqa: BLE001
                 st.session_state[f"off_{t_}_hits"] = []
                 msg_ = str(e)
@@ -6988,13 +7004,17 @@ def off_lookup_ui(t_: str, C_: dict):
             return
         if t_ == "s":
             tb_ = pd.DataFrame([{"Producto": h["name"], "Marca": h["brand"], "Tipo": tr(h["tipo"]),
+                                 "Ficha": f'https://world.openfoodfacts.org/product/{h["code"]}' if h["code"] else None,
                                  "Ración": h["ss"] or (f'{h["serv"]} g' if h["serv"] else "—"), "kcal": h["s_vals"][2],
                                  "Hidratos g": h["s_vals"][3], "Sodio mg": h["s_vals"][8]} for h in hits])
         else:
             tb_ = pd.DataFrame([{"Producto": h["name"], "Marca": h["brand"], f"kcal/100 {unit}": h["kcal"], "Hidratos": h["ch"],
-                                 "Proteína": h["pr"], "Grasa": h["ft"], "Ración": h["ss"] or "—"} for h in hits])
+                                 "Proteína": h["pr"], "Grasa": h["ft"], "Ración": h["ss"] or "—",
+                                 "Ficha": f'https://world.openfoodfacts.org/product/{h["code"]}' if h["code"] else None} for h in hits])
         ev = st.dataframe(tb_, hide_index=True, width="stretch", on_select="rerun", selection_mode="single-row",
-                          key=f"off_{t_}_tbl", height=min(36 + 35 * len(tb_), 300))
+                          key=f"off_{t_}_tbl", height=min(36 + 35 * len(tb_), 300),
+                          column_config={"Ficha": st.column_config.LinkColumn(tr("Ficha"), display_text="↗",
+                                                                              help=tr("Abre el producto en Open Food Facts"))})
         rows_ = (getattr(getattr(ev, "selection", None), "rows", None) or []) if ev is not None else []
         if not rows_:
             st.markdown(f'<span class="note">{tr("Marca una fila para añadirla.")} {tr("Valores por unidad: la ración de la etiqueta.") if t_ == "s" else ""}</span>',
