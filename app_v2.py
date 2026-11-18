@@ -712,7 +712,9 @@ _I18N_Z = (
     "YulbH/XfdHBi8rCvvctBKA9wER9r/8htQVe+x49ms+qK+BKfkEZnpBbLOqzv1qd4gniKJq3X0HCF35Z4ayxNG4I2tHDK3L+UrtFoOd0vvGqVor"
     "XwdnJMjZOgZmVarWRGHs7UiIbeAI/amZXBK3iUFH2XPPII+IRxW4k5jrU4mC726dIwWieul1FU30CfWsxAqB2mWznhqgy+T31RNecJ8m1aiPfE"
     "FSKMi+fys7RDdOJ7CXvSL8Z20i5OW7byqW0Fiqe+TBRwoHblA2OfvleJfZr/lsfDCi6O80oqPs3LGeZJ40o3y6R9BGBkJckQoj39LpkDdBO0qa"
-    "Tu5b/KsJTT2+/YA8o6bMakjHF+195Bd2ZE8Iz0rwcL0ez/AayOlmE="
+    "Tu5b/KsJTT2+/YA8o6bMakjHF+195Bd2ZE8Iz0rwcL0axEpOAfJl/UI21PRzpwJB9oYpEeINWnr0KgvfAnN3aez/YE5tbf8WwT2uv27NO6lsod"
+    "2gRLh8adHhBvqqSmNfgl6F0+rK8EoWIvSvkkBLEgpIkLEztNnwv99Dm6Q4BJlT6vlvmWlpXLfZ3mrGUbRzqsY6+RSR7skmR8GaYzSOZaweRnkk"
+    "n2CuC6p8PNsrUnM9XkW7lo8v30piB9S1nPCraj4xzluTSKOD2JIdiXZWdHUkZt4dZ8SNgDrVXM845u9f8AS5xtUw=="
 )
 
 
@@ -9552,13 +9554,8 @@ def _hav(a, b) -> float:
     return 2 * 6371000 * math.asin(min(1.0, math.sqrt(h)))
 
 
-@st.cache_data(ttl=7 * 86400, show_spinner=False)
-def route_sig(key: str, act_id: str):
+def route_sig_df(d_):
     """Firma del recorrido: salida, punto más alejado de la salida, punto más alto y llegada (lat, lng)."""
-    try:
-        d_ = streams_to_df(fetch_streams(key, act_id))
-    except Exception:  # noqa: BLE001
-        return None
     if d_ is None or not len(d_) or "lat" not in d_ or d_["lat"].notna().sum() < 20:
         return None
     g = d_.dropna(subset=["lat", "lng"])
@@ -9576,6 +9573,41 @@ def route_sig(key: str, act_id: str):
     else:
         top = far
     return dict(s=st_, f=far, t=top, e=en_)
+
+
+@st.cache_data(ttl=7 * 86400, show_spinner=False)
+def route_sig(key: str, act_id: str):
+    try:
+        d_ = streams_to_df(fetch_streams(key, act_id))
+    except Exception:  # noqa: BLE001
+        return None
+    return route_sig_df(d_)
+
+
+def climbs_of(d_, min_gain: float = 50.0, max_dip: float = 15.0) -> list[dict]:
+    """Subidas de una actividad (cada 25 m, se permiten bajadas de hasta max_dip m dentro de una subida)."""
+    g = d_.dropna(subset=["dist", "alt_s"])
+    if len(g) < 30:
+        return []
+    xs = np.arange(0, float(g["dist"].iloc[-1]), 25.0)
+    al = np.interp(xs, g["dist"].to_numpy(), g["alt_s"].to_numpy())
+    out, lo_i, hi_i = [], 0, 0
+
+    def _rec(lo, hi):
+        gain = al[hi] - al[lo]
+        if gain >= min_gain and hi > lo:
+            L = xs[hi] - xs[lo]
+            out.append(dict(km0=xs[lo] / 1000, km1=xs[hi] / 1000, a0=al[lo], a1=al[hi], gain=gain, grade=100 * gain / max(L, 1)))
+    for i in range(1, len(al)):
+        if al[i] >= al[hi_i]:
+            hi_i = i
+        elif al[hi_i] - al[i] > max_dip:          # la subida terminó en hi_i
+            _rec(lo_i, hi_i)
+            lo_i = hi_i = i
+        if al[i] < al[lo_i]:
+            lo_i = hi_i = i
+    _rec(lo_i, hi_i)
+    return out
 
 
 def _same_route(a: dict, b: dict) -> bool:
@@ -9613,6 +9645,112 @@ def zone_hint(lat: float, lng: float) -> str:
     return ""
 
 
+ZONE_COLS = ["#e09b00", "#0a84c6", "#d6336c", "#2b9348", "#7b2cbf", "#e8590c", "#1098ad", "#5c940d"]
+
+
+def zone_map_ui(groups: list, trows: list):
+    """Mapa y perfil de un recorrido agrupado: las salidas del grupo superpuestas, con salida, punto más alto y subidas."""
+    with st.expander("🗺 Ver el recorrido de una zona: mapa, perfil y subidas", expanded=False, key="nom_map_x"):
+        if not groups:
+            return
+        labs = [f'{(t["Zona"] or "Sin nombre")} · {t["Tipo"]} · {t["Salidas"]} salidas · {fnum(t["Km"], 1)} km · {fnum(t["D+"])} m+'
+                for t in trows]
+        gi = st.selectbox("Zona", range(len(groups)), format_func=lambda i: labs[i], key="nom_map_g")
+        g = groups[gi]
+        acts_ = sorted(g["acts"], key=lambda a: a["ts"], reverse=True)[:8]
+        if not acts_:
+            st.info("Esta zona guardada no tiene salidas desde enero de 2026.")
+            return
+        dfs = []
+        with st.spinner("Leyendo los recorridos…"):
+            for a in acts_:
+                d_, _src = act_df(a["id"], a["km"], a["dp"], a["secs"])
+                ok_ = d_.dropna(subset=["lat", "lng"]) if len(d_) else d_
+                if len(ok_) >= 50:
+                    dfs.append((a, d_, ok_))
+        if not dfs:
+            st.info("Las salidas de esta zona no tienen GPS: no se puede dibujar el mapa.")
+            return
+        a0, d0, ok0 = dfs[0]
+        c_lat, c_lng = float(ok0["lat"].mean()), float(ok0["lng"].mean())
+        bgs = map_backgrounds(c_lat, c_lng)
+        if st.session_state.get("nom_bg") not in bgs:
+            st.session_state["nom_bg"] = bgs[0]
+        fondo = st.segmented_control("Fondo del mapa", bgs, key="nom_bg") or bgs[0]
+        TS = track_style(fondo)
+        tiles = base_tiles(fondo, c_lat, c_lng)
+        rd = lambda v: np.round(np.asarray(v, dtype=float), 5)  # noqa: E731
+        f_m = go.Figure()
+        for k, (a, d_, ok_) in reversed(list(enumerate(dfs))):          # la más reciente encima
+            idx = np.unique(np.linspace(0, len(ok_) - 1, min(len(ok_), 1500)).astype(int))
+            s_ = ok_.iloc[idx]
+            w_ = 6 if k == 0 else 3
+            f_m.add_trace(go.Scattermap(lat=rd(s_["lat"]), lon=rd(s_["lng"]), mode="lines", line=dict(color=TS["halo"], width=w_ + 4),
+                                        opacity=TS["halo_op"], hoverinfo="skip", showlegend=False))
+            f_m.add_trace(go.Scattermap(lat=rd(s_["lat"]), lon=rd(s_["lng"]), mode="lines",
+                                        line=dict(color=ZONE_COLS[k % len(ZONE_COLS)], width=w_),
+                                        name=f'{a["date"]:%d/%m/%y} · {fnum(a["km"], 1)} km · {fnum(a["dp"])} m+',
+                                        hovertemplate=f'{a["date"]:%d/%m/%y} · {_html.escape(a["name"])}<extra></extra>'))
+        # salida, meta y punto más alto de la más reciente; marcas de km
+        dd = ok0["dist"].to_numpy()
+        kms = [k for k in range(1, int(dd[-1] // 1000) + 1)]
+        if kms:
+            pos = np.clip(np.searchsorted(dd, [k * 1000 for k in kms]), 0, len(dd) - 1)
+            f_m.add_trace(go.Scattermap(lat=rd(ok0["lat"].to_numpy()[pos]), lon=rd(ok0["lng"].to_numpy()[pos]), mode="markers+text",
+                                        marker=dict(size=14, color=TS["halo"]), text=[str(k) for k in kms],
+                                        textfont=dict(size=9, color="#111417" if fondo != "Satélite" else "#ffffff"),
+                                        textposition="middle center", hovertemplate="km %{text}<extra></extra>", showlegend=False))
+        top_ = ok0.loc[ok0["alt_s"].idxmax()] if ok0["alt_s"].notna().any() else ok0.iloc[len(ok0) // 2]
+        pts = [(float(ok0["lat"].iloc[0]), float(ok0["lng"].iloc[0]), GREEN, f'Salida · {fnum(ok0["alt_s"].iloc[0])} m'),
+               (float(ok0["lat"].iloc[-1]), float(ok0["lng"].iloc[-1]), RED, f'Llegada · {fnum(ok0["alt_s"].iloc[-1])} m'),
+               (float(top_["lat"]), float(top_["lng"]), GOLD, f'Punto más alto · {fnum(top_["alt_s"])} m · km {fnum(top_["dist"] / 1000, 1)}')]
+        f_m.add_trace(go.Scattermap(lat=[p_[0] for p_ in pts], lon=[p_[1] for p_ in pts], mode="markers", marker=dict(size=17, color=TS["halo"]),
+                                    hoverinfo="skip", showlegend=False))
+        f_m.add_trace(go.Scattermap(lat=[p_[0] for p_ in pts], lon=[p_[1] for p_ in pts], mode="markers",
+                                    marker=dict(size=11, color=[p_[2] for p_ in pts]), text=[p_[3] for p_ in pts],
+                                    hovertemplate="%{text}<extra></extra>", showlegend=False))
+        la_all = pd.concat([o["lat"] for _a, _d, o in dfs])
+        lo_all = pd.concat([o["lng"] for _a, _d, o in dfs])
+        span_ = max(float(np.ptp(la_all)) * 1.5, float(np.ptp(lo_all)) * math.cos(math.radians(c_lat)) * 1.05, 0.002)
+        zoom_ = float(np.clip(math.log2(360 / span_) - 0.7, 8, 16))
+        plot_layout(f_m, 520)
+        f_m.update_layout(map=dict(style="white-bg", center=dict(lat=float(la_all.mean()), lon=float(lo_all.mean())), zoom=zoom_,
+                                   layers=[dict(sourcetype="raster", source=tiles["urls"], below="traces",
+                                                sourceattribution=tiles["attr"], maxzoom=tiles["maxzoom"])]),
+                          margin=dict(l=8, r=8, t=8, b=8), showlegend=True,
+                          legend=dict(x=.01, y=.99, xanchor="left", yanchor="top", orientation="v", bgcolor=SURFACE, bordercolor=LINE,
+                                      borderwidth=1, font=dict(color=INK, size=11)))
+        st.plotly_chart(f_m, width="stretch", theme=None, config={"scrollZoom": True}, key=f"nom_map_{gi}")
+        # perfil de las salidas del grupo
+        f_p = go.Figure()
+        for k, (a, d_, _ok) in reversed(list(enumerate(dfs))):
+            g_ = d_.dropna(subset=["dist", "alt_s"])
+            idx = np.unique(np.linspace(0, len(g_) - 1, min(len(g_), 800)).astype(int))
+            s_ = g_.iloc[idx]
+            f_p.add_scatter(x=s_["dist"] / 1000, y=s_["alt_s"], mode="lines", name=f'{a["date"]:%d/%m/%y}',
+                            line=dict(color=ZONE_COLS[k % len(ZONE_COLS)], width=3 if k == 0 else 1.5),
+                            hovertemplate="km %{x:.2f} · %{y:.0f} m<extra>" + f'{a["date"]:%d/%m/%y}' + "</extra>")
+        f_p.update_xaxes(title="km")
+        f_p.update_yaxes(ticksuffix=" m")
+        st.plotly_chart(plot_layout(f_p, 240), width="stretch", theme=None, key=f"nom_prof_{gi}")
+        # ficha del recorrido (la salida más reciente)
+        cl = climbs_of(d0)
+        alt_ = d0["alt_s"].dropna()
+        lines_ = [f'<b>Salida</b> a {fnum(alt_.iloc[0])} m · <b>punto más alto</b> {fnum(alt_.max())} m (km {fnum(top_["dist"] / 1000, 1)}) · '
+                  f'<b>llegada</b> a {fnum(alt_.iloc[-1])} m'
+                  + (" · vuelve al punto de salida" if _hav((pts[0][0], pts[0][1]), (pts[1][0], pts[1][1])) < 300 else
+                     f' · termina a {fnum(_hav((pts[0][0], pts[0][1]), (pts[1][0], pts[1][1])) / 1000, 1)} km de la salida (solo ida)')]
+        if cl:
+            lines_.append("<b>Subidas</b>: " + " · ".join(
+                f'km {fnum(c_["km0"], 1)}–{fnum(c_["km1"], 1)}: {fnum(c_["a0"])}→{fnum(c_["a1"])} m (+{fnum(c_["gain"])} m, {fnum(c_["grade"])} %)'
+                for c_ in cl))
+        lines_.append(f'Salidas de la zona: ' + ", ".join(f'{a["date"]:%d/%m/%y}' for a in sorted(g["acts"], key=lambda a: a["ts"])))
+        st.markdown('<div class="note">' + "<br>".join(lines_) + "</div>", unsafe_allow_html=True)
+        st.markdown(f'<span class="note">En el mapa, las {len(dfs)} salidas más recientes del grupo (la última, más gruesa). '
+                    'Números = kilómetros de la última. Si una salida se aparta del resto, es otro recorrido: ponle otro nombre.</span>',
+                    unsafe_allow_html=True)
+
+
 def name_section():
     if st.session_state.get("nom_msg"):
         st.success(st.session_state.pop("nom_msg"))
@@ -9643,9 +9781,12 @@ def name_section():
     todo_ = [r_ for _, r_ in out_.iterrows()]
     prog = st.progress(0.0, text="Leyendo el GPS de las salidas…") if (len(todo_) and not demo) else None
     for i, r_ in enumerate(todo_):
-        sig = None if demo else route_sig(key, str(r_["id"]))
+        if demo:
+            sig = route_sig_df(act_df(str(r_["id"]), float(r_["km"]), float(r_["dp"]), float(r_["secs"]))[0])
+        else:
+            sig = route_sig(key, str(r_["id"]))
         acts.append(dict(id=str(r_["id"]), date=r_["date"], ts=r_["ts"], sport=r_["sport"], name=str(r_["name"] or ""),
-                         km=float(r_["km"]), dp=float(r_["dp"]), sig=sig))
+                         km=float(r_["km"]), dp=float(r_["dp"]), secs=float(r_["secs"]), sig=sig))
         if prog is not None:
             prog.progress((i + 1) / len(todo_), text="Leyendo el GPS de las salidas…")
     if prog is not None:
@@ -9703,6 +9844,7 @@ def name_section():
     st.markdown('<span class="note">«Propuesta» = nombre sacado del mapa: revísalo y cámbialo por el tuyo. Dos zonas con el mismo nombre '
                 'se cuentan juntas (sirve para unir variantes del mismo recorrido). Una zona vacía no se renombra.</span>',
                 unsafe_allow_html=True)
+    zone_map_ui(groups, trows)
     inv_t = {v: k for k, v in NAME_TYPES.items()}
     for _, r_ in ed.iterrows():
         g = groups[int(r_["gi"])]
