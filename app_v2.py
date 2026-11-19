@@ -1207,7 +1207,8 @@ input::placeholder, textarea::placeholder {{ color: {MUTED} !important; opacity:
 [data-baseweb="popover"] > div:has([data-baseweb="calendar"]) {{ background: {SURFACE} !important; border: 1px solid {LINE} !important; }}
 /* Selector de fecha (Streamlit ≥1.5x, react-aria): campo, calendario desplegable y días */
 [data-testid="stDateInputField"] {{ background: {SURFACE} !important; border-color: {LINE} !important; }}
-[data-testid="stDateInputField"] span[role="spinbutton"], [data-testid="stDateInputField"] span[data-type="literal"] {{ color: {INK} !important; }}
+[data-testid="stDateInputField"] span[role="spinbutton"], [data-testid="stDateInputField"] span[data-type="literal"] {{ color: {INK} !important;
+  -webkit-text-fill-color: {INK} !important; opacity: 1 !important; }}   /* en iOS (Safari y Chrome) los números salían gris claro */
 [data-testid="stDateInputField"] span[role="spinbutton"]:focus {{ background: {GOLD} !important; color: {on(GOLD)} !important; }}
 [data-testid="stDateInputField"] svg {{ color: {MUTED} !important; fill: {MUTED} !important; }}
 /* Fecha nativa (Safari del iPhone pinta el texto en gris claro si no se fija el color de sus partes internas) */
@@ -1219,7 +1220,11 @@ input[type="date"]::-webkit-date-and-time-value {{ text-align: left; }}
 @media (max-width: 760px) {{
   /* Con letra de menos de 16 px, Safari del iPhone amplía la página al tocar un campo y los desplegables salen desplazados */
   input, textarea, select, .gdg-input, #portal input, #portal textarea {{ font-size: 16px !important; }}
-  #portal .gdg-style {{ left: 8px !important; right: 8px !important; width: auto !important; max-width: calc(100vw - 16px) !important; }}
+  /* Editor de celda de las tablas (y su desplegable, que se coloca debajo de él): dentro de la pantalla. La tabla lo pone con
+     left negativo + translateX y con el ancho de la columna, más ancho que el móvil. */
+  #portal .gdg-style {{ left: 8px !important; right: auto !important; transform: none !important; min-width: 0 !important;
+    width: calc(100vw - 16px) !important; max-width: calc(100vw - 16px) !important; }}
+  #portal .gdg-style .gdg-clip-region, #portal .gdg-style .glide-select {{ width: 100% !important; max-width: 100% !important; }}
 }}
 [data-testid="stDateInputCalendar"] {{ background: {SURFACE} !important; color: {INK} !important; border: 1px solid {LINE} !important;
   box-shadow: 0 12px 28px rgba(0,0,0,.18) !important; }}
