@@ -714,7 +714,8 @@ _I18N_Z = (
     "FSKMi+fys7RDdOJ7CXvSL8Z20i5OW7byqW0Fiqe+TBRwoHblA2OfvleJfZr/lsfDCi6O80oqPs3LGeZJ40o3y6R9BGBkJckQoj39LpkDdBO0qa"
     "Tu5b/KsJTT2+/YA8o6bMakjHF+195Bd2ZE8Iz0rwcL0axEpOAfJl/UI21PRzpwJB9oYpEeINWnr0KgvfAnN3aez/YE5tbf8WwT2uv27NO6lsod"
     "2gRLh8adHhBvqqSmNfgl6F0+rK8EoWIvSvkkBLEgpIkLEztNnwv99Dm6Q4BJlT6vlvmWlpXLfZ3mrGUbRzqsY6+RSR7skmR8GaYzSOZaweRnkk"
-    "n2CuC6p8PNsrUnM9XkW7lo8v30piB9S1nPCraj4xzluTSKOD2JIdiXZWdHUkZt4dZ8SNgDrVXM845u9f8AS5xtUw=="
+    "n2CuC6p8PNsrUnM9XkW7lo8v30piB9S1nPCraj4xzluTSKOD2JIdiXZWdHUkZt4dZ8SNgDrVXM865u5WZdt+XS3ubuxjx0qHXHsAj56tXgV/1I"
+    "kzl/dA9VZc4e7pTp32Vb7vJz0IhFsRfYrXHq9vFLO+dOv4dozW5pNbcnfIRjX7IYu0JITNZosK25c5NRcvb/AEi+w4I="
 )
 
 
@@ -1209,6 +1210,17 @@ input::placeholder, textarea::placeholder {{ color: {MUTED} !important; opacity:
 [data-testid="stDateInputField"] span[role="spinbutton"], [data-testid="stDateInputField"] span[data-type="literal"] {{ color: {INK} !important; }}
 [data-testid="stDateInputField"] span[role="spinbutton"]:focus {{ background: {GOLD} !important; color: {on(GOLD)} !important; }}
 [data-testid="stDateInputField"] svg {{ color: {MUTED} !important; fill: {MUTED} !important; }}
+/* Fecha nativa (Safari del iPhone pinta el texto en gris claro si no se fija el color de sus partes internas) */
+input[type="date"], input[type="date"]::-webkit-date-and-time-value, input[type="date"]::-webkit-datetime-edit,
+input[type="date"]::-webkit-datetime-edit-fields-wrapper, input[type="date"]::-webkit-datetime-edit-text,
+input[type="date"]::-webkit-datetime-edit-day-field, input[type="date"]::-webkit-datetime-edit-month-field,
+input[type="date"]::-webkit-datetime-edit-year-field {{ color: {INK} !important; -webkit-text-fill-color: {INK} !important; opacity: 1 !important; }}
+input[type="date"]::-webkit-date-and-time-value {{ text-align: left; }}
+@media (max-width: 760px) {{
+  /* Con letra de menos de 16 px, Safari del iPhone amplía la página al tocar un campo y los desplegables salen desplazados */
+  input, textarea, select, .gdg-input, #portal input, #portal textarea {{ font-size: 16px !important; }}
+  #portal .gdg-style {{ left: 8px !important; right: 8px !important; width: auto !important; max-width: calc(100vw - 16px) !important; }}
+}}
 [data-testid="stDateInputCalendar"] {{ background: {SURFACE} !important; color: {INK} !important; border: 1px solid {LINE} !important;
   box-shadow: 0 12px 28px rgba(0,0,0,.18) !important; }}
 [data-testid="stDateInputCalendar"] *:not([data-selected="true"]):not([aria-selected="true"]) {{ color: {INK}; }}
@@ -1974,6 +1986,7 @@ def to_frame(rows: list[dict], hike: bool, cinta_dp: bool = True, overrides: dic
     out_mask = df["sport"].isin(OUT) | (hike & (df["sport"] == "Hike"))
     df["out_km"] = np.where(out_mask, df["km"], 0.0)
     df["out_dp"] = np.where(out_mask | cinta_up, df["dp"], 0.0)
+    df["out_dm"] = np.where(out_mask, df["dm"].fillna(0) if "dm" in df else 0.0, 0.0)   # D− (la cinta no tiene bajada)
     df["ukm"] = np.where(out_mask | cinta_up, df["km"], 0.0)   # km que cuentan para el Ultra Ind
     is_run = df["sport"].isin(OUT)
     df["dp_run"] = np.where(is_run, df["dp"], 0.0)
@@ -1988,7 +2001,7 @@ def to_frame(rows: list[dict], hike: bool, cinta_dp: bool = True, overrides: dic
 
 def totals(d: pd.DataFrame) -> dict:
     dp, km, ukm = d["out_dp"].sum(), d["out_km"].sum(), d["ukm"].sum() if "ukm" in d else d["out_km"].sum()
-    return dict(dp=dp, km=km, cinta=d["cinta_km"].sum(), gim=d["gim_min"].sum(), n=len(d),
+    return dict(dp=dp, dm=d["out_dm"].sum() if "out_dm" in d else 0.0, km=km, cinta=d["cinta_km"].sum(), gim=d["gim_min"].sum(), n=len(d),
                 load=d["load"].sum(), h=d["hours"].sum(), ultra=1.7 * dp / ukm if ukm > 0 else 0.0,
                 kmE=km + d["cinta_km"].sum() + dp / 100,
                 **{c: (d[c].sum() if c in d else 0.0) for c in ("dp_run", "dp_hike", "dp_cinta")})
@@ -2779,8 +2792,8 @@ if "mob_view" not in st.session_state:
     st.session_state["mob_view"] = _qv in ("movil", "móvil") if _qv else _ua_is_mobile()
 if "sb_hike" not in st.session_state:
     st.session_state["sb_hike"] = _qp_bool("caminatas", False)
-if "sb_cinta_dp" not in st.session_state:
-    st.session_state["sb_cinta_dp"] = _qp_bool("dcinta", True)
+if "sb_cinta_dp" not in st.session_state:          # siempre activo al abrir la app (el interruptor vale para la sesión)
+    st.session_state["sb_cinta_dp"] = True
 
 
 def _sync_view():
@@ -3326,7 +3339,7 @@ def week_tot(ws: dt.date) -> dict:
 
 W = [week_tot(ws) for ws in week_starts]
 LW, PW = W[11], W[10]
-AVG = {k: float(np.mean([w[k] for w in W[3:11]])) for k in ["dp", "km", "cinta", "gim", "load", "kmE", "h", "n"]}
+AVG = {k: float(np.mean([w[k] for w in W[3:11]])) for k in ["dp", "dm", "km", "cinta", "gim", "load", "kmE", "h", "n"]}
 AVG["ultra"] = 1.7 * AVG["dp"] / AVG["km"] if AVG["km"] > 0 else 0
 
 # ─────────────────────────── Forma / fatiga (cálculo común) ───────────────────────────
@@ -6695,6 +6708,18 @@ def food_log(P: dict, base: float, k: float, W: list, compact: bool = False):
     for (mk, lab), tb in zip(MEALS, tabs):
         with tb:
             cur = saved.get(mk, {})
+            ovk = f"nlog_ov_{mk}_{d_}"                  # lista con lo añadido con «Añadir» (sin guardar todavía)
+            if isinstance(st.session_state.get(ovk), dict):
+                cur = st.session_state[ovk]
+            ver = st.session_state.get(f"{ovk}_v", 0)
+            with st.form(f"nlog_add_{mk}_{d_}", clear_on_submit=True, border=False):
+                q1, q2, q3 = st.columns([4, 1.3, 1.3], vertical_alignment="bottom")
+                add_opts = [("f", o_) for o_ in f_opts] + [("b", o_) for o_ in b_opts]
+                add_sel = q1.selectbox(tr("Añadir"), add_opts, index=None, key=f"nlog_add_s_{mk}_{d_}",
+                                       format_func=lambda x: ("🍽 " if x[0] == "f" else "🥤 ") + x[1],
+                                       placeholder=tr("Busca un alimento o bebida…"))
+                add_n = q2.number_input(tr("Raciones"), 0.5, 20.0, 1.0, 0.5, format="%g", key=f"nlog_add_n_{mk}_{d_}")
+                add_go = q3.form_submit_button(f'➕ {tr("Añadir")}', width="stretch")
             # Se registra en raciones (la unidad de cada alimento: pieza, vaso, plato…); los gramos solo si no es una ración
             # entera. Lo guardado son gramos: al volver a abrir el día, lo que sea un número de medias raciones se ve en raciones.
             def _rows(items, DB, kind):
@@ -6715,7 +6740,7 @@ def food_log(P: dict, base: float, k: float, W: list, compact: bool = False):
                                                             "cada alimento se define en Plan 2027 › Alimentos y bebidas."))
             c1, c2 = (st.container(), st.container()) if compact else st.columns([3, 2])
             with c1:
-                ef = st.data_editor(df_f, key=f"nlog_f_{mk}_{d_}", num_rows="dynamic", hide_index=True, width="stretch",
+                ef = st.data_editor(df_f, key=f"nlog_f_{mk}_{d_}_{ver}", num_rows="dynamic", hide_index=True, width="stretch",
                                     column_config={
                                         "Alimento": st.column_config.SelectboxColumn(tr("Alimento"), options=f_opts, width="large"),
                                         "Raciones": rac_col,
@@ -6723,7 +6748,7 @@ def food_log(P: dict, base: float, k: float, W: list, compact: bool = False):
                                                                                   step=5, format="%g",
                                                                                   help=tr("Solo si no son raciones enteras: sustituye a las raciones"))})
             with c2:
-                eb = st.data_editor(df_b, key=f"nlog_b_{mk}_{d_}", num_rows="dynamic", hide_index=True, width="stretch",
+                eb = st.data_editor(df_b, key=f"nlog_b_{mk}_{d_}_{ver}", num_rows="dynamic", hide_index=True, width="stretch",
                                     column_config={
                                         "Bebida": st.column_config.SelectboxColumn(tr("Bebida"), options=b_opts, width="medium"),
                                         "Raciones": rac_col,
@@ -6751,6 +6776,15 @@ def food_log(P: dict, base: float, k: float, W: list, compact: bool = False):
                 return lst, txt_
             fl, tf = _read(ef, "Alimento", f_back, FOOD_ALL, FOOD_UNIT, "g")
             bl, tb_ = _read(eb, "Bebida", b_back, DRINK_ALL, DRINK_UNIT, "ml")
+            if add_go and add_sel:
+                t_a, lab_a = add_sel
+                n_a = (f_back if t_a == "f" else b_back).get(lab_a)
+                if n_a:
+                    DB_ = FOOD_ALL if t_a == "f" else DRINK_ALL
+                    item = [n_a, round(float(add_n) * float(DB_[n_a][4]), 1)]
+                    st.session_state[ovk] = {"f": fl + ([item] if t_a == "f" else []), "b": bl + ([item] if t_a == "b" else [])}
+                    st.session_state[f"{ovk}_v"] = ver + 1
+                    st.rerun()
             if tf or tb_:
                 st.markdown('<span class="note">' + " · ".join(_html.escape(x) for x in tf + tb_) + "</span>", unsafe_allow_html=True)
             if fl or bl:
@@ -6789,6 +6823,8 @@ def food_log(P: dict, base: float, k: float, W: list, compact: bool = False):
     if b1.button("Guardar el día" + ("" if demo else " en intervals.icu"), type="primary", key=f"nlog_save_{d_}", width="stretch"):
         try:
             food_day_save(d_, meals, rest)
+            for k_ov in [k2 for k2 in st.session_state if str(k2).startswith(f"nlog_ov_") and str(k2).endswith(str(d_))]:
+                st.session_state.pop(k_ov, None)
             st.toast(tr("Día guardado"))
         except Exception as e:  # noqa: BLE001
             st.error(f"{tr('No se pudo guardar')}: {e}")
@@ -7799,7 +7835,10 @@ if MOBILE:
 
 # Resumen mensual (Temporada y Hoja por Sets)
 def monthly(d: pd.DataFrame) -> pd.DataFrame:
-    m = d.groupby(d["ts"].dt.month)[["out_dp", "out_km", "ukm", "cinta_km", "gim_min", "dp_run", "dp_hike", "dp_cinta"]].sum().reindex(range(1, 13), fill_value=0)
+    cols_ = ["out_dp", "out_dm", "out_km", "ukm", "cinta_km", "gim_min", "dp_run", "dp_hike", "dp_cinta"]
+    m = d.groupby(d["ts"].dt.month)[[c for c in cols_ if c in d]].sum().reindex(range(1, 13), fill_value=0)
+    if "out_dm" not in m:
+        m["out_dm"] = 0.0
     m["ultra"] = np.where(m["ukm"] > 0, 1.7 * m["out_dp"] / m["ukm"].replace(0, np.nan), 0)
     prev = m["out_dp"].shift(1)
     m["incr"] = np.where((m["out_dp"] > 0) & (m.index > 1), (m["out_dp"] - prev) / m["out_dp"].replace(0, np.nan), 0)
@@ -7838,8 +7877,8 @@ def _act_line(r_) -> str:
     if r_["dp"] and r_["dp"] >= 20 and r_["sport"] not in CINTA:
         bits.append(f'{fnum(r_["dp"])} m D+')
     if pd.notna(r_["load"]) and r_["load"]:
-        bits.append(f'{tr("carga")} {fnum(r_["load"])}')
-    return " · ".join(bits)
+        bits.append(f'<span class="ld">{tr("carga")} {fnum(r_["load"])}</span>')
+    return " · ".join(bits).replace(' · <span class="ld">', '<span class="ld"> · ')
 
 
 def _hoy_data() -> dict:
@@ -8006,7 +8045,10 @@ def _home_css() -> str:
 .hy-act {{ display: grid; grid-template-columns: 62px minmax(0, 1fr) auto; gap: 12px; align-items: center; min-height: 44px;
   border-top: 1px solid {LINE}; font-size: 14px; color: {INK}; }}
 .hy-act .k {{ font: 500 12.5px "{FONT_M}", monospace; color: {MUTED}; }}
-.hy-act .v {{ font: 500 13px "{FONT_M}", monospace; color: {MUTED}; text-align: right; }}
+.hy-act .v {{ font: 500 13px "{FONT_M}", monospace; color: {MUTED}; text-align: right; white-space: nowrap; }}
+.hy-act > span:nth-child(2) {{ min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+@media (max-width: 640px) {{ .hy-act {{ grid-template-columns: 40px minmax(84px, 1fr) auto; gap: 8px; font-size: 13px; }}
+  .hy-act .k {{ font-size: 11.5px; }} .hy-act .v {{ font-size: 11px; }} .hy-act .kd, .hy-act .ld {{ display: none; }} }}
 .hy-scale {{ position: relative; height: 10px; border-radius: 5px;
   background: linear-gradient(90deg, {RED} 0 22%, {GREEN} 22% 55%, {ZERO} 55% 80%, {GLACIER} 80%); }}
 .hy-scale i {{ position: absolute; top: -5px; width: 4px; height: 20px; border-radius: 2px; background: {INK}; }}
@@ -8079,8 +8121,9 @@ def _forma_card(D: dict) -> str:
 def _recent_html(D: dict, n: int = 6) -> str:
     rows = []
     for _, r_ in D["recent"].head(n).iterrows():
-        rows.append(f'<div class="hy-act"><span class="k">{r_["ts"]:%d/%m}</span><span><b>{_html.escape(str(r_["name"] or r_["sport"])[:40])}</b>'
-                    f' <span style="color:{MUTED}">· {_kind_txt(r_["sport"])}</span></span><span class="v">{_act_line(r_)}</span></div>')
+        nm_ = str(r_["name"] or r_["sport"])
+        rows.append(f'<div class="hy-act"><span class="k">{r_["ts"]:%d/%m}</span><span title="{_html.escape(nm_)}"><b>{_html.escape(nm_[:60])}</b>'
+                    f'<span class="kd" style="color:{MUTED}"> · {_kind_txt(r_["sport"])}</span></span><span class="v">{_act_line(r_)}</span></div>')
     return "".join(rows)
 
 
@@ -8914,8 +8957,9 @@ if SEC == "lw":
         wk_rows.append({"Semana": name + (" (en curso)" if i == 12 else " ★" if i == 11 else ""), **{lab: W[i][k] for k, lab, *_ in WKM}, "Sesiones": W[i]["n"]})
     wk_rows.append({"Semana": "Media 8 sem previas", **{lab: AVG[k] for k, lab, *_ in WKM}, "Sesiones": AVG["n"]})
     WT = pd.DataFrame(wk_rows)
+    WT.insert(WT.columns.get_loc("D+") + 1, "D−", [W[i]["dm"] for i in [12] + list(range(11, 2, -1))] + [AVG["dm"]])
     fz_ = lambda d: (lambda v: "0" if v == 0 else fnum(v, d))  # noqa: E731
-    html_table(WT, fmt={**{lab: fz_(d) for k, lab, c, u, d in WKM}, "Sesiones": fz_(1)},
+    html_table(WT, fmt={**{lab: fz_(d) for k, lab, c, u, d in WKM}, "D−": fz_(0), "Sesiones": fz_(1)},
                heat={"D+": (float(max(1, WT["D+"].iloc[1:-1].max())), rgb(GOLD))},
                row_classes=["cur"] + ["hl"] + [""] * (len(WT) - 3) + [""], total_last=True, group_start={"Sesiones"})
 
@@ -9010,7 +9054,7 @@ if SEC == "fat":
             span = (b - a).days + 1
             wks = span / 7
             t_ = totals(d)
-            return {"Periodo": label, "Horas": t_["h"] / wks, "Km": t_["km"] / wks, "D+ m": t_["dp"] / wks,
+            return {"Periodo": label, "Horas": t_["h"] / wks, "Km": t_["km"] / wks, "D+ m": t_["dp"] / wks, "D− m": t_["dm"] / wks,
                     "Km-esf.": t_["kmE"] / wks, "Ultra Ind": t_["ultra"], "Carga": t_["load"] / wks,
                     "Carga/h": t_["load"] / t_["h"] if t_["h"] else 0, "Sesiones": t_["n"] / wks,
                     "Días descanso": (span - d["date"].nunique()) / wks}
@@ -9025,7 +9069,7 @@ if SEC == "fat":
                    (max(pys, first), pys + dt.timedelta(days=doy0), f"{now_y - 1} a misma fecha")]
         rows = [period(a, b, lab) for a, b, lab in periods if b >= a]
         PT = pd.DataFrame(rows)
-        html_table(PT, fmt={c: (lambda d: (lambda v: "0" if v == 0 else fnum(v, d)))(0 if c in ("D+ m", "Carga", "Carga/h") else 1)
+        html_table(PT, fmt={c: (lambda d: (lambda v: "0" if v == 0 else fnum(v, d)))(0 if c in ("D+ m", "D− m", "Carga", "Carga/h") else 1)
                             for c in PT.columns if c != "Periodo"},
                    row_classes=["hl"] + [""] * (len(PT) - 1), group_start={"Carga"})
         with st.expander("Cómo leer estos indicadores"):
@@ -9055,7 +9099,7 @@ if SEC == "sets":
     st.subheader(f"D+ {year} por Sets")
     st.markdown('<span class="note">Set = bloque de 7 días del mes (1–7, 8–14, 15–21, 22–28, 29–31). Ultra Ind = 1,7 × D+/Km. '
                 'Incr vs M‑1 = (D+ mes − D+ mes anterior) / D+ mes.</span>', unsafe_allow_html=True)
-    MET = {"D+": ("out_dp", 0, rgb(GOLD)), "Km": ("out_km", 1, rgb(INK)), "Km Cinta": ("cinta_km", 1, rgb(GLACIER)),
+    MET = {"D+": ("out_dp", 0, rgb(GOLD)), "D−": ("out_dm", 0, rgb(GLACIER)), "Km": ("out_km", 1, rgb(INK)), "Km Cinta": ("cinta_km", 1, rgb(GLACIER)),
            "min Gim": ("gim_min", 0, rgb(GREEN))}
     months_n = today.month if year == now_y else 12
     mlabels = [f"{MES[m - 1]} {str(year)[2:]}" for m in range(1, months_n + 1)]
@@ -9065,11 +9109,11 @@ if SEC == "sets":
     if vista == "Resumen mensual":
         R = pd.DataFrame({
             "Mes": mlabels,
-            "D+ m": My["out_dp"].values[:months_n], "Km": My["out_km"].values[:months_n],
+            "D+ m": My["out_dp"].values[:months_n], "D− m": My["out_dm"].values[:months_n], "Km": My["out_km"].values[:months_n],
             "Km Cinta": My["cinta_km"].values[:months_n], "min Gim": My["gim_min"].values[:months_n],
             "Ultra Ind": My["ultra"].values[:months_n], "Incr vs M‑1": (My["incr"] * 100).values[:months_n],
         })
-        tot = {"Mes": "Total", "D+ m": R["D+ m"].sum(), "Km": R["Km"].sum(), "Km Cinta": R["Km Cinta"].sum(),
+        tot = {"Mes": "Total", "D+ m": R["D+ m"].sum(), "D− m": R["D− m"].sum(), "Km": R["Km"].sum(), "Km Cinta": R["Km Cinta"].sum(),
                "min Gim": R["min Gim"].sum(), "Ultra Ind": T["ultra"], "Incr vs M‑1": np.nan}
         R = pd.concat([R, pd.DataFrame([tot])], ignore_index=True)
 
@@ -9078,7 +9122,7 @@ if SEC == "sets":
                 return "" if pd.isna(v) else "0"
             return f'<span class="{"up" if v > 0 else "down"}">{"▲" if v > 0 else "▼"} {fnum(abs(v))} %</span>'
 
-        html_table(R, fmt={"D+ m": fN(0), "Km": fN(1), "Km Cinta": fN(1), "min Gim": fN(0), "Ultra Ind": fN(1), "Incr vs M‑1": incr_fmt},
+        html_table(R, fmt={"D+ m": fN(0), "D− m": fN(0), "Km": fN(1), "Km Cinta": fN(1), "min Gim": fN(0), "Ultra Ind": fN(1), "Incr vs M‑1": incr_fmt},
                    heat={"D+ m": (float(max(1, R["D+ m"].iloc[:-1].max())), rgb(GOLD))}, group_start={"Ultra Ind"}, total_last=True)
     else:
         met = st.pills("Métrica", list(MET), default="D+", key="sets_metric") or "D+"
@@ -9187,11 +9231,12 @@ def long_detail(r_: pd.Series):
     st.subheader("Por pendiente")
     ba = grade_bands(d_)
     vv = lambda x_: x_["vam"] if pd.notna(x_["vam"]) else x_["vdesc"]  # noqa: E731
-    bt = pd.DataFrame({"Pendiente": ba["band"], "Km": ba["km"], "% tiempo": ba["pct_t"], "Tiempo mov.": ba["mt"], "Ritmo": ba["pace"],
+    bt = pd.DataFrame({"Pendiente": ba["band"], "Km": ba["km"], "D+": ba["dp"], "D−": ba["dm"], "% tiempo": ba["pct_t"],
+                       "Tiempo mov.": ba["mt"], "Ritmo": ba["pace"],
                        "VAM / bajada": [vv(x_) for _, x_ in ba.iterrows()], "FC media": ba["hr"]})
     bt = bt[bt["Km"] > 0.005]
     html_table(bt, left={"Pendiente"},
-               fmt={"Km": nf(1), "% tiempo": nf(0, " %"), "Tiempo mov.": hms, "Ritmo": mmss, "VAM / bajada": nf(0, " m/h"),
+               fmt={"Km": nf(1), "D+": nf(0, " m"), "D−": nf(0, " m"), "% tiempo": nf(0, " %"), "Tiempo mov.": hms, "Ritmo": mmss, "VAM / bajada": nf(0, " m/h"),
                     "FC media": nf(0, " ppm")},
                heat={"% tiempo": (float(max(1, bt["% tiempo"].max())), rgb(GOLD))})
     st.markdown('<span class="note">En subidas, VAM (metros subidos por hora); en bajadas, metros bajados por hora. Ritmo en min/km.</span>',
@@ -9232,15 +9277,19 @@ def long_detail(r_: pd.Series):
         SG = pd.DataFrame(rows)
         tbl = pd.DataFrame({"Nº": SG["n"], "Tramo": np.where(SG["up"], "▲ Subida", "▼ Bajada"),
                             "Km inicio": SG["d0"] / 1000, "Altitud": [f"{fnum(x_.a0)} → {fnum(x_.a1)} m" for x_ in SG.itertuples()],
-                            "Km": SG["km"], "Pend.": SG["grade"], "Tiempo mov.": SG["mt"], "Ritmo": SG["pace"],
+                            "Km": SG["km"], "D+": (SG["a1"] - SG["a0"]).clip(lower=0), "D−": (SG["a0"] - SG["a1"]).clip(lower=0),
+                            "Pend.": SG["grade"], "Tiempo mov.": SG["mt"], "Ritmo": SG["pace"],
                             "VAM / bajada": SG["rate"], "FC media": SG["hr"]})
-        tot = pd.DataFrame([{"Nº": "", "Tramo": "Total", "Km inicio": np.nan, "Altitud": "", "Km": SG["km"].sum(), "Pend.": np.nan,
+        tot = pd.DataFrame([{"Nº": "", "Tramo": "Total", "Km inicio": np.nan, "Altitud": "", "Km": SG["km"].sum(),
+                             "D+": (SG["a1"] - SG["a0"]).clip(lower=0).sum(), "D−": (SG["a0"] - SG["a1"]).clip(lower=0).sum(), "Pend.": np.nan,
                              "Tiempo mov.": SG["mt"].sum(), "Ritmo": np.nan, "VAM / bajada": np.nan, "FC media": np.nan}])
         tbl = pd.concat([tbl, tot], ignore_index=True)
         up_c = lambda v: (f'<span style="color:{GOLD}">{v}</span>' if str(v).startswith("▲") else  # noqa: E731
                           f'<span style="color:{GLACIER}">{v}</span>' if str(v).startswith("▼") else v)
         html_table(tbl, left={"Tramo", "Altitud"}, total_last=True,
-                   fmt={"Km inicio": nf(1), "Km": nf(1), "Pend.": lambda v: "" if pd.isna(v) else f"{fnum(v)} %", "Tramo": up_c,
+                   fmt={"Km inicio": nf(1), "Km": nf(1), "D+": lambda v: "" if pd.isna(v) or not v else f"{fnum(v)} m",
+                        "D−": lambda v: "" if pd.isna(v) or not v else f"{fnum(v)} m",
+                        "Pend.": lambda v: "" if pd.isna(v) else f"{fnum(v)} %", "Tramo": up_c,
                         "Tiempo mov.": hms, "Ritmo": mmss, "VAM / bajada": nf(0, " m/h"), "FC media": nf(0, " ppm")})
         st.markdown('<span class="note">Subidas y bajadas con al menos ese desnivel, detectadas sobre la altitud suavizada.</span>',
                     unsafe_allow_html=True)
@@ -9459,7 +9508,7 @@ if SEC == "long":
             hm = lambda s: f"{int(s // 3600)}:{int(s % 3600 // 60):02d}"  # noqa: E731
             ALLC = ["Tipo", "Distancia", "D+", "D−", "Tiempo total", "Tiempo mov.", "Ritmo", "Carga", "Cardio med",
                     "Cardio máx", "Calorías", "Carbs", "Sensación"]
-            DEF = ["Tipo", "Distancia", "D+", "Tiempo total", "Ritmo", "Carga"]
+            DEF = ["Tipo", "Distancia", "D+", "D−", "Tiempo total", "Ritmo", "Carga"]
             o1, o2 = st.columns([3, 1])
             with o1:
                 show = st.multiselect("Columnas", ALLC, default=DEF, key="lg_cols")
@@ -9482,12 +9531,26 @@ if SEC == "long":
                               else f'<span class="chip" style="--c:{INK};--o:{on(INK)}">Asfalto</span>')
             num = lambda d, u="": (lambda v: "" if pd.isna(v) else f"{fnum(v, d)}{u}")  # noqa: E731
             name_f = lambda v: (str(v)[:38] + "…") if len(str(v)) > 39 else str(v)  # noqa: E731
-            html_table(view, left={"Entrenamiento", "Tipo"}, max_height=620,
-                       fmt={"Entrenamiento": name_f, "Tipo": chip, "Distancia": num(1, " km"), "D+": num(0, " m"), "D−": num(0, " m"),
-                            "Tiempo total": hm, "Tiempo mov.": hm, "Ritmo": pace_f, "Carga": num(0), "Cardio med": num(0),
-                            "Cardio máx": num(0), "Calorías": num(0), "Carbs": num(0, " g"),
-                            "Sensación": lambda v: "" if pd.isna(v) else f"{int(v)}/5"},
-                       heat={"D+": (float(max(1, lg2["dp"].max())), rgb(GOLD))} if "D+" in show else None)
+            # Tabla seleccionable: al marcar una fila se abre su detalle más abajo
+            vsel = view.copy()
+            if "Tipo" in vsel:
+                vsel["Tipo"] = np.where(vsel["Tipo"] == "TrailRun", "Trail", "Asfalto")
+            for c_ in ("Tiempo total", "Tiempo mov."):
+                if c_ in vsel:
+                    vsel[c_] = vsel[c_].map(hm)
+            if "Ritmo" in vsel:
+                vsel["Ritmo"] = vsel["Ritmo"].map(pace_f)
+            if "Sensación" in vsel:
+                vsel["Sensación"] = vsel["Sensación"].map(lambda v: "" if pd.isna(v) else f"{int(v)}/5")
+            nf = lambda lab_, f_: st.column_config.NumberColumn(lab_, format=f_)  # noqa: E731
+            ev_t = st.dataframe(vsel, hide_index=True, width="stretch", on_select="rerun", selection_mode="single-row",
+                                key="lg_tbl", height=min(36 + 35 * len(vsel), 620),
+                                column_config={"Entrenamiento": st.column_config.TextColumn("Entrenamiento", width="large"),
+                                               "Distancia": nf("Distancia", "%.1f km"), "D+": nf("D+", "%d m"), "D−": nf("D−", "%d m"),
+                                               "Carga": nf("Carga", "%d"), "Cardio med": nf("Cardio med", "%d"),
+                                               "Cardio máx": nf("Cardio máx", "%d"), "Calorías": nf("Calorías", "%d"),
+                                               "Carbs": nf("Carbs", "%d g")})
+            st.markdown('<span class="note">Marca una fila para ver su detalle más abajo.</span>', unsafe_allow_html=True)
             fig_l = go.Figure()
             fig_l.add_scatter(x=lg["km"], y=lg["dp"], mode="markers", text=lg["name"],
                               customdata=np.stack([lg["ts"].dt.strftime("%d/%m/%Y"), lg["elapsed"].map(hm), lg["id"].astype(str)], axis=-1),
@@ -9502,6 +9565,17 @@ if SEC == "long":
             ev_l = st.plotly_chart(plot_layout(fig_l, 300, legend=False), width="stretch", theme=None, on_select="rerun",
                                    selection_mode="points", key="lg_plot")
             ids_l = lg2["id"].astype(str).tolist()
+            try:
+                rows_t = ev_t.selection.rows if ev_t else []
+            except Exception:  # noqa: BLE001
+                rows_t = []
+            if rows_t:
+                tid = ids_l[rows_t[0]] if rows_t[0] < len(ids_l) else None
+                if tid and tid != st.session_state.get("lg_tbl_last"):
+                    st.session_state["lg_sel"] = tid
+                st.session_state["lg_tbl_last"] = tid
+            else:
+                st.session_state["lg_tbl_last"] = None
             try:
                 pts_ = ev_l.selection.points if ev_l else []
             except Exception:  # noqa: BLE001
@@ -9653,8 +9727,8 @@ def zone_map_ui(groups: list, trows: list):
     with st.expander("🗺 Ver el recorrido de una zona: mapa, perfil y subidas", expanded=False, key="nom_map_x"):
         if not groups:
             return
-        labs = [f'{(t["Zona"] or "Sin nombre")} · {t["Tipo"]} · {t["Salidas"]} salidas · {fnum(t["Km"], 1)} km · {fnum(t["D+"])} m+'
-                for t in trows]
+        labs = [f'{(t["Zona"] or "Sin nombre")} · {t["Tipo"]} · {t["Salidas"]} salidas · {fnum(t["Km"], 1)} km · '
+                f'+{fnum(t["D+"])} / −{fnum(t["D−"])} m' for t in trows]
         gi = st.selectbox("Zona", range(len(groups)), format_func=lambda i: labs[i], key="nom_map_g")
         g = groups[gi]
         acts_ = sorted(g["acts"], key=lambda a: a["ts"], reverse=True)[:8]
@@ -9689,7 +9763,7 @@ def zone_map_ui(groups: list, trows: list):
                                         opacity=TS["halo_op"], hoverinfo="skip", showlegend=False))
             f_m.add_trace(go.Scattermap(lat=rd(s_["lat"]), lon=rd(s_["lng"]), mode="lines",
                                         line=dict(color=ZONE_COLS[k % len(ZONE_COLS)], width=w_),
-                                        name=f'{a["date"]:%d/%m/%y} · {fnum(a["km"], 1)} km · {fnum(a["dp"])} m+',
+                                        name=f'{a["date"]:%d/%m/%y} · {fnum(a["km"], 1)} km · +{fnum(a["dp"])} / −{fnum(a["dm"])} m',
                                         hovertemplate=f'{a["date"]:%d/%m/%y} · {_html.escape(a["name"])}<extra></extra>'))
         # salida, meta y punto más alto de la más reciente; marcas de km
         dd = ok0["dist"].to_numpy()
@@ -9786,7 +9860,8 @@ def name_section():
         else:
             sig = route_sig(key, str(r_["id"]))
         acts.append(dict(id=str(r_["id"]), date=r_["date"], ts=r_["ts"], sport=r_["sport"], name=str(r_["name"] or ""),
-                         km=float(r_["km"]), dp=float(r_["dp"]), secs=float(r_["secs"]), sig=sig))
+                         km=float(r_["km"]), dp=float(r_["dp"]), dm=float(r_["dm"]) if pd.notna(r_.get("dm")) else 0.0,
+                         secs=float(r_["secs"]), sig=sig))
         if prog is not None:
             prog.progress((i + 1) / len(todo_), text="Leyendo el GPS de las salidas…")
     if prog is not None:
@@ -9821,8 +9896,9 @@ def name_section():
         a0 = g["acts"]
         km_ = float(np.median([a["km"] for a in a0])) if a0 else g["ref"]["km"]
         dp_ = float(np.median([a["dp"] for a in a0])) if a0 else g["ref"]["dp"]
+        dm_ = float(np.median([a["dm"] for a in a0])) if a0 else 0.0
         trows.append({"gi": gi, "Zona": g["name"] or hint, "Tipo": NAME_TYPES[g["type"]],
-                      "Salidas": len(a0), "Km": round(km_, 1), "D+": round(dp_),
+                      "Salidas": len(a0), "Km": round(km_, 1), "D+": round(dp_), "D−": round(dm_),
                       "Fechas": (f'{a0[0]["date"]:%d/%m/%y} – {a0[-1]["date"]:%d/%m/%y}' if len(a0) > 1 else
                                  f'{a0[0]["date"]:%d/%m/%y}' if a0 else "—"),
                       "Mapa": (f'https://www.openstreetmap.org/?mlat={sig["t"][0]:.5f}&mlon={sig["t"][1]:.5f}#map=15/{sig["t"][0]:.5f}/{sig["t"][1]:.5f}'
@@ -9830,7 +9906,7 @@ def name_section():
                       "Estado": "guardada" if g["zi"] is not None else ("propuesta" if hint else "sin nombre")})
     TB = pd.DataFrame(trows)
     ed = st.data_editor(TB, key="nom_zones_ed", hide_index=True, width="stretch", num_rows="fixed",
-                        column_order=["Zona", "Tipo", "Salidas", "Km", "D+", "Fechas", "Mapa", "Estado"],
+                        column_order=["Zona", "Tipo", "Salidas", "Km", "D+", "D−", "Fechas", "Mapa", "Estado"],
                         column_config={
                             "Zona": st.column_config.TextColumn("Zona", max_chars=50, width="large",
                                                                 help="El nombre fijo del recorrido, p. ej. «La Mola per Pi Tort»"),
@@ -9838,6 +9914,7 @@ def name_section():
                             "Salidas": st.column_config.NumberColumn("Salidas", disabled=True),
                             "Km": st.column_config.NumberColumn("Km", disabled=True, format="%.1f"),
                             "D+": st.column_config.NumberColumn("D+ m", disabled=True, format="%d"),
+                            "D−": st.column_config.NumberColumn("D− m", disabled=True, format="%d"),
                             "Fechas": st.column_config.TextColumn("Fechas", disabled=True),
                             "Mapa": st.column_config.LinkColumn("Punto más alto", display_text="mapa ↗", disabled=True),
                             "Estado": st.column_config.TextColumn("Estado", disabled=True, width="small")})
@@ -10263,6 +10340,7 @@ if SEC == "mat":
                     "Zapatilla": [shoe_name[i] for i in SBf["id"]],
                     "Km": [g_.loc[g_["gear_id"] == i, "km"].sum() for i in SBf["id"]],
                     "D+": [g_.loc[g_["gear_id"] == i, "dp"].sum() for i in SBf["id"]],
+                    "D−": [g_.loc[(g_["gear_id"] == i) & ~g_["sport"].isin(CINTA), "dm"].sum() for i in SBf["id"]],
                     "Horas": [g_.loc[g_["gear_id"] == i, "secs"].sum() / 3600 for i in SBf["id"]],
                     "Act.": [int((g_["gear_id"] == i).sum()) for i in SBf["id"]],
                     **{t_: [g_.loc[(g_["gear_id"] == i) & (g_["tipo"] == t_), "km"].sum() for i in SBf["id"]] for t_ in TIP},
@@ -10271,7 +10349,7 @@ if SEC == "mat":
                     "% límite": list(SBf["pct"]),
                 })
                 tb = tb[tb["Act."] > 0].sort_values("Km", ascending=False)
-                tot = pd.DataFrame([{"Zapatilla": "Total", "Km": tb["Km"].sum(), "D+": tb["D+"].sum(), "Horas": tb["Horas"].sum(),
+                tot = pd.DataFrame([{"Zapatilla": "Total", "Km": tb["Km"].sum(), "D+": tb["D+"].sum(), "D−": tb["D−"].sum(), "Horas": tb["Horas"].sum(),
                                      "Act.": tb["Act."].sum(), **{t_: tb[t_].sum() for t_ in TIP},
                                      "Ritmo": np.nan, "% límite": np.nan}])
                 tb_all = pd.concat([tb, tot], ignore_index=True)
@@ -10279,8 +10357,8 @@ if SEC == "mat":
                 pct_f = lambda v: ("" if pd.isna(v) else f'<span style="color:{pct_color(v)}">{fnum(v)} %</span>')  # noqa: E731
                 pace_f2 = lambda p: f"{int(p // 60)}:{int(round(p % 60)) % 60:02d}" if pd.notna(p) and p > 0 else ""  # noqa: E731
                 html_table(tb_all, left={"Zapatilla"}, total_last=True, group_start={"Carrera"},
-                           groups=[("", 5, ""), ("Km por tipo", 4, "g"), ("", 2, "")],
-                           fmt={"Km": num_(1), "D+": num_(0), "Horas": num_(1), "Act.": num_(0), **{t_: num_(1) for t_ in TIP},
+                           groups=[("", 6, ""), ("Km por tipo", 4, "g"), ("", 2, "")],
+                           fmt={"Km": num_(1), "D+": num_(0), "D−": num_(0), "Horas": num_(1), "Act.": num_(0), **{t_: num_(1) for t_ in TIP},
                                 "Ritmo": pace_f2, "% límite": pct_f},
                            heat={"Km": (float(max(1, tb["Km"].max())), rgb(GOLD))})
 
@@ -10682,9 +10760,10 @@ if SEC == "cmp":
                         unsafe_allow_html=True)
             badge = {"misma ruta": GREEN, "parecida": ORANGE, "distinta": RED, "sin GPS": MUTED, "sin comprobar": MUTED}
             html_table(pd.DataFrame({"Fecha": sim_pool["ts"].dt.strftime("%d/%m/%y").values, "Actividad": sim_pool["name"].values,
-                                     "Km": sim_pool["km"].values, "D+": sim_pool["dp"].values, "Recorrido": sim_pool["recorrido"].values}),
+                                     "Km": sim_pool["km"].values, "D+": sim_pool["dp"].values, "D−": sim_pool["dm"].values,
+                                     "Recorrido": sim_pool["recorrido"].values}),
                        left={"Actividad", "Recorrido"}, max_height=230,
-                       fmt={"Km": lambda v: fnum(v, 1), "D+": lambda v: fnum(v),
+                       fmt={"Km": lambda v: fnum(v, 1), "D+": lambda v: fnum(v), "D−": lambda v: "" if pd.isna(v) else fnum(v),
                             "Actividad": lambda v: (str(v)[:40] + "…") if len(str(v)) > 41 else str(v),
                             "Recorrido": lambda v: f'<span class="chip" style="--c:{badge[v]};--o:{on(badge[v])}">{v}</span>'})
         else:
@@ -10762,18 +10841,19 @@ if SEC == "cmp":
             ba, bb = grade_bands(df_a), grade_bands(df_b)
             vv = lambda r_: r_["vam"] if pd.notna(r_["vam"]) else r_["vdesc"]  # noqa: E731
             bt = pd.DataFrame({
-                "Pendiente": ba["band"], "Km|A": ba["km"], "Km|B": bb["km"], "Tiempo|A": ba["mt"], "Tiempo|B": bb["mt"],
+                "Pendiente": ba["band"], "Km|A": ba["km"], "Km|B": bb["km"], "D+|A": ba["dp"], "D+|B": bb["dp"],
+                "D−|A": ba["dm"], "D−|B": bb["dm"], "Tiempo|A": ba["mt"], "Tiempo|B": bb["mt"],
                 "Ritmo|A": ba["pace"], "Ritmo|B": bb["pace"],
                 "VAM / bajada|A": [vv(r_) for _, r_ in ba.iterrows()], "VAM / bajada|B": [vv(r_) for _, r_ in bb.iterrows()],
                 "FC|A": ba["hr"], "FC|B": bb["hr"]})
             bt["Δ m/h"] = bt["VAM / bajada|A"] - bt["VAM / bajada|B"]          # actual − comparada
-            bt = bt[["Pendiente", "Km|A", "Km|B", "Tiempo|A", "Tiempo|B", "Ritmo|A", "Ritmo|B", "VAM / bajada|A", "VAM / bajada|B", "Δ m/h", "FC|A", "FC|B"]]
+            bt = bt[["Pendiente", "Km|A", "Km|B", "D+|A", "D+|B", "D−|A", "D−|B", "Tiempo|A", "Tiempo|B", "Ritmo|A", "Ritmo|B", "VAM / bajada|A", "VAM / bajada|B", "Δ m/h", "FC|A", "FC|B"]]
             nf = lambda d, u="": (lambda v: "—" if pd.isna(v) else f"{fnum(v, d)}{u}")  # noqa: E731
             dcol = lambda v: "—" if pd.isna(v) else f'<span style="color:{GREEN if v > 0 else RED if v < 0 else MUTED}">{"+" if v > 0 else "−" if v < 0 else ""}{fnum(abs(v))}</span>'  # noqa: E731
-            html_table(bt, left={"Pendiente"}, sub=SUB_AB, group_start={"Km|A", "Tiempo|A", "Ritmo|A", "VAM / bajada|A", "FC|A"},
-                       groups=[("", 1, ""), ("Km", 2, "g"), ("Tiempo mov.", 2, "g"), ("Ritmo min/km", 2, "g"),
+            html_table(bt, left={"Pendiente"}, sub=SUB_AB, group_start={"Km|A", "D+|A", "D−|A", "Tiempo|A", "Ritmo|A", "VAM / bajada|A", "FC|A"},
+                       groups=[("", 1, ""), ("Km", 2, "g"), ("D+ m", 2, "g"), ("D− m", 2, "g"), ("Tiempo mov.", 2, "g"), ("Ritmo min/km", 2, "g"),
                                ("VAM / bajada m/h", 3, "g"), ("FC media", 2, "g")],
-                       fmt={"Km|A": nf(1), "Km|B": nf(1), "Tiempo|A": hms, "Tiempo|B": hms, "Ritmo|A": mmss, "Ritmo|B": mmss,
+                       fmt={"Km|A": nf(1), "Km|B": nf(1), "D+|A": nf(0), "D+|B": nf(0), "D−|A": nf(0), "D−|B": nf(0), "Tiempo|A": hms, "Tiempo|B": hms, "Ritmo|A": mmss, "Ritmo|B": mmss,
                             "VAM / bajada|A": nf(0), "VAM / bajada|B": nf(0), "Δ m/h": dcol, "FC|A": nf(0), "FC|B": nf(0)})
             st.markdown('<span class="note">En subidas, VAM (metros subidos por hora); en bajadas, metros bajados por hora. '
                         'Δ = actual − comparada; en verde, la carrera actual sube o baja más rápido.</span>', unsafe_allow_html=True)
@@ -10835,9 +10915,12 @@ if SEC == "cmp":
                     tbl = pd.DataFrame({
                         "Nº": SG["n"], "Tramo": np.where(SG["up"], "▲ Subida", "▼ Bajada"),
                         "Altitud": [f"{fnum(r_.a0)} → {fnum(r_.a1)} m" for r_ in SG.itertuples()],
-                        "Km": SG["km"], "Pend.": SG["grade"], "Tiempo|A": SG["ta"], "Tiempo|B": SG["tb"], "Diferencia": SG["diff"],
+                        "Km": SG["km"], "D+": (SG["a1"] - SG["a0"]).clip(lower=0), "D−": (SG["a0"] - SG["a1"]).clip(lower=0),
+                        "Pend.": SG["grade"], "Tiempo|A": SG["ta"], "Tiempo|B": SG["tb"], "Diferencia": SG["diff"],
                         "VAM / bajada|A": SG["ra"], "VAM / bajada|B": SG["rb"], "FC|A": SG["hra"], "FC|B": SG["hrb"]})
-                    tot_row = pd.DataFrame([{"Nº": "", "Tramo": "Total", "Altitud": "", "Km": SG["km"].sum(), "Pend.": np.nan,
+                    tot_row = pd.DataFrame([{"Nº": "", "Tramo": "Total", "Altitud": "", "Km": SG["km"].sum(),
+                                             "D+": (SG["a1"] - SG["a0"]).clip(lower=0).sum(), "D−": (SG["a0"] - SG["a1"]).clip(lower=0).sum(),
+                                             "Pend.": np.nan,
                                              "Tiempo|A": SG["ta"].sum(), "Tiempo|B": SG["tb"].sum(), "Diferencia": SG["diff"].sum(),
                                              "VAM / bajada|A": np.nan, "VAM / bajada|B": np.nan, "FC|A": np.nan, "FC|B": np.nan}])
                     tbl = pd.concat([tbl, tot_row], ignore_index=True)
@@ -10845,8 +10928,10 @@ if SEC == "cmp":
                                       f'<span style="color:{GLACIER}">{v}</span>' if str(v).startswith("▼") else v)
                     dtf = lambda v: "—" if pd.isna(v) else f'<span style="color:{GREEN if v < 0 else RED if v > 0 else MUTED}">{sgn_time(v)}</span>'  # noqa: E731
                     html_table(tbl, left={"Tramo", "Altitud"}, sub=SUB_AB, total_last=True, group_start={"Tiempo|A", "VAM / bajada|A", "FC|A"},
-                               groups=[("", 5, ""), ("Tiempo en movimiento", 3, "g"), ("VAM / bajada m/h", 2, "g"), ("FC media", 2, "g")],
-                               fmt={"Km": nf(1), "Pend.": lambda v: "" if pd.isna(v) else f"{fnum(v)} %", "Tramo": up_c,
+                               groups=[("", 7, ""), ("Tiempo en movimiento", 3, "g"), ("VAM / bajada m/h", 2, "g"), ("FC media", 2, "g")],
+                               fmt={"Km": nf(1), "D+": lambda v: "" if pd.isna(v) or not v else fnum(v),
+                                    "D−": lambda v: "" if pd.isna(v) or not v else fnum(v),
+                                    "Pend.": lambda v: "" if pd.isna(v) else f"{fnum(v)} %", "Tramo": up_c,
                                     "Tiempo|A": hms, "Tiempo|B": hms, "Diferencia": dtf,
                                     "VAM / bajada|A": nf(0), "VAM / bajada|B": nf(0), "FC|A": nf(0), "FC|B": nf(0)})
                     st.markdown('<span class="note">Diferencia = carrera actual − carrera a comparar; en verde, la carrera actual fue más rápida en ese tramo. '
