@@ -6905,6 +6905,18 @@ def sport_log(d_: dt.date, saved_a: dict, C_: dict, P: dict, compact: bool = Fal
     return out
 
 
+def meal_cheat_kcal(m_: dict, CH: dict) -> float:
+    """kcal «cheat» de una comida: toda si está marcada entera ("ch"); si no, solo los complementos marcados ("xf"/"xb";
+    en días sin esa marca, los alimentos «🍫 Cheat» de la lista)."""
+    out = 0.0
+    for t_, DB in (("f", FOOD_ALL), ("b", DRINK_ALL)):
+        xs_ = m_.get("x" + t_)
+        for n_, q in m_.get(t_, []):
+            if m_.get("ch") or (n_ in xs_ if isinstance(xs_, list) else n_ in CH[t_]):
+                out += (DB.get(n_) or (0,))[0] * float(q) / 100
+    return out
+
+
 def food_log(P: dict, base: float, k: float, W: list, compact: bool = False):
     """Entrada del registro diario: desayuno, comida, merienda y cena, con alimentos, cantidades y bebida."""
     st.subheader("Registro diario de alimentación")
@@ -6927,11 +6939,11 @@ def food_log(P: dict, base: float, k: float, W: list, compact: bool = False):
     tabs = st.tabs([(lab + " 🍫") if ch_on[_k] else lab for _k, lab in MEALS] + ["Durante la actividad"])
     for (mk, lab), tb in zip(MEALS, tabs):
         with tb:
-            ch_on[mk] = st.toggle(f'🍫 {tr("Cheat")}', value=ch_on[mk], key=chk[mk],
-                                  help=tr("Marca esta comida como capricho fuera de la dieta habitual (cena de pizza, merienda de "
-                                          "bollería…): toda la comida cuenta en el «Cheat del día». Los alimentos marcados «🍫 Cheat» en "
-                                          "Plan 2027 › Alimentos y bebidas cuentan siempre, en cualquier comida, y con el "
-                                          "interruptor activado salen primero en «Añadir»."))
+            ch_on[mk] = st.toggle(f'🍫 {tr("Toda la comida es cheat")}', value=ch_on[mk], key=chk[mk],
+                                  help=tr("Activado: toda la comida cuenta como capricho (cena de pizza, merienda de bollería…). "
+                                          "Desactivado: comida normal en la que puedes marcar solo el complemento cheat (el postre, "
+                                          "la cerveza…) en la columna 🍫 de cada fila. Los marcados «🍫 Cheat» en Plan 2027 › "
+                                          "Alimentos y bebidas salen ya marcados."))
             cur = saved.get(mk, {})
             ovk = f"nlog_ov_{mk}_{d_}"                  # lista con lo añadido con «Añadir» (sin guardar todavía)
             if isinstance(st.session_state.get(ovk), dict):
@@ -6952,19 +6964,28 @@ def food_log(P: dict, base: float, k: float, W: list, compact: bool = False):
                 add_go = q3.form_submit_button(f'➕ {tr("Añadir")}', width="stretch")
             # Se registra en raciones (la unidad de cada alimento: pieza, vaso, plato…); los gramos solo si no es una ración
             # entera. Lo guardado son gramos: al volver a abrir el día, lo que sea un número de medias raciones se ve en raciones.
+            def _is_ch(m_, t_, n_):            # ¿cuenta como cheat en esta comida? (marca guardada, o la de la lista)
+                xs_ = m_.get("x" + t_)
+                return n_ in xs_ if isinstance(xs_, list) else n_ in CH[t_]
+
             def _rows(items, DB, kind):
                 out_ = []
+                t_k = "f" if kind == "Alimento" else "b"
                 for n_, q in items:
                     po = float(DB[n_][4]) if n_ in DB and DB[n_][4] else 0.0
                     r_ = q / po if po else 0
                     whole = po and 0 < r_ <= 20 and abs(r_ * 2 - round(r_ * 2)) < 0.01
                     out_.append({kind: tr(n_), "Raciones": round(r_ * 2) / 2 if whole else np.nan,
-                                 "Cantidad": np.nan if whole else float(q)})
+                                 "Cantidad": np.nan if whole else float(q), "🍫": _is_ch(cur, t_k, n_)})
                 return out_
-            df_f = pd.DataFrame(_rows(cur.get("f", []), FOOD_ALL, "Alimento"), columns=["Alimento", "Raciones", "Cantidad"]).astype(
-                {"Alimento": object, "Raciones": float, "Cantidad": float})
-            df_b = pd.DataFrame(_rows(cur.get("b", []), DRINK_ALL, "Bebida"), columns=["Bebida", "Raciones", "Cantidad"]).astype(
-                {"Bebida": object, "Raciones": float, "Cantidad": float})
+            df_f = pd.DataFrame(_rows(cur.get("f", []), FOOD_ALL, "Alimento"), columns=["Alimento", "Raciones", "Cantidad", "🍫"]).astype(
+                {"Alimento": object, "Raciones": float, "Cantidad": float, "🍫": object})
+            df_b = pd.DataFrame(_rows(cur.get("b", []), DRINK_ALL, "Bebida"), columns=["Bebida", "Raciones", "Cantidad", "🍫"]).astype(
+                {"Bebida": object, "Raciones": float, "Cantidad": float, "🍫": object})
+            ch_col = st.column_config.CheckboxColumn("🍫", width="small",
+                                                     help=tr("Complemento cheat de esta comida (postre, cerveza…): cuenta en el «Cheat del "
+                                                             "día». Si lo dejas vacío, se usa la marca de Plan 2027 › Alimentos y bebidas."))
+            ch_cols = (["Raciones", "Cantidad"] if ch_on[mk] else ["Raciones", "Cantidad", "🍫"])
             rac_col = st.column_config.NumberColumn(tr("Raciones"), min_value=0, max_value=20, step=0.5, format="%g",
                                                     help=tr("Número de raciones (piezas, vasos, platos…). Vacío = 1. La ración de "
                                                             "cada alimento se define en Plan 2027 › Alimentos y bebidas."))
@@ -6973,25 +6994,32 @@ def food_log(P: dict, base: float, k: float, W: list, compact: bool = False):
                 ef = st.data_editor(df_f, key=f"nlog_f_{mk}_{d_}_{ver}", num_rows="dynamic", hide_index=True, width="stretch",
                                     column_config={
                                         "Alimento": st.column_config.SelectboxColumn(tr("Alimento"), options=f_opts, width="large"),
-                                        "Raciones": rac_col,
+                                        "Raciones": rac_col, "🍫": ch_col,
                                         "Cantidad": st.column_config.NumberColumn(tr("o gramos"), min_value=0, max_value=3000,
                                                                                   step=5, format="%g",
-                                                                                  help=tr("Solo si no son raciones enteras: sustituye a las raciones"))})
+                                                                                  help=tr("Solo si no son raciones enteras: sustituye a las raciones"))},
+                                    column_order=["Alimento"] + ch_cols)
             with c2:
                 eb = st.data_editor(df_b, key=f"nlog_b_{mk}_{d_}_{ver}", num_rows="dynamic", hide_index=True, width="stretch",
                                     column_config={
                                         "Bebida": st.column_config.SelectboxColumn(tr("Bebida"), options=b_opts, width="medium"),
-                                        "Raciones": rac_col,
+                                        "Raciones": rac_col, "🍫": ch_col,
                                         "Cantidad": st.column_config.NumberColumn(tr("o ml"), min_value=0, max_value=3000,
                                                                                   step=50, format="%g",
-                                                                                  help=tr("Solo si no son raciones enteras: sustituye a las raciones"))})
+                                                                                  help=tr("Solo si no son raciones enteras: sustituye a las raciones"))},
+                                    column_order=["Bebida"] + ch_cols)
 
             def _read(ed_, kind, back_, DB, UN, u_):
-                lst, txt_ = [], []
+                lst, txt_, xs_ = [], [], []
+                t_k = "f" if kind == "Alimento" else "b"
                 for _, r_ in ed_.iterrows():
                     n_ = back_.get(r_[kind]) if isinstance(r_[kind], str) else None
                     if not n_:
                         continue
+                    c_ = r_.get("🍫")
+                    if (bool(c_) if c_ is not None and not (isinstance(c_, float) and np.isnan(c_)) else n_ in CH[t_k]) \
+                            and n_ not in xs_:
+                        xs_.append(n_)
                     po = float(DB[n_][4])
                     q, rc = r_["Cantidad"], r_["Raciones"]
                     if pd.notna(q) and q:
@@ -7003,14 +7031,16 @@ def food_log(P: dict, base: float, k: float, W: list, compact: bool = False):
                         txt_.append(f'{tr(n_)} {fnum(n_r, 1).replace(",0", "").replace(".0", "")} × {tr(UN.get(n_, UNIT_DEF))} '
                                     f'({fnum(g)} {u_})')
                     lst.append([n_, round(g, 1)])
-                return lst, txt_
-            fl, tf = _read(ef, "Alimento", f_back, FOOD_ALL, FOOD_UNIT, "g")
-            bl, tb_ = _read(eb, "Bebida", b_back, DRINK_ALL, DRINK_UNIT, "ml")
+                return lst, txt_, xs_
+            fl, tf, xf = _read(ef, "Alimento", f_back, FOOD_ALL, FOOD_UNIT, "g")
+            bl, tb_, xb = _read(eb, "Bebida", b_back, DRINK_ALL, DRINK_UNIT, "ml")
             if add_go and add_sel and add_sel[0] == "k" and add_sel[1] in combs:     # combinación: todos sus elementos
                 cb_ = combs[add_sel[1]]
                 mul = float(add_n)
                 st.session_state[ovk] = {"f": fl + [[n_, round(q * mul, 1)] for n_, q in cb_.get("f", []) if n_ in FOOD_ALL],
-                                         "b": bl + [[n_, round(q * mul, 1)] for n_, q in cb_.get("b", []) if n_ in DRINK_ALL]}
+                                         "b": bl + [[n_, round(q * mul, 1)] for n_, q in cb_.get("b", []) if n_ in DRINK_ALL],
+                                         "xf": xf + [n_ for n_, _q in cb_.get("f", []) if n_ in CH["f"] and n_ not in xf],
+                                         "xb": xb + [n_ for n_, _q in cb_.get("b", []) if n_ in CH["b"] and n_ not in xb]}
                 st.session_state[f"{ovk}_v"] = ver + 1
                 st.rerun()
             if add_go and add_sel and add_sel[0] != "k":
@@ -7019,17 +7049,22 @@ def food_log(P: dict, base: float, k: float, W: list, compact: bool = False):
                 if n_a:
                     DB_ = FOOD_ALL if t_a == "f" else DRINK_ALL
                     item = [n_a, round(float(add_n) * float(DB_[n_a][4]), 1)]
-                    st.session_state[ovk] = {"f": fl + ([item] if t_a == "f" else []), "b": bl + ([item] if t_a == "b" else [])}
+                    st.session_state[ovk] = {"f": fl + ([item] if t_a == "f" else []), "b": bl + ([item] if t_a == "b" else []),
+                                             "xf": xf + ([n_a] if t_a == "f" and n_a in CH["f"] and n_a not in xf else []),
+                                             "xb": xb + ([n_a] if t_a == "b" and n_a in CH["b"] and n_a not in xb else [])}
                     st.session_state[f"{ovk}_v"] = ver + 1
                     st.rerun()
             if tf or tb_:
                 st.markdown('<span class="note">' + " · ".join(_html.escape(x) for x in tf + tb_) + "</span>", unsafe_allow_html=True)
             if fl or bl:
-                meals[mk] = {"f": fl, "b": bl, **({"ch": True} if ch_on[mk] else {})}
+                meals[mk] = {"f": fl, "b": bl, "xf": xf, "xb": xb, **({"ch": True} if ch_on[mk] else {})}
             t_ = food_totals({mk: {"f": fl, "b": bl}})["by"][mk]
+            ck_ = meal_cheat_kcal(meals.get(mk) or {}, CH)
             st.markdown(f'<span class="note"><b style="color:{INK}">{tr(lab)}</b>: {fnum(t_["kcal"])} kcal · '
                         f'{tr("Hidratos")} {fnum(t_["ch"])} g · {tr("Proteína")} {fnum(t_["p"])} g · {tr("Grasa")} {fnum(t_["f"])} g · '
-                        f'{tr("Líquido")} {fnum(t_["ml"])} ml</span>', unsafe_allow_html=True)
+                        f'{tr("Líquido")} {fnum(t_["ml"])} ml'
+                        + (f' · <b style="color:{ORANGE}">🍫 {tr("toda la comida") if ch_on[mk] else tr("complemento")} '
+                           f'{fnum(ck_)} kcal</b>' if ck_ > 0 else "") + '</span>', unsafe_allow_html=True)
             if fl or bl:                           # lo apuntado en esta comida, como combinación con nombre
                 with st.expander(f'🍱 {tr("Guardar esta comida como combinación")}', expanded=False, key=f"nlog_cbx_{mk}_{d_}"):
                     with st.form(f"nlog_cbf_{mk}_{d_}", border=False):
@@ -7051,15 +7086,8 @@ def food_log(P: dict, base: float, k: float, W: list, compact: bool = False):
                             except Exception as e:  # noqa: BLE001
                                 st.error(f"{tr('No se pudo guardar')}: {e}")
     # Caprichos del día: las comidas marcadas «cheat» enteras y los alimentos «🍫 Cheat» apuntados en las demás
-    ch_k, ch_by = 0.0, {}
-    for mk_, lab_m in MEALS:
-        m_ = meals.get(mk_) or {}
-        for t_, DB in (("f", FOOD_ALL), ("b", DRINK_ALL)):
-            for n_, q in m_.get(t_, []):
-                if m_.get("ch") or n_ in CH[t_]:
-                    v_ = (DB.get(n_) or (0,))[0] * float(q) / 100
-                    ch_k += v_
-                    ch_by[lab_m] = ch_by.get(lab_m, 0.0) + v_
+    ch_by = {lab_m: meal_cheat_kcal(meals.get(mk_) or {}, CH) for mk_, lab_m in MEALS}
+    ch_k = sum(ch_by.values())
     if ch_k > 0:
         tot_k = food_totals(meals)["kcal"]
         st.markdown(f'<div class="note" style="color:{ORANGE}">🍫 {tr("Cheat del día")}: <b>{fnum(ch_k)} kcal</b>'
