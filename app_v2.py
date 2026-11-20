@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import copy
 import datetime as dt
 import html as _html
 import json
@@ -1690,6 +1691,22 @@ def _bg_svg(kind: str, ink: str, gold: str, light: bool) -> str:
 
 _bgu = _bg_svg(st.session_state["sb_bg"], INK, GOLD, LIGHT)
 _bg_layer = (f'url("{_bgu}") center bottom / cover no-repeat fixed, ' if _bgu else "")
+# Indicador de carga: un perfil de montaña que se dibuja y un punto que lo sube (sustituye al muñeco que corre de Streamlit y al
+# círculo de st.spinner). SVG animado (SMIL) como imagen de fondo, con el color principal.
+def _mtn_spinner_url(col: str, ink: str) -> str:
+    ridge = "M2 38 L20 26 L30 31 L46 13 L58 23 L68 17 L82 5 L96 21 L106 15 L118 38"
+    svg = (f"<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' viewBox='0 0 120 42'>"
+           f"<path d='{ridge} Z' fill='{col}' fill-opacity='0.16'/>"
+           f"<path id='r' d='{ridge}' fill='none' stroke='{col}' stroke-width='2.8' stroke-linejoin='round' stroke-linecap='round' "
+           f"stroke-dasharray='162' stroke-dashoffset='162'><animate attributeName='stroke-dashoffset' values='162;0;0' "
+           f"keyTimes='0;0.8;1' dur='2.4s' repeatCount='indefinite'/></path>"
+           f"<path d='M82 5 L82 0 L88 2 L82 4' fill='{col}' stroke='{col}' stroke-width='1'/>"
+           f"<circle r='3.6' fill='{ink}' stroke='#ffffff' stroke-width='1.3'><animateMotion dur='2.4s' repeatCount='indefinite' "
+           f"keyPoints='0;1;1' keyTimes='0;0.8;1' calcMode='linear'><mpath xlink:href='#r'/></animateMotion></circle></svg>")
+    return "data:image/svg+xml;charset=utf-8," + quote_plus(svg).replace("+", "%20")
+
+
+MTN_SPIN = _mtn_spinner_url(GOLD, INK)
 st.markdown(f"""<style>
 .stApp, [data-testid="stAppViewContainer"] {{
   background: {_bg_layer}
@@ -1783,6 +1800,12 @@ a {{ color: {GOLD}; }}
 [data-testid="stDataFrame"] *, [data-testid="stDataFrameResizable"], [data-testid="stDataFrameResizable"] * {{
   --gdg-accent-color: {GOLD} !important; --gdg-accent-light: {rgba(GOLD, .16)} !important; --gdg-accent-fg: {ACC_ON} !important; }}
 [data-testid="stSpinner"] i {{ border-top-color: {GOLD} !important; }}
+/* Cargando: montaña que se dibuja y punto que sube (arriba a la derecha y en los st.spinner) */
+[data-testid="stStatusWidgetRunningManIcon"] {{ display: none !important; }}
+[data-testid="stStatusWidgetRunningIcon"] {{ width: 66px !important; height: 24px !important; background: url("{MTN_SPIN}") center / contain no-repeat; }}
+[data-testid="stSpinnerIcon"] {{ border: 0 !important; border-radius: 0 !important; animation: none !important; width: 72px !important;
+  height: 26px !important; background: url("{MTN_SPIN}") center / contain no-repeat !important; }}
+[data-testid="stSpinnerIcon"]::before, [data-testid="stSpinnerIcon"]::after {{ display: none !important; }}
 [data-testid="stProgress"] [role="progressbar"] > div > div > div {{ background-color: {GOLD} !important; }}
 .stApp a {{ color: {GOLD}; }}
 [data-testid="stNumberInputStepUp"]:hover, [data-testid="stNumberInputStepDown"]:hover {{ background: {GOLD} !important; color: {ACC_ON} !important; }}
@@ -6509,7 +6532,7 @@ DRINK_UNITS = {
     "Batido de cacao": "vaso", "Caldo": "taza",
 }
 UNIT_DEF = "ración"
-MEALS = [("d", "Desayuno"), ("c", "Comida"), ("m", "Merienda"), ("n", "Cena"), ("x", "Cheat")]   # x = caprichos fuera de la dieta
+MEALS = [("d", "Desayuno"), ("c", "Comida"), ("m", "Merienda"), ("n", "Cena")]   # cada una puede marcarse «cheat» ("ch": True)
 # Nutrición deportiva, por unidad (gel, cápsula, bidón…): tipo, unidad, kcal, hidratos, glucosa, fructosa, proteína, grasa (g),
 # sodio (mg), cafeína (mg), BCAA (g) y líquido (ml). Glucosa = glucosa, maltodextrina y almidón (todo lo que se absorbe como
 # glucosa, máx. ~60 g/h); fructosa = fructosa libre y la mitad de la sacarosa. En sólidos el reparto es aproximado.
@@ -6654,10 +6677,23 @@ def cat_del_note(names: list):
 DEL_COL = "Eliminar"
 
 
+def _food_cheat_legacy(data: dict) -> dict:
+    """Días guardados con la antigua pestaña «Cheat» aparte ("x"): lo apuntado pasa a la cena (marcada cheat si estaba vacía)."""
+    if isinstance(data, dict) and isinstance(data.get("x"), dict):
+        old_, cen_ = data.pop("x"), dict(data.get("n") or {})
+        if not (cen_.get("f") or cen_.get("b")):
+            cen_["ch"] = True
+        for t_ in ("f", "b"):
+            if old_.get(t_):
+                cen_[t_] = list(cen_.get(t_) or []) + list(old_[t_])
+        data["n"] = cen_
+    return data if isinstance(data, dict) else {}
+
+
 def food_day_get(d_: dt.date) -> tuple[dict, str]:
     """Comidas guardadas de un día y el resto del comentario del wellness."""
     if demo:
-        return st.session_state.setdefault("demo_food", {}).get(d_.isoformat(), {}), ""
+        return _food_cheat_legacy(copy.deepcopy(st.session_state.setdefault("demo_food", {}).get(d_.isoformat(), {}))), ""
     try:
         rows = fetch_wellness(athlete, key, d_.isoformat(), d_.isoformat())
     except Exception:  # noqa: BLE001
@@ -6668,7 +6704,7 @@ def food_day_get(d_: dt.date) -> tuple[dict, str]:
     if m_:
         try:
             j_ = json.loads(m_.group(1))
-            data = j_.get("m", {})
+            data = _food_cheat_legacy(j_.get("m", {}))
             for t_, D_ in (("f", FOOD_ALL), ("b", DRINK_ALL), ("s", SPORT_ALL)):  # ya no están en la lista: valores del día
                 for n_, v in (j_.get("x", {}).get(t_) or {}).items():
                     D_.setdefault(n_, list(v) if t_ == "s" else tuple(v))
@@ -6885,13 +6921,17 @@ def food_log(P: dict, base: float, k: float, W: list, compact: bool = False):
     meals = {}
     combs = C_["comb"]
     CH = C_["cheat"]
-    tabs = st.tabs([("🍫 " + tr(lab)) if _k == "x" else lab for _k, lab in MEALS] + ["Durante la actividad"])
+    # «Cheat» va asociado a una comida: el interruptor de cada pestaña marca la comida entera como capricho
+    chk = {mk: f"nlog_ch_{mk}_{d_}" for mk, _l in MEALS}
+    ch_on = {mk: bool(st.session_state.get(chk[mk], bool(saved.get(mk, {}).get("ch")))) for mk, _l in MEALS}
+    tabs = st.tabs([(lab + " 🍫") if ch_on[_k] else lab for _k, lab in MEALS] + ["Durante la actividad"])
     for (mk, lab), tb in zip(MEALS, tabs):
         with tb:
-            if mk == "x":
-                st.markdown('<span class="note">Caprichos fuera de la dieta habitual (dulces, bollería, fritos, alcohol…): se apuntan '
-                            'aquí para verlos aparte. Cuentan en el total del día. Los marcados «🍫 Cheat» en <b>Plan 2027 › Alimentos '
-                            'y bebidas</b> salen primero.</span>', unsafe_allow_html=True)
+            ch_on[mk] = st.toggle(f'🍫 {tr("Cheat")}', value=ch_on[mk], key=chk[mk],
+                                  help=tr("Marca esta comida como capricho fuera de la dieta habitual (cena de pizza, merienda de "
+                                          "bollería…): toda la comida cuenta en el «Cheat del día». Los alimentos marcados «🍫 Cheat» en "
+                                          "Plan 2027 › Alimentos y bebidas cuentan siempre, en cualquier comida, y con el "
+                                          "interruptor activado salen primero en «Añadir»."))
             cur = saved.get(mk, {})
             ovk = f"nlog_ov_{mk}_{d_}"                  # lista con lo añadido con «Añadir» (sin guardar todavía)
             if isinstance(st.session_state.get(ovk), dict):
@@ -6900,7 +6940,7 @@ def food_log(P: dict, base: float, k: float, W: list, compact: bool = False):
             with st.form(f"nlog_add_{mk}_{d_}", clear_on_submit=True, border=False):
                 q1, q2, q3 = st.columns([4, 1.3, 1.3], vertical_alignment="bottom")
                 add_opts = [("k", k_) for k_ in sorted(combs)] + [("f", o_) for o_ in f_opts] + [("b", o_) for o_ in b_opts]
-                if mk == "x":                     # en «Cheat», primero los caprichos
+                if ch_on[mk]:                     # comida «cheat»: primero los caprichos
                     is_ch = lambda x: (x[0] == "f" and f_back.get(x[1]) in CH["f"]) or (x[0] == "b" and b_back.get(x[1]) in CH["b"])  # noqa: E731
                     add_opts = [x for x in add_opts if is_ch(x)] + [x for x in add_opts if not is_ch(x)]
                 ico = lambda x: ("🍱 " if x[0] == "k" else "🍫 " if ((x[0] == "f" and f_back.get(x[1]) in CH["f"]) or  # noqa: E731
@@ -6985,7 +7025,7 @@ def food_log(P: dict, base: float, k: float, W: list, compact: bool = False):
             if tf or tb_:
                 st.markdown('<span class="note">' + " · ".join(_html.escape(x) for x in tf + tb_) + "</span>", unsafe_allow_html=True)
             if fl or bl:
-                meals[mk] = {"f": fl, "b": bl}
+                meals[mk] = {"f": fl, "b": bl, **({"ch": True} if ch_on[mk] else {})}
             t_ = food_totals({mk: {"f": fl, "b": bl}})["by"][mk]
             st.markdown(f'<span class="note"><b style="color:{INK}">{tr(lab)}</b>: {fnum(t_["kcal"])} kcal · '
                         f'{tr("Hidratos")} {fnum(t_["ch"])} g · {tr("Proteína")} {fnum(t_["p"])} g · {tr("Grasa")} {fnum(t_["f"])} g · '
@@ -7010,19 +7050,22 @@ def food_log(P: dict, base: float, k: float, W: list, compact: bool = False):
                                 st.rerun()
                             except Exception as e:  # noqa: BLE001
                                 st.error(f"{tr('No se pudo guardar')}: {e}")
-    # Caprichos del día: la pestaña «Cheat» y los marcados «🍫 Cheat» apuntados en otras comidas
-    ch_k = 0.0
-    for mk_, m_ in meals.items():
-        if mk_ == "a":
-            continue
+    # Caprichos del día: las comidas marcadas «cheat» enteras y los alimentos «🍫 Cheat» apuntados en las demás
+    ch_k, ch_by = 0.0, {}
+    for mk_, lab_m in MEALS:
+        m_ = meals.get(mk_) or {}
         for t_, DB in (("f", FOOD_ALL), ("b", DRINK_ALL)):
             for n_, q in m_.get(t_, []):
-                if mk_ == "x" or n_ in CH[t_]:
-                    ch_k += (DB.get(n_) or (0,))[0] * float(q) / 100
+                if m_.get("ch") or n_ in CH[t_]:
+                    v_ = (DB.get(n_) or (0,))[0] * float(q) / 100
+                    ch_k += v_
+                    ch_by[lab_m] = ch_by.get(lab_m, 0.0) + v_
     if ch_k > 0:
         tot_k = food_totals(meals)["kcal"]
         st.markdown(f'<div class="note" style="color:{ORANGE}">🍫 {tr("Cheat del día")}: <b>{fnum(ch_k)} kcal</b>'
-                    + (f' ({fnum(100 * ch_k / tot_k)} % {tr("de lo comido")})' if tot_k else "") + "</div>", unsafe_allow_html=True)
+                    + (f' ({fnum(100 * ch_k / tot_k)} % {tr("de lo comido")})' if tot_k else "")
+                    + " · " + " · ".join(f"{tr(l_)} {fnum(v_)} kcal" for l_, v_ in ch_by.items() if v_ > 0)
+                    + "</div>", unsafe_allow_html=True)
     with tabs[-1]:
         acts = sport_log(d_, saved.get("a", {}), C_, P, compact)
         if acts:
@@ -7754,8 +7797,9 @@ def food_admin_section(compact: bool = False):
                                 column_config={"En la lista": st.column_config.CheckboxColumn(tr("En la lista"), default=True, width="medium"),
                                                "Cheat": st.column_config.CheckboxColumn(
                                                    "🍫 Cheat", default=False, width="small",
-                                                   help=tr("Fuera de la dieta habitual (dulces, bollería, fritos…): sale primero en la "
-                                                           "pestaña «Cheat» del registro y se cuenta aparte.")),
+                                                   help=tr("Fuera de la dieta habitual (dulces, bollería, fritos…): cuenta siempre "
+                                                           "en el «Cheat del día», en cualquier comida, y sale primero en las comidas "
+                                                           "marcadas «🍫 Cheat».")),
                                                "Nombre": st.column_config.TextColumn(tr("Nombre"), width="large", required=True, max_chars=60),
                                                "kcal": num("kcal", 950, 1.0), "Hidratos": num("Hidratos", 100, 0.1),
                                                "Proteína": num("Proteína", 100, 0.1), "Grasa": num("Grasa", 100, 0.1),
