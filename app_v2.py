@@ -10368,27 +10368,20 @@ def desc_with_plan(old: str, block: str) -> str:
 def name_section():
     if st.session_state.get("nom_msg"):
         st.success(st.session_state.pop("nom_msg"))
-    st.markdown('<span class="note">Pone a las carreras un nombre fijo según el tipo, la zona y un contador desde enero de 2026: '
+    _, zdata = app_note_get(ZONES_NAME, "demo_zones")
+    try:                                   # inicio del contador: 01/01/2026 o el que quedó guardado al renombrar fechas anteriores
+        origin0 = dt.date.fromisoformat(str(zdata.get("from"))) if zdata.get("from") else NAME_FROM
+    except ValueError:
+        origin0 = NAME_FROM
+    st.markdown('<span class="note">Pone a las carreras un nombre fijo según el tipo, la zona y un contador: '
                 '<b>«Trail run · La Mola per Pi Tort #3»</b>, <b>«Asfalto · Volta al parc #12»</b> y <b>«Cinta #42»</b>. Las salidas por '
                 'fuera se agrupan por recorrido (salida, punto más alejado, punto más alto y km, con el GPS de cada actividad). '
                 'Pones el nombre de cada zona una vez; se guarda en intervals.icu y las salidas nuevas por el mismo sitio lo toman solas. '
                 'Nada se cambia hasta que pulsas los botones.</span>', unsafe_allow_html=True)
-    yrs = range(NAME_FROM.year, today.year + 1)
-    rows_ = []
-    for y in yrs:
-        try:
-            rows_ += raw.get(y) if y in raw else (demo_year(y) if demo else fetch_year(athlete, key, y))
-        except Exception:  # noqa: BLE001
-            pass
-    df = to_frame(rows_, True, cinta_dp, st.session_state.get("incline_overrides")) if rows_ else pd.DataFrame()
-    if not len(df):
-        st.info("No hay actividades desde enero de 2026.")
-        return
-    df = df[(df["date"] >= NAME_FROM) & df["sport"].isin({"Run", "TrailRun"} | set(CINTA) | FZ_SPORTS)].sort_values("ts")
-    desc_of = {str(r0.get("id")): str(r0.get("description") or "") for r0 in rows_ if isinstance(r0, dict)}
-    # Periodo: solo se lee el GPS de las salidas del periodo (leerlo todo desde enero tarda). Los contadores siguen la numeración
-    # de los nombres ya puestos antes del periodo.
-    PERS = ["Última semana", "Últimos 30 días", "Desde 01/01/2026", "Fechas"]
+    # Periodo: solo se lee el GPS de las salidas del periodo (leerlo todo tarda). Los contadores siguen la numeración de los
+    # nombres ya puestos antes del periodo. El rango de fechas es libre: si empieza antes del inicio del contador, el contador
+    # pasa a empezar ahí (y se recuerda al guardar las actividades).
+    PERS = ["Última semana", "Últimos 30 días", "Desde el inicio", "Fechas"]
     pc_, pd_ = st.columns([2, 2], vertical_alignment="bottom")
     with pc_:
         per_n = st.segmented_control("Actividades a revisar", PERS, default="Última semana", key="nom_per") or "Última semana"
@@ -10398,17 +10391,36 @@ def name_section():
         n_from, n_to = today - dt.timedelta(days=29), today
     elif per_n == "Fechas":
         with pd_:
-            rng_ = st.date_input("Desde – hasta", value=(max(NAME_FROM, today - dt.timedelta(days=13)), today), min_value=NAME_FROM,
+            rng_ = st.date_input("Desde – hasta", value=(today - dt.timedelta(days=13), today), min_value=dt.date(2010, 1, 1),
                                  max_value=today, format="DD/MM/YYYY", key="nom_rng")
         if isinstance(rng_, (list, tuple)) and len(rng_) == 2:
             n_from, n_to = min(rng_), max(rng_)
         else:
             n_from = n_to = rng_[0] if isinstance(rng_, (list, tuple)) and rng_ else today
     else:
-        n_from, n_to = NAME_FROM, today
+        n_from, n_to = origin0, today
     if per_n != "Fechas":
         with pd_:
             st.markdown(f'<div class="note">{n_from:%d/%m/%y} – {n_to:%d/%m/%y}</div>', unsafe_allow_html=True)
+    cnt_from = min(origin0, n_from)
+    st.markdown(f'<span class="note">Contador desde el <b>{cnt_from:%d/%m/%Y}</b>.</span>' if cnt_from == origin0 else
+                f'<span class="note" style="color:{ORANGE}">⚠ El periodo empieza antes del inicio del contador ({origin0:%d/%m/%Y}): '
+                f'el contador pasa a empezar el <b>{cnt_from:%d/%m/%Y}</b> y las actividades posteriores ya renombradas cambian de '
+                f'número (revisa el periodo completo para renombrarlas todas). El nuevo inicio se guarda al guardar las '
+                f'actividades.</span>', unsafe_allow_html=True)
+    yrs = range(cnt_from.year, today.year + 1)
+    rows_ = []
+    for y in yrs:
+        try:
+            rows_ += raw.get(y) if y in raw else (demo_year(y) if demo else fetch_year(athlete, key, y))
+        except Exception:  # noqa: BLE001
+            pass
+    df = to_frame(rows_, True, cinta_dp, st.session_state.get("incline_overrides")) if rows_ else pd.DataFrame()
+    if not len(df):
+        st.info(f"No hay actividades desde el {cnt_from:%d/%m/%Y}.")
+        return
+    df = df[(df["date"] >= cnt_from) & df["sport"].isin({"Run", "TrailRun"} | set(CINTA) | FZ_SPORTS)].sort_values("ts")
+    desc_of = {str(r0.get("id")): str(r0.get("description") or "") for r0 in rows_ if isinstance(r0, dict)}
     in_rng = (df["date"] >= n_from) & (df["date"] <= n_to)
     out_all = df[df["sport"].isin({"Run", "TrailRun"})]
     out_ = out_all[in_rng[out_all.index]]
@@ -10416,7 +10428,6 @@ def name_section():
     ci_all = df[df["sport"].isin(CINTA)]
     fz_all = df[df["sport"].isin(FZ_SPORTS)]
     ci_ = ci_all
-    _, zdata = app_note_get(ZONES_NAME, "demo_zones")
     zones = [z for z in (zdata.get("z") or []) if isinstance(z, dict) and z.get("name")]
 
     # Firmas de recorrido (GPS); se guardan en caché una semana
@@ -10454,9 +10465,9 @@ def name_section():
     n_fz_r = int(in_rng[fz_all.index].sum())
     st.markdown(f'<span class="note">{len(acts)} salidas por fuera del {n_from:%d/%m/%y} al {n_to:%d/%m/%y} ({n_gps} con GPS) en '
                 f'{len(groups)} recorridos · {n_ci_r} sesiones de cinta · {n_fz_r} de fuerza.'
-                + ("" if per_n == "Desde 01/01/2026" else
+                + ("" if n_from <= cnt_from else
                    ' Los contadores continúan la numeración de las salidas ya renombradas antes del periodo; si hay salidas anteriores '
-                   'sin renombrar, revisa «Desde 01/01/2026» una vez.') + '</span>', unsafe_allow_html=True)
+                   'sin renombrar, revisa «Desde el inicio» una vez.') + '</span>', unsafe_allow_html=True)
 
     st.markdown("#### 1 · Zonas")
     # Nombres propuestos con OpenStreetMap: solo al pulsar el botón (cada consulta tarda unos segundos y, hecha en cada
@@ -10529,7 +10540,7 @@ def name_section():
     new_cmp = [(z["name"], z["type"], round(float(z["km"]), 1)) for z in new_z]
     if st.button(f'Guardar las zonas ({len(new_z)})', key="nom_save_z", disabled=sorted(old_cmp) == sorted(new_cmp)):
         try:
-            app_note_save(ZONES_NAME, "demo_zones", {"v": 1, "z": new_z})
+            app_note_save(ZONES_NAME, "demo_zones", {"v": 1, "z": new_z, **({"from": zdata["from"]} if zdata.get("from") else {})})
             st.session_state["nom_msg"] = f"Guardadas {len(new_z)} zonas."
             st.session_state.pop("nom_zones_ed", None)
             st.rerun()
@@ -10551,7 +10562,7 @@ def name_section():
         for k_, (a, ty) in enumerate(lst):
             n_ = 1 + k_ + sum(1 for t in prev_ts if t < a["ts"])
             plan_.append(dict(id=a["id"], ts=a["ts"], old=a["name"], new=f'{NAME_TYPES[ty]} · {zn} #{n_}'))
-    # Cinta y fuerza: contador con todas las de 2026 (no necesitan GPS) y, en la descripción, la fase y la sesión del plan
+    # Cinta y fuerza: contador con todas desde el inicio del contador (no necesitan GPS) y, en la descripción, la fase y la sesión del plan
     use_desc = st.toggle("Cinta y fuerza: poner en la descripción la fase del plan y la sesión con sus ejercicios", value=True,
                          key="nom_desc", help="Se añade un bloque «" + PLAN_MARK + "» al final de la descripción; lo que hayas "
                                               "escrito tú se conserva. Si ya hay un bloque, se sustituye.")
@@ -10624,6 +10635,11 @@ def name_section():
             pr.progress((j + 1) / len(chg))
         if fails:
             st.error(f"No se pudieron renombrar {len(fails)}:\n\n" + "\n\n".join(fails[:10]))
+        if ok and cnt_from < origin0:              # contador que empieza antes: se recuerda el nuevo inicio
+            try:
+                app_note_save(ZONES_NAME, "demo_zones", {**zdata, "v": 1, "from": cnt_from.isoformat()})
+            except Exception as e:  # noqa: BLE001
+                st.error(f"No se pudo guardar el inicio del contador: {e}")
         if ok:
             fetch_year.clear()                     # los nombres nuevos (sin borrar la caché del GPS de las salidas)
             st.session_state.pop("nom_ok", None)
