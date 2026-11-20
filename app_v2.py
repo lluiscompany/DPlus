@@ -10069,7 +10069,7 @@ def zone_hint(lat: float, lng: float) -> str:
     ua = {"User-Agent": "LlibretaD+/2 (app personal de entrenamiento)"}
     try:
         q = f'[out:json][timeout:10];node(around:600,{lat:.5f},{lng:.5f})[natural~"peak|saddle"][name];out 5;'
-        r = requests.post("https://overpass-api.de/api/interpreter", data={"data": q}, timeout=15, headers=ua)
+        r = requests.post("https://overpass-api.de/api/interpreter", data={"data": q}, timeout=6, headers=ua)
         if r.ok:
             els = r.json().get("elements") or []
             if els:
@@ -10079,7 +10079,7 @@ def zone_hint(lat: float, lng: float) -> str:
         pass
     try:
         r = requests.get("https://nominatim.openstreetmap.org/reverse", params={"lat": lat, "lon": lng, "format": "json", "zoom": 14},
-                         timeout=15, headers=ua)
+                         timeout=6, headers=ua)
         if r.ok:
             a_ = r.json().get("address") or {}
             return str(next((a_[k] for k in ("hamlet", "village", "suburb", "town", "city", "municipality") if a_.get(k)), ""))
@@ -10342,14 +10342,29 @@ def name_section():
                    'sin renombrar, revisa «Desde 01/01/2026» una vez.') + '</span>', unsafe_allow_html=True)
 
     st.markdown("#### 1 · Zonas")
-    want_hints = st.toggle("Proponer nombres con OpenStreetMap (cima o lugar más cercano al punto más alto)", value=True,
-                           key="nom_hints", disabled=demo)
+    # Nombres propuestos con OpenStreetMap: solo al pulsar el botón (cada consulta tarda unos segundos y, hecha en cada
+    # recarga de la página, la dejaba bloqueada). Lo encontrado se recuerda durante la sesión.
+    hints = st.session_state.setdefault("nom_hints_d", {})
+    hk = lambda sig: f'{sig["t"][0]:.4f},{sig["t"][1]:.4f}'  # noqa: E731
+    sig_of = lambda g: g["ref"].get("sig") or next((a["sig"] for a in g["acts"] if a["sig"]), None)  # noqa: E731
+    pend_ = [g for g in groups if not g["name"] and sig_of(g) and hk(sig_of(g)) not in hints]
+    if pend_ and not demo:
+        if st.button(f"🗺 Proponer nombres con OpenStreetMap ({len(pend_)} zonas sin nombre)", key="nom_hint_go",
+                     help="Busca la cima con nombre más cercana al punto más alto de cada zona (o el lugar). Tarda unos segundos por zona."):
+            pr_ = st.progress(0.0, text="Buscando nombres en OpenStreetMap…")
+            for j, g in enumerate(pend_[:25]):
+                sg = sig_of(g)
+                hints[hk(sg)] = zone_hint(round(sg["t"][0], 4), round(sg["t"][1], 4))
+                pr_.progress((j + 1) / min(len(pend_), 25), text="Buscando nombres en OpenStreetMap…")
+            pr_.empty()
+            st.session_state.pop("nom_zones_ed", None)
+            st.rerun()
     trows = []
     for gi, g in enumerate(groups):
-        sig = g["ref"].get("sig") or next((a["sig"] for a in g["acts"] if a["sig"]), None)
+        sig = sig_of(g)
         hint = ""
-        if not g["name"] and want_hints and sig and not demo:
-            hint = zone_hint(round(sig["t"][0], 4), round(sig["t"][1], 4))
+        if not g["name"] and sig:
+            hint = hints.get(hk(sig), "")
         a0 = g["acts"]
         km_ = float(np.median([a["km"] for a in a0])) if a0 else g["ref"]["km"]
         dp_ = float(np.median([a["dp"] for a in a0])) if a0 else g["ref"]["dp"]
