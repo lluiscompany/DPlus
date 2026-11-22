@@ -770,38 +770,48 @@ _I18N_Z = (
     "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"
-    "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"
-    "EgJAu9AOq3D4F0IIULw="
+    "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"
 )
 
 
@@ -2045,7 +2055,7 @@ def map_activity(a: dict) -> dict:
         pace=(1000 / sp) if sp > 0 else ((mt / dist) if dist > 0 and mt else None),
         incline=a.get(INCLINE_FIELD),
         gear_id=(a.get("gear") or {}).get("id"), gear_name=(a.get("gear") or {}).get("name"),
-        device=a.get("device_name"),
+        device=a.get("device_name"), elev_corr=a.get("use_elevation_correction"),
     )
 
 
@@ -2091,7 +2101,9 @@ def demo_year(year: int) -> list[dict]:
                         secs=secs, elapsed=secs * 1.1, load=int(secs / 60 * (1.1 if s != "Workout" else .2)), hr_avg=140, hr_max=165,
                         kcal=int(secs / 4), carbs=None, feel=rnd.choice([2, 3]), pace=secs / km if km else None,
                         incline=rnd.choice([None, None, 3, 5, 8]) if s == "VirtualRun" else None,
-                        gear_id=demo_gear_for(s, d, rnd), gear_name=None, device="SUUNTO Suunto Race 2"))
+                        gear_id=demo_gear_for(s, d, rnd), gear_name=None, device="SUUNTO Suunto Race 2",
+                        elev_corr=(s in ("TrailRun", "Run") and d >= today - dt.timedelta(days=40)
+                                   and d.isoformat() not in st.session_state.get("demo_elev_off", set()))))
         d += dt.timedelta(days=rnd.choice([1, 1, 2, 3]))
     # Tres salidas de ejemplo por la misma ruta (para la sección Comparar)
     for aid, day, km, dp, dev, secs, el in DEMO_ROUTE:
@@ -2105,7 +2117,7 @@ def demo_year(year: int) -> list[dict]:
 
 def to_frame(rows: list[dict], hike: bool, cinta_dp: bool = True, overrides: dict | None = None) -> pd.DataFrame:
     cols = ["id", "start", "sport", "name", "km", "dp", "dm", "secs", "elapsed", "load", "hr_avg", "hr_max", "kcal", "carbs", "feel", "pace",
-            "incline", "gear_id", "gear_name", "device"]
+            "incline", "gear_id", "gear_name", "device", "elev_corr"]
     df = pd.DataFrame(rows, columns=cols)
     if df.empty:
         num_ = {c: pd.Series(dtype=float) for c in ("out_km", "out_dp", "ukm", "dp_run", "km_run", "dp_hike", "dp_cinta",
@@ -7752,6 +7764,84 @@ def _hms(sec: float) -> str:
     return f"{sg}{h}:{r // 60:02d}:{r % 60:02d}"
 
 
+ELEV_SPORTS = {"TrailRun", "Run", "Hike", "Walk"}
+
+
+def elev_corr_section():
+    """Actividades en las que intervals.icu corrige la altitud con un modelo del terreno (sale menos D+ que en el reloj):
+    se puede desactivar la corrección desde aquí y ver el D+ antes y después."""
+    st.subheader("Desnivel corregido por intervals.icu")
+    st.markdown('<div class="note">Con la <b>corrección de elevación</b> activada, intervals.icu cambia la altitud del barómetro del '
+                'reloj por la de un modelo del terreno, que aplana los repechos cortos: en trail sale bastante menos D+ que en '
+                'Suunto (p. ej. 998 m en vez de 1.210 m). Aquí salen las actividades por fuera que la tienen activada. Al pulsar el '
+                'botón se desactiva en intervals.icu y se vuelve a leer el D+; si intervals.icu no lo recalcula solo, abre la '
+                'actividad y usa <b>Actions › Reprocess file</b>. Para que las nuevas lleguen ya sin corrección, marca el reloj con '
+                '«Accurate elevation» en intervals.icu.</div>', unsafe_allow_html=True)
+    res = st.session_state.pop("elev_res", None)
+    if res:
+        ok_ = [r_ for r_ in res if r_.get("ok")]
+        if ok_:
+            st.success(f"{tr('Corrección desactivada en')} {len(ok_)} {tr('actividades')}.")
+        rows_ = []
+        for r_ in res:
+            st_ = (tr("Error") + ": " + r_["err"]) if not r_.get("ok") else (
+                tr("Recalculado") if r_.get("after") is not None and abs(r_["after"] - r_["before"]) >= 1 else
+                tr("Sin recalcular: Actions › Reprocess file"))
+            rows_.append({"Fecha": r_["date"], "Actividad": r_["name"], "D+ antes": r_["before"],
+                          "D+ ahora": r_.get("after"), "Estado": st_,
+                          "Abrir": f"https://intervals.icu/activities/{r_['id']}"})
+        st.dataframe(pd.DataFrame(rows_), hide_index=True, width="stretch",
+                     column_config={"D+ antes": st.column_config.NumberColumn(format="%d m"),
+                                    "D+ ahora": st.column_config.NumberColumn(format="%d m"),
+                                    "Abrir": st.column_config.LinkColumn("Abrir", display_text="intervals.icu ↗")})
+    if not len(all_df) or "elev_corr" not in all_df:
+        return
+    ec = all_df[(all_df["elev_corr"] == True) & all_df["sport"].isin(ELEV_SPORTS)].sort_values("ts", ascending=False)  # noqa: E712
+    if not len(ec):
+        st.markdown(f'<span class="note" style="color:{GREEN}">✓ {tr("Ninguna actividad por fuera con la corrección de elevación activada.")}</span>',
+                    unsafe_allow_html=True)
+        return
+    st.markdown(f'<span class="note"><b>{len(ec)}</b> {tr("actividades con la corrección activada")} · '
+                f'{fnum(ec["dp"].sum())} m D+ {tr("en total ahora")}</span>', unsafe_allow_html=True)
+    df_e = pd.DataFrame({"Cambiar": True, "Fecha": ec["ts"].dt.strftime("%d/%m/%y").values, "Actividad": ec["name"].values,
+                         "Km": ec["km"].round(1).values, "D+": ec["dp"].round(0).values, "Reloj": ec["device"].fillna("").values,
+                         "id": ec["id"].astype(str).values})
+    ed = st.data_editor(df_e, hide_index=True, width="stretch", key="elev_ed", disabled=["Fecha", "Actividad", "Km", "D+", "Reloj"],
+                        column_order=["Cambiar", "Fecha", "Actividad", "Km", "D+", "Reloj"],
+                        column_config={"Cambiar": st.column_config.CheckboxColumn("Cambiar", width="small"),
+                                       "D+": st.column_config.NumberColumn("D+", format="%d m"),
+                                       "Km": st.column_config.NumberColumn("Km", format="%.1f")})
+    sel = ed[ed["Cambiar"] == True]  # noqa: E712
+    if st.button(f"{tr('Desactivar la corrección en')} {len(sel)} {tr('actividades')}", type="primary", key="elev_go",
+                 disabled=not len(sel)):
+        out, pb = [], st.progress(0.0)
+        for i_, (_, r_) in enumerate(sel.iterrows()):
+            it = {"id": r_["id"], "date": r_["Fecha"], "name": r_["Actividad"], "before": float(r_["D+"])}
+            try:
+                if demo:
+                    st.session_state.setdefault("demo_elev_off", set()).add(
+                        dt.datetime.strptime(r_["Fecha"], "%d/%m/%y").date().isoformat())
+                    it["after"] = round(it["before"] * 1.2)
+                else:
+                    icu_write("PUT", f"/activity/{r_['id']}", {"use_elevation_correction": False})
+                    g_ = requests.get(f"{API}/activity/{r_['id']}", auth=("API_KEY", key), timeout=30,
+                                      headers={"Accept": "application/json", "User-Agent": "LlibretaD+ (Streamlit)"})
+                    g_.raise_for_status()
+                    j_ = g_.json() or {}
+                    if j_.get("use_elevation_correction"):
+                        raise RuntimeError(tr("intervals.icu no aceptó el cambio"))
+                    it["after"] = j_.get("total_elevation_gain")
+                it["ok"] = True
+            except Exception as e:  # noqa: BLE001
+                it["ok"], it["err"] = False, str(e)[:160]
+            out.append(it)
+            pb.progress((i_ + 1) / len(sel))
+        st.session_state["elev_res"] = out
+        if not demo:
+            fetch_year.clear()
+        st.rerun()
+
+
 def act_fix_section(compact: bool = False):
     """Corregir una actividad con un tramo sin grabar: sumar o restar D+, D−, tiempo y km."""
     if not compact:
@@ -10752,6 +10842,7 @@ def name_section():
 
 if SEC == "fix":
     act_fix_section()
+    elev_corr_section()
 
 if SEC == "nom":
     name_section()
