@@ -808,53 +808,57 @@ _I18N_Z = (
     "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"
-    "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"
-    "L1Mi773lLY+j55UKvvoX5sC/CA=="
+    "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"
+    "tohEtakt2sV5s/TwoJdW/wLc4i9F"
 )
 
 
@@ -10466,18 +10470,44 @@ def zone_hint(lat: float, lng: float) -> str:
 ZONE_COLS = ["#e09b00", "#0a84c6", "#d6336c", "#2b9348", "#7b2cbf", "#e8590c", "#1098ad", "#5c940d"]
 
 
-def zone_map_ui(groups: list, trows: list):
-    """Mapa y perfil de un recorrido agrupado: las salidas del grupo superpuestas, con salida, punto más alto y subidas."""
-    with st.expander("🗺 Ver el recorrido de una zona: mapa, perfil y subidas", expanded=False, key="nom_map_x"):
+def zone_map_ui(groups: list, trows: list, picked: list | None = None, open_: bool = False):
+    """Mapa y perfil de un recorrido agrupado: las salidas del grupo superpuestas, con salida, punto más alto y subidas.
+    Filtros: zonas marcadas con 🗺 en la tabla «1 · Zonas», fechas y tipo."""
+    with st.expander("🗺 Ver el recorrido de una zona: mapa, perfil y subidas", expanded=open_):
         if not groups:
             return
-        labs = [f'{(t["Zona"] or "Sin nombre")} · {t["Tipo"]} · {t["Salidas"]} salidas · {fnum(t["Km"], 1)} km · '
-                f'+{fnum(t["D+"])} / −{fnum(t["D−"])} m' for t in trows]
-        gi = st.selectbox("Zona", range(len(groups)), format_func=lambda i: labs[i], key="nom_map_g")
+        all_d = [a["date"] for g_ in groups for a in g_["acts"]]
+        d_min = min(all_d) if all_d else today
+        f1, f2 = st.columns([3, 2], vertical_alignment="bottom")
+        with f1:
+            rng_ = st.date_input("Salidas entre", value=(d_min, today), min_value=dt.date(2010, 1, 1), max_value=today,
+                                 format="DD/MM/YYYY", key="nom_map_rng")
+        if isinstance(rng_, (list, tuple)) and len(rng_) == 2:
+            m_from, m_to = min(rng_), max(rng_)
+        else:
+            m_from, m_to = (rng_[0] if isinstance(rng_, (list, tuple)) and rng_ else d_min), today
+        with f2:
+            tps = st.segmented_control("Tipo de zona", list(NAME_TYPES.values()), selection_mode="multi",
+                                       default=list(NAME_TYPES.values()), key="nom_map_tp") or list(NAME_TYPES.values())
+        in_r = lambda a: m_from <= a["date"] <= m_to  # noqa: E731
+        base_ = [i for i in (picked or range(len(groups)))]
+        opts = [i for i in base_ if trows[i]["Tipo"] in tps and any(in_r(a) for a in groups[i]["acts"])]
+        if picked:
+            st.markdown(f'<span class="note">{tr("Solo las zonas marcadas con 🗺 en la tabla")} ({len(picked)}). '
+                        f'{tr("Desmárcalas para ver todas.")}</span>', unsafe_allow_html=True)
+        if not opts:
+            st.info("Ninguna zona con salidas en esas fechas y de ese tipo.")
+            return
+        n_in = lambda i: sum(1 for a in groups[i]["acts"] if in_r(a))  # noqa: E731
+        labs = {i: f'{(trows[i]["Zona"] or tr("Sin nombre"))} · {trows[i]["Tipo"]} · {n_in(i)} {tr("salidas")} · '
+                   f'{fnum(trows[i]["Km"], 1)} km · +{fnum(trows[i]["D+"])} / −{fnum(trows[i]["D−"])} m' for i in opts}
+        if st.session_state.get("nom_map_g") not in opts:
+            st.session_state["nom_map_g"] = opts[0]
+        gi = st.selectbox("Zona", opts, format_func=lambda i: labs[i], key="nom_map_g")
         g = groups[gi]
-        acts_ = sorted(g["acts"], key=lambda a: a["ts"], reverse=True)[:8]
+        acts_ = sorted([a for a in g["acts"] if in_r(a)], key=lambda a: a["ts"], reverse=True)[:8]
         if not acts_:
-            st.info("Esta zona guardada no tiene salidas desde enero de 2026.")
+            st.info("Esta zona no tiene salidas en esas fechas.")
             return
         dfs = []
         with st.spinner("Leyendo los recorridos…"):
@@ -10560,7 +10590,8 @@ def zone_map_ui(groups: list, trows: list):
             lines_.append("<b>Subidas</b>: " + " · ".join(
                 f'km {fnum(c_["km0"], 1)}–{fnum(c_["km1"], 1)}: {fnum(c_["a0"])}→{fnum(c_["a1"])} m (+{fnum(c_["gain"])} m, {fnum(c_["grade"])} %)'
                 for c_ in cl))
-        lines_.append(f'Salidas de la zona: ' + ", ".join(f'{a["date"]:%d/%m/%y}' for a in sorted(g["acts"], key=lambda a: a["ts"])))
+        lines_.append(f'Salidas de la zona: ' + ", ".join(f'{a["date"]:%d/%m/%y}' for a in sorted(g["acts"], key=lambda a: a["ts"])
+                                                           if in_r(a)))
         st.markdown('<div class="note">' + "<br>".join(lines_) + "</div>", unsafe_allow_html=True)
         st.markdown(f'<span class="note">En el mapa, las {len(dfs)} salidas más recientes del grupo (la última, más gruesa). '
                     'Números = kilómetros de la última. Si una salida se aparta del resto, es otro recorrido: ponle otro nombre.</span>',
@@ -10753,7 +10784,7 @@ def name_section():
         km_ = float(np.median([a["km"] for a in a0])) if a0 else g["ref"]["km"]
         dp_ = float(np.median([a["dp"] for a in a0])) if a0 else g["ref"]["dp"]
         dm_ = float(np.median([a["dm"] for a in a0])) if a0 else 0.0
-        trows.append({"gi": gi, "Zona": g["name"] or hint, "Tipo": NAME_TYPES[g["type"]],
+        trows.append({"gi": gi, "Ver": False, "Zona": g["name"] or hint, "Tipo": NAME_TYPES[g["type"]],
                       "Salidas": len(a0), "Km": round(km_, 1), "D+": round(dp_), "D−": round(dm_),
                       "Fechas": (f'{a0[0]["date"]:%d/%m/%y} – {a0[-1]["date"]:%d/%m/%y}' if len(a0) > 1 else
                                  f'{a0[0]["date"]:%d/%m/%y}' if a0 else "—"),
@@ -10762,8 +10793,12 @@ def name_section():
                       "Estado": "guardada" if g["zi"] is not None else ("propuesta" if hint else "sin nombre")})
     TB = pd.DataFrame(trows)
     ed = st.data_editor(TB, key="nom_zones_ed", hide_index=True, width="stretch", num_rows="fixed",
-                        column_order=["Zona", "Tipo", "Salidas", "Km", "D+", "D−", "Fechas", "Mapa", "Estado"],
+                        column_order=["Ver", "Zona", "Tipo", "Salidas", "Km", "D+", "D−", "Fechas", "Mapa", "Estado"],
                         column_config={
+                            "Ver": st.column_config.CheckboxColumn("🗺", width="small",
+                                                                   help="Marca una zona para verla en «Ver el recorrido de una zona» "
+                                                                        "(mapa, perfil y subidas). Si marcas varias, el selector solo "
+                                                                        "muestra esas."),
                             "Zona": st.column_config.TextColumn("Zona", max_chars=50, width="large",
                                                                 help="El nombre fijo del recorrido, p. ej. «La Mola per Pi Tort»"),
                             "Tipo": st.column_config.SelectboxColumn("Tipo", options=list(NAME_TYPES.values()), required=True),
@@ -10777,7 +10812,13 @@ def name_section():
     st.markdown('<span class="note">«Propuesta» = nombre sacado del mapa: revísalo y cámbialo por el tuyo. Dos zonas con el mismo nombre '
                 'se cuentan juntas (sirve para unir variantes del mismo recorrido). Una zona vacía no se renombra.</span>',
                 unsafe_allow_html=True)
-    zone_map_ui(groups, trows)
+    picked = [int(r_["gi"]) for _, r_ in ed.iterrows() if bool(r_.get("Ver"))]
+    prev_ = st.session_state.get("nom_map_prev", [])
+    new_ = [i for i in picked if i not in prev_]
+    if new_:                                         # la última zona marcada sale ya seleccionada en el mapa
+        st.session_state["nom_map_g"] = new_[-1]
+    st.session_state["nom_map_prev"] = picked
+    zone_map_ui(groups, trows, picked, open_=bool(picked))
     inv_t = {v: k for k, v in NAME_TYPES.items()}
     for _, r_ in ed.iterrows():
         g = groups[int(r_["gi"])]
