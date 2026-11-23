@@ -38,9 +38,46 @@ st.set_page_config(page_title="Llibreta D+", page_icon="⛰️", layout="wide", 
 # El texto de la app está escrito en castellano. Al dibujarlo, una capa de traducción sustituye las frases conocidas por
 # su versión en catalán o inglés (tabla incrustada abajo, comprimida). Se elige en Ajustes y va en la URL (?idioma=ca|es|en).
 LANGS = {"ca": "Català", "es": "Castellano", "en": "English"}
+
+# Ajustes guardados («💾 Guardar como predeterminados» en ⚙ Ajustes): una nota de intervals.icu con idioma, tema, menú,
+# color, fondo y los interruptores de D+. Se leen una vez al abrir la sesión y sirven de valor por defecto (lo que venga en
+# la dirección, p. ej. ?idioma=es, manda sobre ellos). En DEMO se guardan en la sesión.
+PREFS_NAME = "Llibreta D+ · ajustes"
+
+
+def _sec(name: str) -> str:
+    try:
+        return str(st.secrets.get(name, os.environ.get(name, "")) or "").strip()
+    except Exception:  # noqa: BLE001
+        return str(os.environ.get(name, "") or "").strip()
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _prefs_fetch(athlete: str, key: str) -> dict:
+    try:
+        r = requests.get(f"https://intervals.icu/api/v1/athlete/{athlete}/events",
+                         params={"oldest": "2000-01-01", "newest": "2000-01-01"}, auth=("API_KEY", key), timeout=15,
+                         headers={"Accept": "application/json", "User-Agent": "LlibretaD+ (Streamlit)"})
+        r.raise_for_status()
+        for e in r.json() or []:
+            if e.get("category") == "NOTE" and (e.get("name") or "") == PREFS_NAME:
+                d_ = json.loads(e.get("description") or "{}")
+                return d_ if isinstance(d_, dict) else {}
+    except Exception:  # noqa: BLE001
+        pass
+    return {}
+
+
+if "prefs0" not in st.session_state:
+    if _sec("DEMO") == "1":
+        st.session_state["prefs0"] = dict(st.session_state.get("demo_prefs", {}))
+    else:
+        st.session_state["prefs0"] = _prefs_fetch(_sec("ATHLETE_ID"), _sec("INTERVALS_API_KEY")) \
+            if _sec("ATHLETE_ID") and _sec("INTERVALS_API_KEY") else {}
+PREFS = st.session_state["prefs0"]
 if st.session_state.get("sb_lang") not in LANGS:
     _ql = str(st.query_params.get("idioma", "")).strip().lower()
-    st.session_state["sb_lang"] = _ql if _ql in LANGS else "ca"
+    st.session_state["sb_lang"] = _ql if _ql in LANGS else (PREFS.get("lang") if PREFS.get("lang") in LANGS else "ca")
 LANG = st.session_state["sb_lang"]
 _I18N_Z = (
     "eNq0vV2THEeWJfac+StiH7goGBMgPshudkGUDATAj2kA5ABocqcfNBaVGVUVQGZGbkRkAUVbk80+7GjXTGZrmpGmd8dkEvmwmqbGaGvNNtPIeu"
@@ -770,48 +807,54 @@ _I18N_Z = (
     "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"
-    "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"
+    "hq6cQHW5QC2DxA65xc0ArM7MnHZsYrPQ8SaSK5JEkvgVt+reK6SdWXTzyI7NgDwu5YlNfoBFEMNvnFYPetXW5G4VFz4XU29EniMfl/yruWJbeN"
+    "K7oGv4Ibl6gyxXgkOxUzK2XsVDaOXVYqrsoO4mAkOBxiAoKSJl+QtbPwJlWxdvE2H5DN/Im/IJ+Qc869t9EAMTNSlKqUkw0JAk00+oF+3HvuOY"
+    "m5IzjaEoDdQ7aCMN0JTIZsGQqgGzBE1/uBnokySXwVq57y/SqphNnQnRMw14NrxJSQzlyxIU62TAX4ACjVIiMxMAqFooXBu3SdBTv7law7wj/V"
+    "AVtRdEbJl6Ab3svxGga3cgguEOiVIsJgU/0j5SXQz8lYXrpPzzyTxvfPaSHd2++5a9oL6qPsQsbTNaDkrWnNNeaj9rYyDKCeUr4pWtvaSk4SJw"
+    "PVumHIsyYYZ+K4rrd3w3XvhEE5TveqTHdZWUwLQdldVtGOL3HsmaF56TG4lD5dVNlTviV2pse3jKoMN7Zb9hUmTSBJGnllufduUF1RW1u3o7bV"
+    "vq+vvdVXeUd13Qr8vQPRxXWjg379FlwkrjPTojqfJt69YfBoz6J+NisHgwiwFq0jb2B3Amzk91Y1n5+fr+epA+kuL7X852pQOj/yIGpaVx1Urx"
+    "hOB2VtRJq1AkxVrcrvb6QKZtWQmM0RFXUnLvhWrJkBguE7eGC+RmHPRl05Ikn9lVhEt8769DpeviD/GcLQKAKI2WMbes3iAGiWoeUc7JDM6Q0w"
+    "fqfj3pNGPOuCi9SRsl60js4+8YR1PKCQj1LWQjhrt3T+8Z7IPH/K23GCp1mTqv0CxnncvuvoXUgH5owcosfHwmymVbRC9pe+OoEfW7Pa7W1b7y"
+    "X5upoNB8oiGwKKvpPPskGs6I8LFeJd8HfeNfY1imBUgpNdxCjycUNJcvqzLudXE/i9XvgwXOmjfv+OaD3vKvsbH7iO5yXPNvhwgYpVdS7Je5tD"
+    "/XrdvOkR6p1AfeX2Jdc3t3SfpSJhIGDGBl46mdMACWhSbJODBynIM083w17FvthpLnCBxzFv+lq+akUs2LaEMWUbqkztjS4wJCpJ3Q8eVUZSLp"
+    "Pi4TLTOrxymUMcpAjmKjwCmfClzSfsYq1vts7UBbmVlfReGzYmWpCwOjO1DRmaQDEfGjtBvga9n2B+7RU0ybNmBRC/pHk3Ghaq9mDDppUBRYIY"
+    "ZNl09zdDqfMqq8sxR/zaJEVZYXv1F8WKscaGFeb1pY7gRKPLTMCvdu2+eZ3Fe5/luo1ZNcWzLH0/7xqFbdjJwg4G8szvw14WVZW43vqKSgKQZH"
+    "VzLy4ZM6txPWXVdEAtaf+d4jjVb19ikbqjI3u8z1xHFfFCt894g8/ragtzdFY94l9dJnE69noq06WgUg3EHuneh9ncU68ysHLYMYijoRFIOOiX"
+    "ZW+4e4nMsWgIkSinj7VKCWLf+WPnjXNOaY3YXhsWRiHZujW5ndvmlWKlV2+n+vpWwp1vJMk4+1GIxhY/CsXR4t8Ws/Qu9G5illNCltFRV7M3lN"
+    "kt3kQmtbhbCXNmWr2FqakWJoo5u0W0F2QP1YDTt5fRHgv5roqbdVndF1rmPL7kpkcDTui1QmvlrfXrXaPa2N7JOADLVzyM1OoD+4fbBLuzKYYf"
+    "CYm7LvWNSuIL+YVth72bUBC//38hVnxT5Ro/tsmdH6mgu1z3zTLoCwV/q24FPMv0z+//byr0ekdXNRqOlDtmJxP/uS1IOU8c6banwcpECQaq7Q"
+    "txld6h237/PypbG+yo0VH/O9q1T26SZnxyg+zil7m0YozLs5OlHk7Wl6pIv4Bdg0ziyUo/GTlEONDsuXm7GTqPtwLyrReHr6nGSLv3eaUzEGbB"
+    "M+DTPmZY08FmWfPzJVFXMwZYYI4o7JtfvPOCsiYtmNcWpMHBIY/IBHN/ZlcKP1/o7AyMuOXmcIHaR6RI/4NSfvqmafWT92cVYx925myk5r3/5L"
+    "xdkMSFkdYzWJ+qjTkOKkQIkceucP3EGbgBMJxjgwrrrYy3RTLjxrVy6tpzcqChTnhVTgBykFy/xuhe21Knk0QnDR3Xr33aAdDBFjU0OJStWcBw"
+    "/kXt1hAC4Qi2uIdbfcdbaabnnfayYZbZXe66yW/UCTZcFz54evXAD/GQ5faKz1inmcdulFLHqwL+v60ofVYzqjBWBXcAkEDuHjTn5xBv3LFC+V"
+    "XZ1x7QLleZK/yo8iM4xd6jlhOW81URRzxAI3SzuOCn7aS5urjI1BEPHKIJiy3RNTyzIVsOLgiIoiuf7oJ0bTn/7ePP5gv3keikA2fIRX9fQjOY"
+    "7kol9VT6naUSO7UTsWX34woMJ122Lb8dHMhK6ql0IkuGCIZLyE9uh/cSbRslW5Tq0OJmZxgmLWFynOwpKpWlgj5v3V3IfoH56ieI7uDvKvv9hb"
+    "Qb46cwct4pxbCDcJ4u+MuTaKQx8dnSSLJKkaDpXOWRgMKFOfv5fiBUr5Z215ZD0pkLxhJXIUSzIG/WgVUKZsqZKklmRo4CdiJH+n5NVcx13/oc"
+    "K8vx+jtlWY+z1ALaMn1iPTnmGGWa1Mc2zjJIh44ppDY0VcA75AnMWfP0yjPWoRfVIwws44qotoTAMCY6LNW+IMJenFWL628fQUbu+tuffoA9xP"
+    "W3Jw8/0JuKuWsj9TXSZCmmJLjPGLXHHzSE+1os2Ep9DGLRR431w5++6U9pBNCwQKIRxeDEio7B2Ilg0KnQksEhmcAPspTkwy9NWeSGJ0MGTW4g"
+    "6oAY18XdRaRcXFZEZzzry/iEa6JhAa//ZiXMu4bK51qifem2FtczVTYnP4uyRdH2m4PsGtlsInmHauOFQ9n2KhvMBUeFa710ojbDnyrbdonbTC"
+    "B5rIDmv0jLElGzxnSxGfY6FcgG3TPrhgoMSqRmPaujtmsyzBuoLu30tU/IZ0KTnpCTjk7GxW0kdZcmtiFn73lDnF3TzyCPwOW2uIP3TUIaveP1"
+    "nK/a+BY3sah1mRoT9uUV2dgcHOgUciY6xZdPtCzPDrsyrHQYnNeD4arvEHRY1sAX0Z9MC4F3itiUWFcajlqL0s0kpI1yp+dxthy3DpXnO+6Glu"
+    "thKtN7kedw3EqZdsI5KUMUV6EeGk4u1kFj0XcQrikE5Aq259SdFICSD1CLzPiD0ei97AWBdeQ5aHBkwU6DCWGYUQ2YoEbptySdij/4y6mVyOAv"
+    "vmJwt7cNiTIa9P2fM3hulfo0BhNNWM2L2pZwseQ+sxnGAa/ES+rtTInlq/HVuWpYiNXis0ZWDr4DqsBD5zOmYUxnMiUr22yRZjtb7WK4DZNI4j"
+    "MMcjKjKtdYhRk7aZZWo+VFTR2yWD0xb74p9C9R7RGLWUDEsGTCJr4OPiXMzhdScUxHHY5SxEwfKBMYbCx05787Keyz5qfOPCzsk2ce6syjwj55"
+    "5pHOfFjYJ898qDMfFfbJMx/Zv0AA6An9sE6HjPox3Q7DXtTeNkfULy6O4ak6567ME30KJQrjllAizcrou0Pql1PNTIhB5SBefIURcGap0zxV8T"
+    "YGFuivwAyezhfVOCMCvdwXXy6PFFIVI8dRwlcUnHUxnkeEqyFnts3XKvfWCenQEYlH0FVSXVakEJKCO6EOpdPvXlbi7TId87WpG9JMLEOs7JIm"
+    "u0J4N0bxP5iNKmCNDo78+OOfzS94nhR4yPxk9fAE1j5Sb4vYytzzx2FEEcLBu26TCEvUw4qMcYoHbDPCVdepUpqpeERcTySn0L3VXz95XwEIw6"
+    "S7xvQr/TUVtAEeIx8m04MyXBThzjc3jmL0tB4ctI1H/XrbbJvumaIN1Dz3onWyxrkaNo6v4c8sKrWrBm1Dq7fLNKNlrlLLlIOGeZU1jMIMp1rG"
+    "oACjqCmPoolmGbUK9xzt9fcXVd8sEfVkrXIcAynYpHGxEkZU39oqBjjvWwUytGqUe+kJSdSZpDGLZjdulDa3NGDXv3l+Tyqtin+G1nVaIGv9Ug"
+    "YTrLUJnCHPSUYA3Vt6PPa09LSdk1evNcGxFQzlSk1NLBYQ1w4zzxXrUY3REUVZ9++J0K/WGFwEkTUBc9LJMhojYjgz3KFbwud7HBBLOpeUmNln"
+    "8YtzGGXJiGjytZlT1vofRA2IYX06HJP2HqueWJqZVvYg4VlTBVd+sjTNCRNoQtYrAkR1T7jeQQeQ+k0KB2aLHwyeQxdlNlguI2o/xi+u+mHR3m"
+    "wojuYDqZEMHr3qK0oVysi3TXG1gqYhi69DTbjPa5iVvY5ch9+QWznO7JfU1kUwiFynnfYLXNiG36wfxpeGVkg9by5f/WQm45YhFiWfSAKdxXGu"
+    "OM1mkqkrRomUOosafvZlldYrRTruskNYPkxB1U+06/lj35sSYAGTXdts2Km53E/aqG+U+NfDjnN2W2KZ03ai63/fwsd4YHFaukbrhK7ZF0TuKF"
+    "GHl/9z+0SHhFLaTovifujuZ5hg1r5pou6HN5I89mNhDIXBVz05nWd/xoK5Gb7LV75Jmpjx83d7NUA3Tzxu5DFAMx891ThVGkmyXLHU4OsrMkmr"
+    "2P5nS3uW/2Alnzru/NQh56eGNk8wuHb8mJVRsk1d5LUnKrG6Z/ZE6KlHswDG70vNLFsXvyyOkigilcnKzpLhGUepICCpEczSOfhMRfjnX7/5xz"
+    "yjlGsICqMtphXVREMiY6SwQCQDDOYJOr+uwCThI85Livw66n5eAz9B5DEW6AJhItqTbAxwTyx9T2uuLz0u4MpdOKpQWN5ektro6UkXrjrCB7jL"
+    "bOti2Ww+vgz7agQswtbL9uUvGoqA+SYY1DwvJAKhGR47jtYlBJLvCZ4nsevdUZS9e5qykmQFOZM0dl6Q8qgc8k/xFj32DAVoWJgHLE2ZoY5SYQ"
+    "6Dsvz9qUQpxmWxZQlF8J4oQgVrK5TtWSVYGcPSUJqDFebQLuXMdEaC8Pg8rxUIyF8prBel6SfZY9iGuXE4He4tLFvOas7GGKVgfG0MoXSGaFJE"
+    "jSIe7ilNKQotlTMKrFw+10csBBBtj+ncxg2dHI9rdUHnQamDxebrXWr+cHEW+kdj67Jub2yzSm0208YSy3+Hgb3rBOdQbmv3+Ii4/PIS6xqVIA"
+    "qmYqxujLqjUdwedjrujg1d2rNNhXzs/VFmvyqvJmVvp97VFZiAOBxMyNlOvbpBaygfmhNLpLrO3+bV7Ie//Bl2QBT+kIp1nLkSafTTlvyQCniU"
+    "L1Mi773lLY+j55UKvvoX5sC/CA=="
 )
 
 
@@ -1030,9 +1073,11 @@ _install_i18n()
 # (?tema=claro|oscuro) para que se conserve al recargar.
 # El tema en uso vive en «theme_val» (no es clave de widget), igual que el color: no se pierde si el control se reinicia.
 if st.session_state.get("theme_val") not in ("☀️", "🌙"):          # por defecto, tema claro
-    st.session_state["theme_val"] = "🌙" if str(st.query_params.get("tema", "")).lower() == "oscuro" else "☀️"
+    st.session_state["theme_val"] = "🌙" if (str(st.query_params.get("tema", "")).lower() == "oscuro"
+                                            or PREFS.get("theme") == "oscuro") else "☀️"
 if st.session_state.get("nav_val") not in ("lateral", "superior"):
-    st.session_state["nav_val"] = "superior" if str(st.query_params.get("menu", "")).lower() == "superior" else "lateral"
+    _qm = str(st.query_params.get("menu", "")).lower()
+    st.session_state["nav_val"] = "superior" if (_qm or PREFS.get("menu")) == "superior" else "lateral"
 if st.session_state.get("nav_mode_w") != st.session_state["nav_val"]:
     st.session_state["nav_mode_w"] = st.session_state["nav_val"]
 NAV_MODE = st.session_state["nav_val"]
@@ -1071,7 +1116,7 @@ def _acc_ok(v) -> bool:
 
 if not _acc_ok(st.session_state.get("acc_val")):
     _qc = "#" + str(st.query_params.get("color", "")).strip().lstrip("#").lower()
-    st.session_state["acc_val"] = _qc if _acc_ok(_qc) else ACC_DEF
+    st.session_state["acc_val"] = _qc if _acc_ok(_qc) else (PREFS["color"] if _acc_ok(PREFS.get("color")) else ACC_DEF)
 ACC = st.session_state["acc_val"].lower()
 if st.query_params.get("color") and not _acc_ok("#" + str(st.query_params.get("color")).strip().lstrip("#").lower()):
     del st.query_params["color"]                # p. ej. un marcador antiguo con ?color=000000
@@ -1263,7 +1308,7 @@ st.html(f"""<script>
 (function () {{
   try {{
     var LS = window.localStorage, url = new URL(window.location.href), cur = "{ACC[1:]}";
-    var had = {str(bool(st.query_params.get("color"))).lower()}, saved = LS.getItem("llibreta_color");
+    var had = {str(bool(st.query_params.get("color")) or _acc_ok(PREFS.get("color"))).lower()}, saved = LS.getItem("llibreta_color");
     LS.removeItem("llibreta_tema");
     if (!had && !sessionStorage.getItem("llibreta_prefs_done") && /^[0-9a-f]{{6}}$/.test(saved || "") && saved !== cur) {{
       sessionStorage.setItem("llibreta_prefs_done", "1");
@@ -1410,7 +1455,7 @@ _MESH_C = "255,255,255" if not LIGHT else "0,0,0"
 BG_OPTS = {"curvas": "Curvas de nivel", "crestas": "Crestas", "perfil": "Perfil de Cavalls", "malla": "Solo malla"}
 if st.session_state.get("sb_bg") not in BG_OPTS:
     _qb = str(st.query_params.get("fondo", "")).strip().lower()
-    st.session_state["sb_bg"] = _qb if _qb in BG_OPTS else "curvas"
+    st.session_state["sb_bg"] = _qb if _qb in BG_OPTS else (PREFS.get("bg") if PREFS.get("bg") in BG_OPTS else "curvas")
 _ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
 
@@ -3066,9 +3111,9 @@ if "mob_view" not in st.session_state:
     _qv = str(st.query_params.get("vista", "")).strip().lower()
     st.session_state["mob_view"] = _qv in ("movil", "móvil") if _qv else _ua_is_mobile()
 if "sb_hike" not in st.session_state:
-    st.session_state["sb_hike"] = _qp_bool("caminatas", False)
-if "sb_cinta_dp" not in st.session_state:          # siempre activo al abrir la app (el interruptor vale para la sesión)
-    st.session_state["sb_cinta_dp"] = True
+    st.session_state["sb_hike"] = _qp_bool("caminatas", bool(PREFS.get("hike", False)))
+if "sb_cinta_dp" not in st.session_state:          # activo al abrir la app, salvo que se haya guardado otra cosa en Ajustes
+    st.session_state["sb_cinta_dp"] = bool(PREFS.get("cinta", True))
 
 
 def _sync_view():
@@ -3182,6 +3227,24 @@ with st.container(key="cfgbox"), st.popover("⚙ Ajustes", key="cfgpop"):
         st.info("Configura ATHLETE_ID e INTERVALS_API_KEY en los secretos de la app, o introdúcelos aquí para esta sesión.")
         athlete = st.text_input("Athlete ID", value=athlete, placeholder="i123456").strip()
         key = st.text_input("API key", value=key, type="password").strip()
+    if st.button("💾 Guardar como predeterminados", key="sb_prefs_save", width="stretch",
+                 help="Guarda idioma, tema, menú, color, fondo y los interruptores de caminatas y D+ de cinta en intervals.icu: "
+                      "la app los usa al abrirse, en cualquier dispositivo. La vista móvil y la temporada no se guardan."):
+        _pv = {"lang": st.session_state.get("sb_lang"), "theme": "claro" if LIGHT else "oscuro", "menu": NAV_MODE,
+               "color": ACC, "bg": st.session_state.get("sb_bg"), "hike": bool(st.session_state.get("sb_hike")),
+               "cinta": bool(st.session_state.get("sb_cinta_dp"))}
+        try:
+            app_note_save(PREFS_NAME, "demo_prefs", _pv)
+            _prefs_fetch.clear()
+            st.session_state["prefs0"] = _pv
+            st.toast("Ajustes guardados: se aplicarán al abrir la app.", icon="💾")
+        except Exception as e:  # noqa: BLE001
+            st.error(f"No se pudieron guardar los ajustes: {e}")
+    if PREFS:
+        _diff = PREFS != {"lang": st.session_state.get("sb_lang"), "theme": "claro" if LIGHT else "oscuro", "menu": NAV_MODE,
+                          "color": ACC, "bg": st.session_state.get("sb_bg"), "hike": bool(st.session_state.get("sb_hike")),
+                          "cinta": bool(st.session_state.get("sb_cinta_dp"))}
+        st.caption("Hay cambios sin guardar como predeterminados." if _diff else "✓ Son tus ajustes predeterminados.")
     with st.expander("Objetivos de la semana", key="sb_x_obj"):
         st.caption("Déjalos vacíos para usar tu media de las 8 últimas semanas.")
         TARGETS = {
