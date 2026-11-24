@@ -807,58 +807,61 @@ _I18N_Z = (
     "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"
-    "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"
-    "tohEtakt2sV5s/TwoJdW/wLc4i9F"
+    "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"
 )
 
 
@@ -3195,75 +3198,93 @@ if "sb_year" not in st.session_state:
 
 # Sin barra lateral: las opciones están en el desplegable «⚙ Ajustes», fijado a la derecha de la barra superior
 with st.container(key="cfgbox"), st.popover("⚙ Ajustes", key="cfgpop"):
-    st.markdown('<div class="navg">Ajustes</div>', unsafe_allow_html=True)
-    st.selectbox("Idioma · Language", list(LANGS), key="sb_lang", format_func=lambda v: LANGS[v],
-                 on_change=lambda: st.query_params.__setitem__("idioma", st.session_state["sb_lang"]))
-    st.toggle("📱 Vista móvil", key="mob_view", on_change=_sync_view,
-              help="Resumen de todas las secciones en una sola página para el móvil. Guarda la dirección con ?vista=movil "
-                   "como marcador para abrirla directamente.")
-    st.segmented_control("Tema", ["🌙", "☀️"], key="theme_icon", on_change=_sync_theme,
-                         format_func=lambda v: {"🌙": "🌙 Carbono", "☀️": "☀️ Espuma"}[v], help="Tema oscuro / claro")
-    st.segmented_control("Menú", ["lateral", "superior"], key="nav_mode_w", on_change=_sync_nav,
-                         format_func=lambda v: {"lateral": "▌ Lateral", "superior": "▀ Superior"}[v],
-                         help="Menú lateral fijo (por defecto) o barra superior con menús desplegables")
-    _cp1, _cp2 = st.columns([3, 2], vertical_alignment="bottom")
-    if not _HEX.fullmatch(str(st.session_state.get("sb_accent_w", ""))) or \
-            str(st.session_state.get("sb_accent_w")).lower() != ACC:
-        st.session_state["sb_accent_w"] = ACC     # el selector siempre muestra el color en uso
-    _cp1.color_picker("Color principal", key="sb_accent_w", on_change=_acc_pick,
-                      help="Color de acento de la web: barra superior, títulos, botones y gráficos principales.")
-    _cp2.button("Restablecer", key="sb_accent_reset", width="stretch",
-                on_click=_acc_reset)
-    st.selectbox("Fondo", list(BG_OPTS), key="sb_bg", format_func=BG_OPTS.get,
-                 on_change=lambda: st.query_params.__setitem__("fondo", st.session_state["sb_bg"]),
-                 help="Fondo discreto relacionado con la montaña, sobre la textura de malla.")
-    year = st.selectbox("Temporada", _years, key="sb_year", on_change=_sync_year)
-    hike = st.toggle("Sumar caminatas a D+ y Km", key="sb_hike", on_change=_sync_flags)
-    cinta_dp = st.toggle("Sumar D+ de cinta (según pendiente)", key="sb_cinta_dp", on_change=_sync_flags,
-                         help="El D+ de cinta se calcula como km × pendiente real (el nivel de la cinta convertido a %). "
-                              "Se edita en la sección Cinta.")
-    if st.button("Actualizar datos", type="primary", width="stretch"):
-        st.cache_data.clear()
-    demo = str(get_secret("DEMO", "")).strip() == "1"
-    athlete = str(get_secret("ATHLETE_ID", "")).strip()
-    key = str(get_secret("INTERVALS_API_KEY", "")).strip()
-    if not demo and (not athlete or not key):
-        st.info("Configura ATHLETE_ID e INTERVALS_API_KEY en los secretos de la app, o introdúcelos aquí para esta sesión.")
-        athlete = st.text_input("Athlete ID", value=athlete, placeholder="i123456").strip()
-        key = st.text_input("API key", value=key, type="password").strip()
+    # Agrupado en pestañas para que ocupe poco: Aspecto · Datos · Objetivos; debajo, guardar como predeterminados.
+    t_asp, t_dat, t_obj = st.tabs(["🎨 Aspecto", "📊 Datos", "🎯 Objetivos"])
+    with t_asp:
+        with st.container(key="cfgnw_1"):
+            _a1, _a2 = st.columns(2, vertical_alignment="bottom")
+            _a1.selectbox("Idioma · Language", list(LANGS), key="sb_lang", format_func=lambda v: LANGS[v],
+                          on_change=lambda: st.query_params.__setitem__("idioma", st.session_state["sb_lang"]))
+            _a2.selectbox("Fondo", list(BG_OPTS), key="sb_bg", format_func=BG_OPTS.get,
+                          on_change=lambda: st.query_params.__setitem__("fondo", st.session_state["sb_bg"]),
+                          help="Fondo discreto relacionado con la montaña, sobre la textura de malla.")
+        _a3, _a4 = st.columns(2, vertical_alignment="bottom")
+        with _a3:
+            st.segmented_control("Tema", ["🌙", "☀️"], key="theme_icon", on_change=_sync_theme,
+                                 format_func=lambda v: {"🌙": "🌙 Carbono", "☀️": "☀️ Espuma"}[v], help="Tema oscuro / claro")
+        with _a4:
+            st.segmented_control("Menú", ["lateral", "superior"], key="nav_mode_w", on_change=_sync_nav,
+                                 format_func=lambda v: {"lateral": "▌ Lateral", "superior": "▀ Superior"}[v],
+                                 help="Menú lateral fijo (por defecto) o barra superior con menús desplegables")
+        _cp0 = st.container(key="cfgnw_2")
+        _cp1, _cp2 = _cp0.columns([1, 2], vertical_alignment="bottom")
+        if not _HEX.fullmatch(str(st.session_state.get("sb_accent_w", ""))) or \
+                str(st.session_state.get("sb_accent_w")).lower() != ACC:
+            st.session_state["sb_accent_w"] = ACC     # el selector siempre muestra el color en uso
+        _cp1.color_picker("Color principal", key="sb_accent_w", on_change=_acc_pick,
+                          help="Color de acento de la web: barra superior, títulos, botones y gráficos principales.")
+        _cp2.button("Restablecer color", key="sb_accent_reset", width="stretch", on_click=_acc_reset)
+        st.toggle("📱 Vista móvil", key="mob_view", on_change=_sync_view,
+                  help="Resumen de todas las secciones en una sola página para el móvil. Guarda la dirección con ?vista=movil "
+                       "como marcador para abrirla directamente.")
+    with t_dat:
+        _d1, _d2 = st.container(key="cfgnw_3").columns(2, vertical_alignment="bottom")
+        year = _d1.selectbox("Temporada", _years, key="sb_year", on_change=_sync_year)
+        if _d2.button("↻ Actualizar datos", type="primary", width="stretch",
+                      help="Vuelve a leer las actividades de intervals.icu (los datos se guardan unos minutos)."):
+            st.cache_data.clear()
+        hike = st.toggle("Sumar caminatas a D+ y Km", key="sb_hike", on_change=_sync_flags)
+        cinta_dp = st.toggle("Sumar D+ de cinta (según pendiente)", key="sb_cinta_dp", on_change=_sync_flags,
+                             help="El D+ de cinta se calcula como km × pendiente real (el nivel de la cinta convertido a %). "
+                                  "Se edita en la sección Cinta.")
+        st.caption("D+ y Km = Run y TrailRun (más Hike si lo activas; D+ de cinta si lo activas) · Km Cinta = VirtualRun · "
+                   "min Gim = Workout, WeightTraining y Elliptical.")
+        demo = str(get_secret("DEMO", "")).strip() == "1"
+        athlete = str(get_secret("ATHLETE_ID", "")).strip()
+        key = str(get_secret("INTERVALS_API_KEY", "")).strip()
+        if not demo and (not athlete or not key):
+            st.info("Configura ATHLETE_ID e INTERVALS_API_KEY en los secretos de la app, o introdúcelos aquí para esta sesión.")
+            athlete = st.text_input("Athlete ID", value=athlete, placeholder="i123456").strip()
+            key = st.text_input("API key", value=key, type="password").strip()
+    with t_obj:
+        st.caption("Objetivos de la semana. Déjalos vacíos para usar tu media de las 8 últimas semanas.")
+        _o = st.container(key="cfgnw_4").columns(2)
+        TARGETS = {
+            "dp": _o[0].number_input("D+ (m)", min_value=0, step=100, value=None, placeholder="media 8 sem"),
+            "km": _o[1].number_input("Km", min_value=0.0, step=5.0, value=None, placeholder="media 8 sem"),
+            "kmE": _o[0].number_input("Km-esfuerzo", min_value=0.0, step=5.0, value=None, placeholder="media 8 sem"),
+            "h": _o[1].number_input("Horas", min_value=0.0, step=0.5, value=None, placeholder="media 8 sem"),
+            "load": _o[0].number_input("Carga", min_value=0, step=25, value=None, placeholder="media 8 sem"),
+            "n": _o[1].number_input("Sesiones", min_value=0, step=1, value=None, placeholder="media 8 sem"),
+        }
+    _pv = {"lang": st.session_state.get("sb_lang"), "theme": "claro" if LIGHT else "oscuro", "menu": NAV_MODE,
+           "color": ACC, "bg": st.session_state.get("sb_bg"), "hike": bool(st.session_state.get("sb_hike")),
+           "cinta": bool(st.session_state.get("sb_cinta_dp"))}
     if st.button("💾 Guardar como predeterminados", key="sb_prefs_save", width="stretch",
-                 help="Guarda idioma, tema, menú, color, fondo y los interruptores de caminatas y D+ de cinta en intervals.icu: "
-                      "la app los usa al abrirse, en cualquier dispositivo. La vista móvil y la temporada no se guardan."):
-        _pv = {"lang": st.session_state.get("sb_lang"), "theme": "claro" if LIGHT else "oscuro", "menu": NAV_MODE,
-               "color": ACC, "bg": st.session_state.get("sb_bg"), "hike": bool(st.session_state.get("sb_hike")),
-               "cinta": bool(st.session_state.get("sb_cinta_dp"))}
+                  help="Guarda idioma, tema, menú, color, fondo y los interruptores de caminatas y D+ de cinta en intervals.icu: "
+                       "la app los usa al abrirse, en cualquier dispositivo. La vista móvil y la temporada no se guardan."):
         try:
             app_note_save(PREFS_NAME, "demo_prefs", _pv)
             _prefs_fetch.clear()
-            st.session_state["prefs0"] = _pv
+            st.session_state["prefs0"] = PREFS = _pv
             st.toast("Ajustes guardados: se aplicarán al abrir la app.", icon="💾")
         except Exception as e:  # noqa: BLE001
             st.error(f"No se pudieron guardar los ajustes: {e}")
-    if PREFS:
-        _diff = PREFS != {"lang": st.session_state.get("sb_lang"), "theme": "claro" if LIGHT else "oscuro", "menu": NAV_MODE,
-                          "color": ACC, "bg": st.session_state.get("sb_bg"), "hike": bool(st.session_state.get("sb_hike")),
-                          "cinta": bool(st.session_state.get("sb_cinta_dp"))}
-        st.caption("Hay cambios sin guardar como predeterminados." if _diff else "✓ Son tus ajustes predeterminados.")
-    with st.expander("Objetivos de la semana", key="sb_x_obj"):
-        st.caption("Déjalos vacíos para usar tu media de las 8 últimas semanas.")
-        TARGETS = {
-            "dp": st.number_input("D+ (m)", min_value=0, step=100, value=None, placeholder="media 8 sem"),
-            "km": st.number_input("Km", min_value=0.0, step=5.0, value=None, placeholder="media 8 sem"),
-            "kmE": st.number_input("Km-esfuerzo", min_value=0.0, step=5.0, value=None, placeholder="media 8 sem"),
-            "h": st.number_input("Horas", min_value=0.0, step=0.5, value=None, placeholder="media 8 sem"),
-            "load": st.number_input("Carga", min_value=0, step=25, value=None, placeholder="media 8 sem"),
-            "n": st.number_input("Sesiones", min_value=0, step=1, value=None, placeholder="media 8 sem"),
-        }
-    st.caption("D+ y Km = Run y TrailRun (más Hike si lo activas; D+ de cinta si lo activas) · Km Cinta = VirtualRun · min Gim = Workout, WeightTraining y Elliptical.")
+    st.caption("" if not PREFS else ("✓ Son tus ajustes predeterminados." if PREFS == _pv else
+                                      "Hay cambios sin guardar como predeterminados."))
     st.markdown(f"""<style>
 .navg {{ font: 700 15px/1.3 "Barlow Condensed", sans-serif; letter-spacing: .14em; text-transform: uppercase;
   color: {GOLD}; margin: 4px 0 6px; }}
 [data-testid="stMarkdownContainer"]:has(> .navg) {{ margin-bottom: 0 !important; }}
+/* Ajustes: panel compacto con pestañas */
+[data-testid="stPopoverBody"]:has(.st-key-sb_prefs_save) {{ width: min(460px, calc(100vw - 24px)) !important;
+  max-width: calc(100vw - 24px) !important; padding: 10px 14px 12px !important; }}
+[data-testid="stPopoverBody"]:has(.st-key-sb_prefs_save) [data-testid="stVerticalBlock"] {{ gap: .55rem; }}
+[data-testid="stPopoverBody"]:has(.st-key-sb_prefs_save) [data-baseweb="tab-list"] {{ gap: 6px; }}
+[data-testid="stPopoverBody"]:has(.st-key-sb_prefs_save) [data-testid="stCaptionContainer"] {{ line-height: 1.35; }}
+[class*="st-key-cfgnw_"] [data-testid="stHorizontalBlock"] {{ flex-direction: row !important; flex-wrap: nowrap !important; }}
+[class*="st-key-cfgnw_"] [data-testid="stColumn"] {{ min-width: 0 !important; width: auto !important; flex: 1 1 0 !important; }}
+.st-key-cfgnw_2 [data-testid="stColumn"]:first-child {{ flex: 0 0 auto !important; }}
 </style>""", unsafe_allow_html=True)
 MOBILE = bool(st.session_state.get("mob_view"))
 SEC = st.session_state.get("sec", "hoy")
