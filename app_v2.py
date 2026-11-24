@@ -1968,6 +1968,14 @@ a {{ color: {GOLD}; }}
 /* Cargando: montaña que se dibuja y punto que sube (arriba a la derecha y en los st.spinner) */
 [data-testid="stStatusWidgetRunningManIcon"] {{ display: none !important; }}
 [data-testid="stStatusWidgetRunningIcon"] {{ width: 66px !important; height: 24px !important; background: url("{MTN_SPIN}") center / contain no-repeat; }}
+/* Mientras la app se recalcula (los componentes quedan atenuados), la montaña en el centro de la pantalla. La cabecera de
+   Streamlit (donde va su indicador) está oculta; se detecta por el icono «running» que sigue en el DOM. Aparece con un
+   pequeño retraso para no parpadear en recálculos rápidos. */
+.stApp::after {{ content: ""; position: fixed; left: 50%; top: 50%; width: 132px; height: 64px; margin: -32px 0 0 -66px;
+  z-index: 999999; pointer-events: none; display: none; border-radius: 14px; border: 1px solid {LINE};
+  background: {SURFACE} url("{MTN_SPIN}") center / 104px 38px no-repeat; box-shadow: 0 8px 26px rgba(0,0,0,.18); }}
+.stApp:has([data-testid="stStatusWidgetRunningIcon"])::after {{ display: block; animation: mtnIn .25s ease .45s both; }}
+@keyframes mtnIn {{ from {{ opacity: 0; transform: scale(.92); }} to {{ opacity: 1; transform: none; }} }}
 [data-testid="stSpinnerIcon"] {{ border: 0 !important; border-radius: 0 !important; animation: none !important; width: 72px !important;
   height: 26px !important; background: url("{MTN_SPIN}") center / contain no-repeat !important; }}
 [data-testid="stSpinnerIcon"]::before, [data-testid="stSpinnerIcon"]::after {{ display: none !important; }}
