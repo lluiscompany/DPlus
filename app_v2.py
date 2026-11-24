@@ -807,63 +807,66 @@ _I18N_Z = (
     "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"
-    "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"
+    "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"
 )
 
 
@@ -1065,7 +1068,22 @@ def _install_i18n():
     _pc = original("plotly_chart")
     if _pc is not None:
         def _plotly(self, fig, *a, **k):
-            return _pc(self, _tr_fig(fig), *a, **k)
+            fig = _tr_fig(fig)
+            if st.session_state.get("sb_touch"):
+                # Pantalla táctil: al hacer scroll o tocar, el gráfico no hace zoom, no selecciona por arrastre y la
+                # leyenda no oculta series. Tocar un punto sigue mostrando su valor (y elige el punto donde sirve para eso).
+                try:
+                    fig.update_layout(dragmode=False, legend=dict(itemclick=False, itemdoubleclick=False))
+                    fig.update_xaxes(fixedrange=True)
+                    fig.update_yaxes(fixedrange=True)
+                except Exception:  # noqa: BLE001
+                    pass
+                cfg_ = dict(k.get("config") or {})
+                cfg_.update(scrollZoom=False, doubleClick=False, displayModeBar=False, showTips=False)
+                k["config"] = cfg_
+                if k.get("on_select") not in (None, "ignore"):
+                    k["selection_mode"] = ("points",)
+            return _pc(self, fig, *a, **k)
         _DG.plotly_chart = _plotly
     # Las funciones st.* son métodos ya enlazados al contenedor principal: se vuelven a enlazar con las versiones nuevas
     main_ = getattr(st.markdown, "__self__", None)
@@ -1359,9 +1377,23 @@ if _base not in ("dark", "light"):
     except Exception:  # noqa: BLE001
         _base = "light"
 _BASE_LIGHT = _base == "light"
-_GRID_FIX = ("" if LIGHT == _BASE_LIGHT else
-             '[data-testid="stDataFrameResizable"] canvas {{ '
-             'filter: invert(1) hue-rotate(180deg); }}').replace("{{", "{").replace("}}", "}")
+# Las tablas (st.dataframe / st.data_editor) se pintan en un canvas con el tema base de Streamlit, no con el de la app. Un
+# filtro CSS lleva su fondo al tono de las tarjetas de cada tema (antes, en los oscuros se invertía a negro puro):
+# t = luminosidad del fondo deseado, vb = la del fondo del tema base (blanco o el oscuro de Streamlit).
+_t_bg = sum(int(SURFACE[i:i + 2], 16) for i in (1, 3, 5)) / 765
+_vb = 1.0 if _BASE_LIGHT else 0.06
+if _BASE_LIGHT == LIGHT:
+    _gf = f"brightness({_t_bg / _vb:.3f})" if abs(_t_bg - _vb) > 0.01 else ""
+elif _BASE_LIGHT:
+    # Base clara y tema oscuro: se invierte (fondo 0, texto ≈ 0,8) y con contraste + brillo se lleva el fondo a t y el texto
+    # a ≈ 0,93, para que en Pizarra o Grafito no quede gris sobre gris.
+    _r = 0.93 / max(_t_bg, 0.02)
+    _c = min(1.0, max(0.05, (0.5 * _r - 0.5) / (0.3 + 0.5 * _r)))
+    _b = _t_bg / max(0.5 - 0.5 * _c, 0.01)
+    _gf = f"invert(1) hue-rotate(180deg) contrast({_c:.3f}) brightness({_b:.3f})"
+else:
+    _gf = f"invert({min(1.0, max(0.0, (_t_bg - _vb) / (1 - 2 * _vb))):.3f}) hue-rotate(180deg)"
+_GRID_FIX = f'[data-testid="stDataFrameResizable"] canvas {{ filter: {_gf}; }}' if _gf else ""
 if True:
     st.markdown(f"""<style>
 .stSelectbox [role="group"], .stMultiSelect [role="group"], [data-baseweb="select"] > div,
@@ -3137,6 +3169,15 @@ def _ua_is_mobile() -> bool:
     return bool(re.search(r"Mobi|iPhone", ua))
 
 
+if "sb_touch" not in st.session_state:           # gráficos «táctiles»: por defecto, en el móvil
+    st.session_state["sb_touch"] = _ua_is_mobile()
+if st.session_state["sb_touch"]:
+    # Plotly marca su capa de arrastre con «touch-action: none» y Safari no deja hacer scroll si el dedo empieza encima
+    # del gráfico: se permite el scroll vertical (y el gesto de zoom de la página).
+    st.markdown("<style>.js-plotly-plot .draglayer, .js-plotly-plot .nsewdrag, .js-plotly-plot .main-svg "
+                "{ touch-action: pan-y pinch-zoom !important; }</style>", unsafe_allow_html=True)
+
+
 # Los interruptores de la barra lateral se guardan también en la URL (?vista=…&caminatas=…&dcinta=…). En Android, al
 # cambiar de app o bloquear la tablet, Chrome corta la conexión y Streamlit abre una sesión nueva: sin la URL, los
 # interruptores volverían a su valor por defecto y parecería que no responden.
@@ -3254,6 +3295,9 @@ with st.container(key="cfgbox"), st.popover("⚙ Ajustes", key="cfgpop"):
         _cp1.color_picker("Color principal", key="sb_accent_w", on_change=_acc_pick,
                           help="Color de acento de la web: barra superior, títulos, botones y gráficos principales.")
         _cp2.button("Restablecer color", key="sb_accent_reset", width="stretch", on_click=_acc_reset)
+        st.toggle("👆 Gráficos para pantalla táctil", key="sb_touch",
+                  help="Al hacer scroll o tocar un gráfico no se hace zoom, no se selecciona arrastrando y la leyenda no "
+                       "oculta series; tocar un punto sigue mostrando su valor. Se activa solo en el móvil.")
         st.toggle("📱 Vista móvil", key="mob_view", on_change=_sync_view,
                   help="Resumen de todas las secciones en una sola página para el móvil. Guarda la dirección con ?vista=movil "
                        "como marcador para abrirla directamente.")
